@@ -102,43 +102,43 @@ const amphtmlBooleanAttributes = new Set([
     'subscriptions-dialog'
 ]);
 
+const once = true;
 
-export default function collapseBooleanAttributes(tree, options, moduleOptions) {
-    tree.walk(node => {
-        if (! node.attrs) {
-            return node;
-        }
-
+function onattrs(options, moduleOptions) {
+    return (attrs, node) => {
         if (! node.tag) {
-            return node;
+            return attrs;
         }
 
-        for (const attrName of Object.keys(node.attrs)) {
+        for (const attrName of Object.keys(attrs)) {
             if (attrName === 'visible' && node.tag.startsWith('a-')) {
                 continue;
             }
 
             if (htmlBooleanAttributes.has(attrName)) {
-                node.attrs[attrName] = true;
+                attrs[attrName] = true;
             }
             if (moduleOptions.amphtml && amphtmlBooleanAttributes.has(attrName) && node.attrs[attrName] === '') {
-                node.attrs[attrName] = true;
+                attrs[attrName] = true;
             }
 
             // collapse crossorigin attributes
             // Specification: https://html.spec.whatwg.org/multipage/urls-and-fetching.html#cors-settings-attributes
             if (
                 attrName.toLowerCase() === 'crossorigin' && (
-                    node.attrs[attrName] === 'anonymous' ||
-                    node.attrs[attrName] === ''
+                    attrs[attrName] === 'anonymous' ||
+                    attrs[attrName] === ''
                 )
             ) {
-                node.attrs[attrName] = true;
+                attrs[attrName] = true;
             }
         }
 
-        return node;
-    });
-
-    return tree;
+        return attrs;
+    };
 }
+
+export {
+    once, // It is a "once" module
+    onattrs
+};

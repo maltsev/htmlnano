@@ -92,53 +92,49 @@ const isLinkRelCanonical = ({ tag, attrs }) => {
 let relateUrlInstance;
 let STORED_URL_BASE;
 
-/** Convert absolute url into relative url */
-export default function minifyUrls(tree, options, moduleOptions) {
+const once = true;
+
+function onattrs(options, moduleOptions) {
     const urlBase = processModuleOptions(moduleOptions);
 
-    // Invalid configuration, return tree directly
-    if (!urlBase) return tree;
+    return (attrs, node) => {
+        // Invalid configuration, return directly
+        if (!urlBase) return attrs;
 
-    /** Bring up a reusable RelateUrl instances (only once)
-     *
-     * STORED_URL_BASE is used to invalidate RelateUrl instances,
-     * avoiding require.cache acrossing multiple htmlnano instance with different configuration,
-     * e.g. unit tests cases.
-     */
-    if (!relateUrlInstance || STORED_URL_BASE !== urlBase) {
-        relateUrlInstance = new RelateUrl(urlBase);
-        STORED_URL_BASE = urlBase;
-    }
+        /** Bring up a reusable RelateUrl instances (only once)
+         *
+         * STORED_URL_BASE is used to invalidate RelateUrl instances,
+         * avoiding require.cache acrossing multiple htmlnano instance with different configuration,
+         * e.g. unit tests cases.
+         */
+        if (!relateUrlInstance || STORED_URL_BASE !== urlBase) {
+            relateUrlInstance = new RelateUrl(urlBase);
+            STORED_URL_BASE = urlBase;
+        }
 
-    tree.walk(node => {
-        if (!node.attrs) return node;
-
-        if (!node.tag) return node;
-
-        if (!tagsHaveUriValuesForAttributes.has(node.tag)) return node;
+        if (!node.tag) return attrs;
+        if (!tagsHaveUriValuesForAttributes.has(node.tag)) return attrs;
 
         // Prevent link[rel=canonical] being processed
         // Can't be excluded by isUriTypeAttribute()
-        if (isLinkRelCanonical(node)) return node;
+        if (isLinkRelCanonical(node)) return attrs;
 
-        for (const [attrName, attrValue] of Object.entries(node.attrs)) {
-            const attrNameLower = attrName.toLowerCase();
-
-            if (isUriTypeAttribute(node.tag, attrNameLower)) {
+        for (const [attrName, attrValue] of Object.entries(attrs)) {
+            if (isUriTypeAttribute(node.tag, attrName)) {
                 // FIXME!
                 // relateurl@1.0.0-alpha only supports URL while stable version (0.2.7) only supports string
                 // the WHATWG URL API is very strict while attrValue might not be a valid URL
                 // new URL should be used, and relateUrl#relate should be wrapped in try...catch after relateurl@1 is stable
-                node.attrs[attrName] = relateUrlInstance.relate(attrValue);
+                attrs[attrName] = relateUrlInstance.relate(attrValue);
 
                 continue;
             }
 
-            if (isSrcsetAttribute(node.tag, attrNameLower)) {
+            if (isSrcsetAttribute(node.tag, attrName)) {
                 try {
                     const parsedSrcset = srcset.parse(attrValue);
 
-                    node.attrs[attrName] = srcset.stringify(parsedSrcset.map(srcset => {
+                    attrs[attrName] = srcset.stringify(parsedSrcset.map(srcset => {
                         srcset.url = relateUrlInstance.relate(srcset.url);
 
                         return srcset;
@@ -147,13 +143,16 @@ export default function minifyUrls(tree, options, moduleOptions) {
                     // srcset will throw an Error for invalid srcset.
                 }
 
-
                 continue;
             }
         }
 
-        return node;
-    });
-
-    return tree;
+        return attrs;
+    };
 }
+
+/** Convert absolute url into relative url */
+export {
+    once,
+    onattrs
+};

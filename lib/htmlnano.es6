@@ -6,6 +6,7 @@ import maxPreset from './presets/max';
 
 function htmlnano(options = {}, preset = safePreset) {
     return function minifier(tree) {
+        const nodeHandlers = [];
         const attrsHandlers = [];
         const contentsHandlers = [];
 
@@ -32,20 +33,40 @@ function htmlnano(options = {}, preset = safePreset) {
                 if (module.oncontent) {
                     contentsHandlers.push(module.oncontent(options, moduleOptions));
                 }
+                if (module.onnode) {
+                    nodeHandlers.push(module.onnode(options, moduleOptions));
+                }
             } else {
                 // It is a traditional htmlnano module
                 promise = promise.then(tree => module.default(tree, options, moduleOptions));
             }
         }
 
-        if (attrsHandlers.length + contentsHandlers.length > 0) {
+        if (attrsHandlers.length + contentsHandlers.length + nodeHandlers.length > 0) {
             promise = promise.then(tree => {
                 tree.walk(node => {
-                    for (const handler of attrsHandlers) {
-                        node.attrs = handler(node.attrs, node);
+                    if (node.attrs) {
+                        // Convert all attrs' key to lower case
+                        let newAttrsObj = {};
+                        Object.entries(node.attrs).forEach(([attrName, attrValue]) => {
+                            newAttrsObj[attrName.toLowerCase()] = attrValue;
+                        });
+
+                        for (const handler of attrsHandlers) {
+                            newAttrsObj = handler(newAttrsObj, node);
+                        }
+
+                        node.attrs = newAttrsObj;
                     }
-                    for (const handler of contentsHandlers) {
-                        node.content = handler(node.content, node);
+
+                    if (node.content) {
+                        for (const handler of contentsHandlers) {
+                            node.content = handler(node.content, node);
+                        }
+                    }
+
+                    for (const handler of nodeHandlers) {
+                        node = handler(node, node);
                     }
 
                     return node;
