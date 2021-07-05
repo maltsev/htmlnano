@@ -18,27 +18,26 @@ const safeToRemoveAttrs = new Set([
     'onkeyup'
 ]);
 
+const once = true;
 
-/** Removes empty attributes */
-export default function removeEmptyAttributes(tree) {
-    tree.walk(node => {
-        if (! node.attrs) {
-            return node;
-        }
-
-        Object.entries(node.attrs).forEach(([attrName, attrValue]) => {
-            const attrNameLower = attrName.toLowerCase();
-            if (!safeToRemoveAttrs.has(attrNameLower)) {
+function onattrs() {
+    return (attrs) => {
+        Object.entries(attrs).forEach(([attrName, attrValue]) => {
+            if (!safeToRemoveAttrs.has(attrName)) {
                 return;
             }
 
             if (attrValue === '' || (attrValue || '').match(/^\s+$/)) {
-                delete node.attrs[attrName];
+                delete attrs[attrName];
             }
         });
 
-        return node;
-    });
-
-    return tree;
+        return attrs;
+    };
 }
+
+/** Removes empty attributes */
+export {
+    once,
+    onattrs
+};

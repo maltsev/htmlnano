@@ -1,21 +1,23 @@
-/* Minify JSON inside <script> tags */
-export default function minifyJson(tree) {
-    // Match all <script> tags which have JSON mime type
-    tree.match({tag: 'script', attrs: {type: /(\/|\+)json/}}, node => {
-        let content = (node.content || []).join('');
-        if (! content) {
-            return node;
+const rNodeAttrsTypeJson = /(\/|\+)json/;
+
+const once = true;
+
+function oncontent() {
+    return (content, node) => {
+        if (node.attrs && node.attrs.type && rNodeAttrsTypeJson.test(node.attrs.type)) {
+            try {
+                content = JSON.stringify(JSON.parse((content || []).join('')));
+            } catch (error) {
+                // Invalid JSON
+            }
         }
 
-        try {
-            content = JSON.stringify(JSON.parse(content));
-        } catch (error) {
-            return node;
-        }
-
-        node.content = [content];
-        return node;
-    });
-
-    return tree;
+        return content;
+    };
 }
+
+/* Minify JSON inside <script> tags */
+export {
+    once,
+    oncontent
+};

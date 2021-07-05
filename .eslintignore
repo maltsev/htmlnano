@@ -1,2 +1,3 @@
 lib/modules/example.es6
+lib/modules/example_once.es6
 test.js

@@ -1,15 +1,11 @@
 import { attributesWithLists } from './collapseAttributeWhitespace';
 
-/** Deduplicate values inside list-like attributes (e.g. class, rel) */
-export default function collapseAttributeWhitespace(tree) {
-    tree.walk(node => {
-        if (! node.attrs) {
-            return node;
-        }
+const once = true;
 
-        Object.keys(node.attrs).forEach(attrName => {
-            const attrNameLower = attrName.toLowerCase();
-            if (! attributesWithLists.has(attrNameLower)) {
+function onattrs() {
+    return (attrs, node) => {
+        Object.keys(attrs).forEach(attrName => {
+            if (! attributesWithLists.has(attrName)) {
                 return;
             }
 
@@ -31,11 +27,15 @@ export default function collapseAttributeWhitespace(tree) {
                 uniqeAttrValues.add(attrValue);
             });
 
-            node.attrs[attrName] = deduplicatedAttrValues.join(' ');
+            attrs[attrName] = deduplicatedAttrValues.join(' ');
         });
 
-        return node;
-    });
-
-    return tree;
+        return attrs;
+    };
 }
+
+/** Deduplicate values inside list-like attributes (e.g. class, rel) */
+export {
+    once,
+    onattrs
+};

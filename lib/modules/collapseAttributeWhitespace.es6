@@ -4,25 +4,24 @@ export const attributesWithLists = new Set([
     'ping',
 ]);
 
-/** Collapse whitespaces inside list-like attributes (e.g. class, rel) */
-export default function collapseAttributeWhitespace(tree) {
-    tree.walk(node => {
-        if (! node.attrs) {
-            return node;
-        }
+const once = true;
 
-        Object.entries(node.attrs).forEach(([attrName, attrValue]) => {
-            const attrNameLower = attrName.toLowerCase();
-            if (! attributesWithLists.has(attrNameLower)) {
+function onattrs() {
+    return (attrs) => {
+        Object.entries(attrs).forEach(([attrName, attrValue]) => {
+            if (! attributesWithLists.has(attrName)) {
                 return;
             }
 
-            const newAttrValue = attrValue.replace(/\s+/g, ' ').trim();
-            node.attrs[attrName] = newAttrValue;
+            attrs[attrName] = attrValue.replace(/\s+/g, ' ').trim();
         });
 
-        return node;
-    });
-
-    return tree;
+        return attrs;
+    };
 }
+
+/** Collapse whitespaces inside list-like attributes (e.g. class, rel) */
+export {
+    once, // It is a "once" module
+    onattrs
+};

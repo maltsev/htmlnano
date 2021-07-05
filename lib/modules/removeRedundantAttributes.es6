@@ -91,19 +91,20 @@ const redundantAttributes = {
 
 const tagsHaveRedundantAttributes = new Set(Object.keys(redundantAttributes));
 
-/** Removes redundant attributes */
-export default function removeRedundantAttributes(tree) {
-    tree.walk(node => {
+const once = true;
+
+function onattrs() {
+    return (attrs, node) => {
         if (!node.tag) {
-            return node;
+            return attrs;
         }
 
         if (!tagsHaveRedundantAttributes.has(node.tag)) {
-            return node;
+            return attrs;
         }
 
         const tagRedundantAttributes = redundantAttributes[node.tag];
-        node.attrs = node.attrs || {};
+
         for (const redundantAttributeName of Object.keys(tagRedundantAttributes)) {
             let tagRedundantAttributeValue = tagRedundantAttributes[redundantAttributeName];
             let isRemove = false;
@@ -114,12 +115,16 @@ export default function removeRedundantAttributes(tree) {
             }
 
             if (isRemove) {
-                delete node.attrs[redundantAttributeName];
+                delete attrs[redundantAttributeName];
             }
         }
 
-        return node;
-    });
-
-    return tree;
+        return attrs;
+    };
 }
+
+/** Removes redundant attributes */
+export {
+    once,
+    onattrs
+};
