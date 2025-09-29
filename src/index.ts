@@ -8,7 +8,7 @@ import type PostHTML from 'posthtml';
 
 export type * from './types';
 
-const presets: HtmlnanoPredefinedPresets = {
+export const presets: HtmlnanoPredefinedPresets = {
     safe: safePreset,
     ampSafe: ampSafePreset,
     max: maxPreset
@@ -16,10 +16,9 @@ const presets: HtmlnanoPredefinedPresets = {
 
 export function loadConfig(
     options?: HtmlnanoOptions,
-    preset?: HtmlnanoPreset,
-    configPath?: string
+    preset?: HtmlnanoPreset
 ): [Partial<HtmlnanoOptions>, HtmlnanoPreset] {
-    const { skipConfigLoading = false, ...rest } = options || {};
+    const { skipConfigLoading = false, configPath, ...rest } = options || {};
     let restConfig: Partial<HtmlnanoOptions> = rest;
 
     if (!skipConfigLoading) {

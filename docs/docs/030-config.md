@@ -19,3 +19,13 @@ If you want to specify a preset that way, use `preset` key:
 
 Configuration files have lower precedence than passing options to `htmlnano` directly.
 So if you use both ways, then the configuration file would be ignored.
+
+### Custom path
+
+You can also pass a configuration file path in `options`:
+
+```js
+htmlnano.process(html, {
+    configPath: 'config.json',
+})
+```

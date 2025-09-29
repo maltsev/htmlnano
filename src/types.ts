@@ -18,6 +18,7 @@ export type PostHTMLNodeLike = PostHTML.Node | string;
 
 export interface HtmlnanoOptions {
     skipConfigLoading?: boolean;
+    configPath?: string;
     skipInternalWarnings?: boolean;
     collapseAttributeWhitespace?: boolean;
     collapseBooleanAttributes?: {
@@ -45,12 +46,12 @@ export interface HtmlnanoOptions {
     sortAttributesWithLists?: boolean | 'alphabetical' | 'frequency';
 }
 
-export interface HtmlnanoPreset extends Omit<HtmlnanoOptions, 'skipConfigLoading'> {}
+export interface HtmlnanoPreset extends Omit<HtmlnanoOptions, 'skipConfigLoading' | 'configPath'> { }
 
 export type HtmlnanoPredefinedPreset = 'safe' | 'ampSafe' | 'max';
 export type HtmlnanoPredefinedPresets = Record<HtmlnanoPredefinedPreset, HtmlnanoPreset>;
 
-export type HtmlnanoOptionsConfigFile = Omit<HtmlnanoOptions, 'skipConfigLoading'> & {
+export type HtmlnanoOptionsConfigFile = Omit<HtmlnanoOptions, 'skipConfigLoading' | 'configPath'> & {
     preset?: HtmlnanoPredefinedPreset;
 };
 
