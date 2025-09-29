@@ -59,6 +59,12 @@ posthtml(posthtmlPlugins)
     });
 ```
 
+## CLI
+
+```bash
+node_modules/.bin/htmlnano --help
+```
+
 
 ## Webpack
 
