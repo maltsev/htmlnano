@@ -61,8 +61,17 @@ posthtml(posthtmlPlugins)
 
 ## CLI
 
+You can use `htmlnano` as a CLI tool:
+
 ```bash
 node_modules/.bin/htmlnano --help
+```
+
+The options can be passed via the configuration file:
+
+```bash
+echo '{"collapseWhitespace": "all", "removeComments": "all"}' > config.json
+node_modules/.bin/htmlnano test.html -c config.json
 ```
 
 
