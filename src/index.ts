@@ -35,9 +35,7 @@ export function loadConfig(
                 delete (rc.config as HtmlnanoOptionsConfigFile).preset;
             }
 
-            if (!options) {
-                restConfig = rc.config as Partial<HtmlnanoOptions>;
-            }
+            restConfig = { ...(rc.config as Partial<HtmlnanoOptions>), ...restConfig };
         }
     }
 
