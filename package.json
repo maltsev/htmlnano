@@ -7,6 +7,7 @@
   "scripts": {
     "clean": "rimraf dist",
     "build": "npm run clean && bunchee",
+    "postbuild": "chmod +x dist/bin.js",
     "compile": "npm run build",
     "lint": "eslint --fix .",
     "pretest": "npm run lint && npm run compile",
@@ -19,6 +20,7 @@
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
+  "bin": "./dist/bin.js",
   "exports": {
     "./helpers": {
       "types": "./dist/helpers.d.ts",
@@ -55,6 +57,7 @@
   ],
   "dependencies": {
     "@types/relateurl": "^0.2.33",
+    "commander": "^14.0.0",
     "cosmiconfig": "^9.0.0",
     "posthtml": "^0.16.5"
   },

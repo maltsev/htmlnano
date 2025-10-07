@@ -44,6 +44,10 @@ describe('[htmlnano]', () => {
     it('should not treat skipConfigLoading as a module name', () => {
         return init('<div></div>', '<div></div>', { skipConfigLoading: true });
     });
+
+    it('should not treat configFile as a module name', () => {
+        return init('<div></div>', '<div></div>', { skipConfigLoading: true, configPath: './test/testrc.json' });
+    });
 });
 
 describe('loadConfig()', () => {
@@ -55,25 +59,25 @@ describe('loadConfig()', () => {
     });
 
     it('should not override the run options or preset', () => {
-        expect(loadConfig({ foo: 'bar' }, ampSafePreset, './test/testrc.json')).toEqual([
+        expect(loadConfig({ foo: 'bar', configPath: './test/testrc.json' }, ampSafePreset)).toEqual([
             { foo: 'bar' },
             ampSafePreset
         ]);
     });
 
     it('should load options and preset from RC files', () => {
-        expect(loadConfig(undefined, undefined, './test/testrc.json')).toEqual([
+        expect(loadConfig({ configPath: './test/testrc.json' }, undefined)).toEqual([
             { foo: 'baz' },
             maxPreset
         ]);
     });
 
     it('should not load options and preset from RC files if skipConfigLoading is true', () => {
-        const options = { skipConfigLoading: true };
-        const loaded = loadConfig(options, undefined, './test/testrc.json');
+        const options = { skipConfigLoading: true, configPath: './test/testrc.json' };
+        const loaded = loadConfig(options, undefined);
 
         expect(loaded).toEqual([{}, safePreset]);
-        expect(options).toEqual({ skipConfigLoading: true });
+        expect(options).toEqual({ skipConfigLoading: true, configPath: './test/testrc.json' });
     });
 });
 

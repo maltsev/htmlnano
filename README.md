@@ -61,4 +61,10 @@ htmlnano
     });
 ```
 
+Also, you can use it as CLI tool:
+
+```bash
+node_modules/.bin/htmlnano --help
+```
+
 More usage examples (PostHTML, Gulp, Webpack): https://htmlnano.netlify.app/next/usage
