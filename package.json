@@ -78,7 +78,7 @@
     "globals": "^17.0.0",
     "mocha": "^11.0.1",
     "postcss": "^8.3.11",
-    "purgecss": "^7.0.2",
+    "purgecss": "^8.0.0",
     "relateurl": "^0.2.7",
     "rimraf": "^6.0.0",
     "srcset": "^5.0.1",
@@ -91,7 +91,7 @@
   "peerDependencies": {
     "cssnano": "^7.0.0",
     "postcss": "^8.3.11",
-    "purgecss": "^7.0.2",
+    "purgecss": "^8.0.0",
     "relateurl": "^0.2.7",
     "srcset": "^5.0.1",
     "svgo": "^4.0.0",
