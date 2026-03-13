@@ -2,6 +2,7 @@
 
 [![npm version](https://badge.fury.io/js/htmlnano.svg)](http://badge.fury.io/js/htmlnano)
 ![CI](https://github.com/maltsev/htmlnano/actions/workflows/ci.yml/badge.svg)
+[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/maltsev/htmlnano?utm_source=badge)
 
 Modular HTML minifier, built on top of the [PostHTML](https://github.com/posthtml/posthtml). Inspired by [cssnano](https://github.com/cssnano/cssnano).
 

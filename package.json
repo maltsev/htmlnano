@@ -66,6 +66,7 @@
     "posthtml": "^0.16.5"
   },
   "devDependencies": {
+    "@codspeed/vitest-plugin": "^5.2.0",
     "@eslint/js": "^9.35.0",
     "@stylistic/eslint-plugin": "^5.3.1",
     "@swc-node/register": "^1.10.10",
@@ -92,7 +93,8 @@
     "terser": "^5.21.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.44.0",
-    "uncss": "^0.17.3"
+    "uncss": "^0.17.3",
+    "vitest": "^4.1.0"
   },
   "peerDependencies": {
     "cssnano": "^7.0.0",
