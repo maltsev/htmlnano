@@ -10,7 +10,8 @@
     "test/**/*.ts"
   ],
   "ignore": [
-    "src/_modules/example.ts"
+    "src/_modules/example.ts",
+    "vitest.config.mts"
   ],
   "ignoreDependencies": [
     "uncss"
