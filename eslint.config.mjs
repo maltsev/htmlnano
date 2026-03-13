@@ -13,7 +13,9 @@ export default tseslint.config(
         ignores: [
             'src/_modules/example.ts',
             'test.mjs',
-            '**/*.cjs'
+            '**/*.cjs',
+            'bench/**',
+            'vitest.config.mts'
         ]
     },
     gitignore({
