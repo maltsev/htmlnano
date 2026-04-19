@@ -9,7 +9,7 @@ const ampBoilerplateAttributes = [
 
 const cssCdataStart = '<![CDATA[';
 const cssCdataEnd = ']]>';
-const optionalImportsCache = new Map<string, Promise<unknown | null>>();
+const optionalImportsCache = new Map<string, Promise<object | null>>();
 
 export function isAmpBoilerplate(node: PostHTML.Node) {
     if (!node.attrs) {
@@ -109,7 +109,7 @@ export function extractTextContentFromNode(node: PostHTML.Node): string {
     return content;
 }
 
-export async function optionalImport<Module = unknown, Default = Module>(moduleName: string) {
+export function optionalImport<Module = unknown, Default = Module>(moduleName: string): Promise<Module | Default | null> {
     let importedModule = optionalImportsCache.get(moduleName);
     if (!importedModule) {
         importedModule = import(moduleName)
@@ -128,5 +128,5 @@ export async function optionalImport<Module = unknown, Default = Module>(moduleN
         optionalImportsCache.set(moduleName, importedModule);
     }
 
-    return importedModule as Module | Default | null;
+    return importedModule as Promise<Module | Default | null>;
 }
