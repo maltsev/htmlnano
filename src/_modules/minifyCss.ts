@@ -18,6 +18,24 @@ type CssProcessor = {
     }>;
 };
 
+type InlineCssExcludedPluginOptions = {
+    mergeRules?: false;
+    minifySelectors?: false;
+    minifyParams?: false;
+    normalizeCharset?: false;
+    uniqueSelectors?: false;
+    normalizeUnicode?: false;
+};
+
+const inlineCssExcludedPlugins = {
+    mergeRules: false,
+    minifySelectors: false,
+    minifyParams: false,
+    normalizeCharset: false,
+    uniqueSelectors: false,
+    normalizeUnicode: false
+} satisfies InlineCssExcludedPluginOptions;
+
 /** Minify CSS with cssnano */
 const mod: HtmlnanoModule<CssnanoOptions> = {
     async default(tree, _, cssnanoOptions) {
@@ -28,7 +46,8 @@ const mod: HtmlnanoModule<CssnanoOptions> = {
             return tree;
         }
 
-        const processor = postcss([cssnano(cssnanoOptions)]);
+        const processor = createCssProcessor(postcss, cssnano, cssnanoOptions);
+        const inlineStyleProcessor = createCssProcessor(postcss, cssnano, getInlineCssnanoOptions(cssnanoOptions));
         const minifiedCssCache = new Map<string, Promise<string>>();
         const promises: Promise<void>[] = [];
 
@@ -46,7 +65,7 @@ const mod: HtmlnanoModule<CssnanoOptions> = {
                     promises.push(p);
                 }
             } else if (node.attrs && node.attrs.style) {
-                p = processStyleAttr(node, processor, minifiedCssCache);
+                p = processStyleAttr(node, inlineStyleProcessor, minifiedCssCache);
                 if (p) {
                     promises.push(p);
                 }
@@ -60,6 +79,50 @@ const mod: HtmlnanoModule<CssnanoOptions> = {
 };
 
 export default mod;
+
+function createCssProcessor(
+    postcss: typeof import('postcss').default,
+    cssnano: typeof import('cssnano'),
+    cssnanoOptions: CssnanoOptions | undefined
+) {
+    return postcss([cssnano(cssnanoOptions)]);
+}
+
+function getInlineCssnanoOptions(cssnanoOptions: CssnanoOptions | undefined): CssnanoOptions | undefined {
+    if (!cssnanoOptions || typeof cssnanoOptions !== 'object') {
+        return {
+            preset: ['default', inlineCssExcludedPlugins]
+        };
+    }
+
+    if (!('preset' in cssnanoOptions) || cssnanoOptions.preset === undefined) {
+        return {
+            ...cssnanoOptions,
+            preset: ['default', inlineCssExcludedPlugins]
+        };
+    }
+
+    if (cssnanoOptions.preset === 'default') {
+        return {
+            ...cssnanoOptions,
+            preset: ['default', inlineCssExcludedPlugins]
+        };
+    }
+
+    if (Array.isArray(cssnanoOptions.preset) && cssnanoOptions.preset[0] === 'default') {
+        const presetOptions = cssnanoOptions.preset[1] as unknown;
+
+        return {
+            ...cssnanoOptions,
+            preset: ['default', {
+                ...(presetOptions && typeof presetOptions === 'object' ? presetOptions : {}),
+                ...inlineCssExcludedPlugins
+            }]
+        };
+    }
+
+    return cssnanoOptions;
+}
 
 function processStyleNode(
     styleNode: PostHTML.Node,

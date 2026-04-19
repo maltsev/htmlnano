@@ -89,6 +89,20 @@ describe('minifyCss', function () {
         );
     });
 
+    it('should pass options to cssnano for style attributes', () => {
+        return init(
+            '<div style="color: #ff0000; margin: 10px 10px 10px 10px"></div>',
+            '<div style="color:#ff0000;margin:10px"></div>',
+            {
+                minifyCss: {
+                    preset: ['default', {
+                        colormin: false
+                    }]
+                }
+            }
+        );
+    });
+
     it('should not minify CSS inside HTML comments', () => {
         return init(
             '<div><!-- <style>h1 { color: red; }</style> --></div>',
