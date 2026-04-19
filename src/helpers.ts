@@ -9,6 +9,7 @@ const ampBoilerplateAttributes = [
 
 const cssCdataStart = '<![CDATA[';
 const cssCdataEnd = ']]>';
+const optionalImportsCache = new Map<string, Promise<unknown | null>>();
 
 export function isAmpBoilerplate(node: PostHTML.Node) {
     if (!node.attrs) {
@@ -109,13 +110,23 @@ export function extractTextContentFromNode(node: PostHTML.Node): string {
 }
 
 export async function optionalImport<Module = unknown, Default = Module>(moduleName: string) {
-    try {
-        const module = (await import(moduleName)) as Module & { default?: Default };
-        return module.default || module;
-    } catch (e) {
-        if (typeof e === 'object' && e && 'code' in e && (e.code === 'MODULE_NOT_FOUND' || e.code === 'ERR_MODULE_NOT_FOUND')) {
-            return null;
-        }
-        throw e;
+    let importedModule = optionalImportsCache.get(moduleName);
+    if (!importedModule) {
+        importedModule = import(moduleName)
+            .then((module) => {
+                const resolvedModule = module as Module & { default?: Default };
+                return resolvedModule.default || resolvedModule;
+            })
+            .catch((e: unknown) => {
+                if (typeof e === 'object' && e && 'code' in e && (e.code === 'MODULE_NOT_FOUND' || e.code === 'ERR_MODULE_NOT_FOUND')) {
+                    return null;
+                }
+
+                optionalImportsCache.delete(moduleName);
+                throw e;
+            });
+        optionalImportsCache.set(moduleName, importedModule);
     }
+
+    return importedModule as Module | Default | null;
 }

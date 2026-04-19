@@ -3,10 +3,12 @@ import { cosmiconfigSync } from 'cosmiconfig';
 import safePreset from './presets/safe.js';
 import ampSafePreset from './presets/ampSafe.js';
 import maxPreset from './presets/max.js';
+import { createProfiler, profileAsync, profileSync } from './profiling.js';
 import type { HtmlnanoModule, HtmlnanoModuleAttrsHandler, HtmlnanoModuleContentHandler, HtmlnanoModuleNodeHandler, HtmlnanoOptions, HtmlnanoOptionsConfigFile, HtmlnanoPredefinedPresets, HtmlnanoPreset, PostHTMLTreeLike } from './types';
 import type PostHTML from 'posthtml';
 
 export type * from './types';
+export { createProfiler } from './profiling.js';
 
 export const presets: HtmlnanoPredefinedPresets = {
     safe: safePreset,
@@ -139,21 +141,72 @@ const modules = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module options vary per module
 } satisfies Record<string, () => Promise<HtmlnanoModule<any>>>;
 
+const loadedModules = new Map<string, Promise<HtmlnanoModule>>();
+const optionalDependencyAvailability = new Map<string, Promise<boolean>>();
+
+function getLoadedModule(moduleName: string) {
+    let loadedModule = loadedModules.get(moduleName);
+    if (!loadedModule) {
+        loadedModule = moduleName in modules
+            ? (modules[moduleName as keyof typeof modules]()) as Promise<HtmlnanoModule>
+            : import(`./_modules/${moduleName}.mjs`) as Promise<HtmlnanoModule>;
+        loadedModules.set(moduleName, loadedModule);
+    }
+
+    return loadedModule;
+}
+
+function isMissingDependencyError(error: unknown) {
+    return typeof error === 'object'
+        && error !== null
+        && 'code' in error
+        && typeof error.code === 'string'
+        && (error.code === 'MODULE_NOT_FOUND' || error.code === 'ERR_MODULE_NOT_FOUND');
+}
+
+function hasOptionalDependency(dependency: string) {
+    let availability = optionalDependencyAvailability.get(dependency);
+    if (!availability) {
+        availability = import(dependency)
+            .then(() => true)
+            .catch((error: unknown) => {
+                if (isMissingDependencyError(error)) {
+                    return false;
+                }
+
+                optionalDependencyAvailability.delete(dependency);
+                throw error;
+            });
+        optionalDependencyAvailability.set(dependency, availability);
+    }
+
+    return availability;
+}
+
 const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {}, presetRun?: HtmlnanoPreset) {
     // eslint-disable-next-line prefer-const -- re-assign options
     let [options, preset] = loadConfig(optionsRun, presetRun);
 
     const minifier: PostHTML.Plugin<never> = async (_tree) => {
         const tree = (_tree as unknown) as PostHTMLTreeLike;
-
-        const nodeHandlers: HtmlnanoModuleNodeHandler[] = [];
-        const attrsHandlers: HtmlnanoModuleAttrsHandler[] = [];
-        const contentsHandlers: HtmlnanoModuleContentHandler[] = [];
+        const profiledAttrsHandlers: Array<{
+            moduleName: string;
+            handler: HtmlnanoModuleAttrsHandler;
+        }> = [];
+        const profiledContentsHandlers: Array<{
+            moduleName: string;
+            handler: HtmlnanoModuleContentHandler;
+        }> = [];
+        const profiledNodeHandlers: Array<{
+            moduleName: string;
+            handler: HtmlnanoModuleNodeHandler;
+        }> = [];
 
         options = { ...preset, ...options };
+        const profiler = options.profiling;
         let promise = Promise.resolve(tree);
 
-        const nonModuleOptions = new Set(['skipInternalWarnings']);
+        const nonModuleOptions = new Set(['skipInternalWarnings', 'profiling']);
 
         for (const [moduleName, moduleOptions] of Object.entries(options)) {
             if (nonModuleOptions.has(moduleName)) {
@@ -170,62 +223,93 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
 
             if (moduleName in optionalDependencies) {
                 const modules = optionalDependencies[moduleName as keyof typeof optionalDependencies];
-                await Promise.all(modules.map(async (dependency) => {
-                    try {
-                        await import(dependency);
-                    } catch (e: unknown) {
-                        if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
-                            if (e.code === 'MODULE_NOT_FOUND' || e.code === 'ERR_MODULE_NOT_FOUND') {
-                                if (!options.skipInternalWarnings) {
-                                    console.warn(`You have to install "${dependency}" in order to use htmlnano's "${moduleName}" module`);
-                                    return;
-                                }
-                            }
-
-                            throw e;
-                        }
+                await profileAsync(profiler, {
+                    moduleName,
+                    phase: 'dependencies'
+                }, async () => await Promise.all(modules.map(async (dependency) => {
+                    const isAvailable = await hasOptionalDependency(dependency);
+                    if (!isAvailable && !options.skipInternalWarnings) {
+                        console.warn(`You have to install "${dependency}" in order to use htmlnano's "${moduleName}" module`);
                     }
-                }));
+                })));
             }
 
-            const mod: HtmlnanoModule = moduleName in modules
-                ? (await (modules[moduleName as keyof typeof modules]())) as HtmlnanoModule
-                : (await import(`./_modules/${moduleName}.mjs`)) as HtmlnanoModule;
+            const mod = await profileAsync(profiler, {
+                moduleName,
+                phase: 'load'
+            }, async () => await getLoadedModule(moduleName));
 
             if (typeof mod.onAttrs === 'function') {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module options are generic
-                attrsHandlers.push(mod.onAttrs(options, moduleOptions as Partial<any>));
+                const handler = profileSync(profiler, {
+                    moduleName,
+                    phase: 'init',
+                    detail: 'onAttrs'
+                }, () => mod.onAttrs!(options, moduleOptions as Partial<any>));
+                profiledAttrsHandlers.push({
+                    moduleName,
+                    handler
+                });
             }
             if (typeof mod.onContent === 'function') {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module options are generic
-                contentsHandlers.push(mod.onContent(options, moduleOptions as Partial<any>));
+                const handler = profileSync(profiler, {
+                    moduleName,
+                    phase: 'init',
+                    detail: 'onContent'
+                }, () => mod.onContent!(options, moduleOptions as Partial<any>));
+                profiledContentsHandlers.push({
+                    moduleName,
+                    handler
+                });
             }
             if (typeof mod.onNode === 'function') {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module options are generic
-                nodeHandlers.push(mod.onNode(options, moduleOptions as Partial<any>));
+                const handler = profileSync(profiler, {
+                    moduleName,
+                    phase: 'init',
+                    detail: 'onNode'
+                }, () => mod.onNode!(options, moduleOptions as Partial<any>));
+                profiledNodeHandlers.push({
+                    moduleName,
+                    handler
+                });
             }
             if (typeof mod.default === 'function') {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module options are generic
-                promise = promise.then(async tree => await mod.default!(tree, options, moduleOptions as Partial<any>));
+                promise = promise.then(async currentTree => await profileAsync(profiler, {
+                    moduleName,
+                    phase: 'transform'
+                }, async () => await mod.default!(currentTree, options, moduleOptions as Partial<any>)));
             }
         }
 
-        if (attrsHandlers.length + contentsHandlers.length + nodeHandlers.length === 0) {
+        if (profiledAttrsHandlers.length + profiledContentsHandlers.length + profiledNodeHandlers.length === 0) {
             return promise;
         }
 
-        return promise.then((tree) => {
+        return promise.then(tree => profileSync(profiler, {
+            moduleName: 'core',
+            phase: 'walk'
+        }, () => {
             tree.walk((node) => {
                 if (node) {
                     if (node.attrs && typeof node.attrs === 'object') {
+                        const nodeAttrs = node.attrs;
                         // Convert all attrs' key to lower case
-                        let newAttrsObj: Record<string, string | boolean | void> = {};
-                        Object.entries(node.attrs).forEach(([attrName, attrValue]) => {
-                            newAttrsObj[attrName.toLowerCase()] = attrValue;
+                        let newAttrsObj = profileSync(profiler, {
+                            moduleName: 'core',
+                            phase: 'normalize-attrs'
+                        }, () => {
+                            const normalizedAttrs: Record<string, string | boolean | void> = {};
+                            Object.entries(nodeAttrs).forEach(([attrName, attrValue]) => {
+                                normalizedAttrs[attrName.toLowerCase()] = attrValue;
+                            });
+                            return normalizedAttrs;
                         });
 
-                        for (const handler of attrsHandlers) {
-                            newAttrsObj = handler(newAttrsObj, node);
+                        for (const { moduleName, handler } of profiledAttrsHandlers) {
+                            newAttrsObj = profileSync(profiler, {
+                                moduleName,
+                                phase: 'handler',
+                                detail: 'onAttrs'
+                            }, () => handler(newAttrsObj, node));
                         }
 
                         node.attrs = newAttrsObj as PostHTML.NodeAttributes;
@@ -235,16 +319,24 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
                         node.content = typeof node.content === 'string' ? [node.content] : node.content;
 
                         if (Array.isArray(node.content) && node.content.length > 0) {
-                            for (const handler of contentsHandlers) {
-                                const result = handler(node.content ?? [], node);
+                            for (const { moduleName, handler } of profiledContentsHandlers) {
+                                const result = profileSync(profiler, {
+                                    moduleName,
+                                    phase: 'handler',
+                                    detail: 'onContent'
+                                }, () => handler(node.content ?? [], node));
                                 node.content = Array.isArray(result) ? result : [result];
                             }
                         }
                     }
 
-                    for (const handler of nodeHandlers) {
+                    for (const { moduleName, handler } of profiledNodeHandlers) {
                         if (handler) {
-                            node = handler(node) as PostHTML.Node;
+                            node = profileSync(profiler, {
+                                moduleName,
+                                phase: 'handler',
+                                detail: 'onNode'
+                            }, () => handler(node) as PostHTML.Node);
                         }
                     }
                 }
@@ -253,11 +345,12 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
             });
 
             return tree;
-        });
+        }));
     };
 
     return minifier;
 }, {
+    createProfiler,
     presets,
     getRequiredOptionalDependencies,
     process,

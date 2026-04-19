@@ -1,17 +1,20 @@
 import type PostHTML from 'posthtml';
 import { extractTextContentFromNode, isEventHandler, normalizeMimeType, optionalImport } from '../helpers';
+import { profileAsync, profileSync } from '../profiling.js';
 import type { HtmlnanoModule, PostHTMLTreeLike } from '../types';
 import { redundantScriptTypes } from './removeRedundantAttributes.js';
 
 import type { MinifyOptions } from 'terser';
+import type { HtmlnanoProfiler } from '../profiling.js';
 
 /** Minify JS with Terser */
 const mod: HtmlnanoModule<MinifyOptions> = {
-    async default(tree, _, terserOptions) {
+    async default(tree, options, terserOptions) {
         const terser = await optionalImport<typeof import('terser')>('terser');
 
         if (!terser) return tree;
 
+        const profiler = options.profiling;
         const promises: Promise<void>[] = [];
 
         let p: Promise<void> | undefined;
@@ -40,7 +43,7 @@ const mod: HtmlnanoModule<MinifyOptions> = {
                 const mimeType = rawMimeType || 'text/javascript';
                 if (redundantScriptTypes.has(mimeType) || mimeType === 'module') {
                     const scriptTerserOptions = resolveScriptTerserOptions(terserOptions, mimeType);
-                    p = processScriptNode(node, scriptTerserOptions, terser);
+                    p = processScriptNode(node, scriptTerserOptions, terser, profiler);
                     if (p) {
                         promises.push(p);
                     }
@@ -48,14 +51,18 @@ const mod: HtmlnanoModule<MinifyOptions> = {
             }
 
             if (node.attrs) {
-                promises.push(...processNodeWithOnAttrs(node, terserOptions, terser));
+                promises.push(...processNodeWithOnAttrs(node, terserOptions, terser, profiler));
             }
 
             return node;
         });
 
         return Promise.all(promises).then(() => {
-            applySmartQuoteOptions(tree);
+            profileSync(profiler, {
+                moduleName: 'minifyJs',
+                phase: 'analyze',
+                detail: 'quote-options'
+            }, () => applySmartQuoteOptions(tree));
             return tree;
         });
     }
@@ -165,7 +172,12 @@ function analyzeTreeQuotes(tree: PostHTMLTreeLike) {
     };
 }
 
-function processScriptNode(scriptNode: PostHTML.Node, terserOptions: MinifyOptions, terser: typeof import('terser')) {
+function processScriptNode(
+    scriptNode: PostHTML.Node,
+    terserOptions: MinifyOptions,
+    terser: typeof import('terser'),
+    profiler: HtmlnanoProfiler | undefined
+) {
     let js = extractTextContentFromNode(scriptNode).trim();
     if (!js.length) {
         return;
@@ -179,8 +191,11 @@ function processScriptNode(scriptNode: PostHTML.Node, terserOptions: MinifyOptio
         js = strippedJs;
     }
 
-    return terser
-        .minify(js, terserOptions)
+    return profileAsync(profiler, {
+        moduleName: 'minifyJs',
+        phase: 'process',
+        detail: 'script-node'
+    }, async () => await terser.minify(js, terserOptions))
         .then((result) => {
             if ('error' in result) {
                 throw new Error(result.error as string);
@@ -199,7 +214,12 @@ function processScriptNode(scriptNode: PostHTML.Node, terserOptions: MinifyOptio
         });
 }
 
-function processNodeWithOnAttrs(node: PostHTML.Node, terserOptions: MinifyOptions, terser: typeof import('terser')) {
+function processNodeWithOnAttrs(
+    node: PostHTML.Node,
+    terserOptions: MinifyOptions,
+    terser: typeof import('terser'),
+    profiler: HtmlnanoProfiler | undefined
+) {
     const jsWrapperStart = 'a=function(){';
     const jsWrapperEnd = '};a();';
 
@@ -225,8 +245,11 @@ function processNodeWithOnAttrs(node: PostHTML.Node, terserOptions: MinifyOption
         // Therefore the attribute's code should be wrapped inside function:
         // "function _(){return false;}"
         const wrappedJs = jsWrapperStart + node.attrs[attrName] + jsWrapperEnd;
-        const promise = terser
-            .minify(wrappedJs, onAttrTerserOptions)
+        const promise = profileAsync(profiler, {
+            moduleName: 'minifyJs',
+            phase: 'process',
+            detail: 'event-handler'
+        }, async () => await terser.minify(wrappedJs, onAttrTerserOptions))
             .then(({ code }) => {
                 if (code) {
                     const minifiedJs = code.substring(

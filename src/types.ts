@@ -1,4 +1,5 @@
 import type PostHTML from 'posthtml';
+import type { HtmlnanoProfiler, HtmlnanoProfileCollector, HtmlnanoProfileEntry, HtmlnanoProfileSummaryEntry } from './profiling.js';
 
 export type PostHTMLNodeLike = PostHTML.Node | string;
 
@@ -75,6 +76,7 @@ export interface HtmlnanoOptions {
     skipConfigLoading?: boolean;
     configPath?: string;
     skipInternalWarnings?: boolean;
+    profiling?: HtmlnanoProfiler;
     collapseAttributeWhitespace?: boolean;
     collapseBooleanAttributes?: {
         amphtml?: boolean;
@@ -160,3 +162,5 @@ export type HtmlnanoModule<Options = any> = {
         moduleOptions: OptionalOptions<Options>
     ) => PostHTMLTreeLike | Promise<PostHTMLTreeLike>;
 };
+
+export type { HtmlnanoProfiler, HtmlnanoProfileCollector, HtmlnanoProfileEntry, HtmlnanoProfileSummaryEntry };

@@ -13,6 +13,7 @@
     "lint:duplicates": "jscpd",
     "lint:knip": "knip",
     "lint": "npm run lint:eslint && npm run lint:duplicates && npm run lint:knip",
+    "benchmark:profile": "node ./scripts/profile.mjs",
     "test:types": "tsc --noEmit -p tsconfig.typecheck.json",
     "test:mocha": "mocha --timeout 5000 --require @swc-node/register --recursive --ignore 'test/typecheck/**/*.ts' --check-leaks --globals addresses 'test/**/*.ts'",
     "pretest": "npm run lint && npm run compile && npm run test:types",
