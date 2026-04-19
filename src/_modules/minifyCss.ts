@@ -1,10 +1,8 @@
 import { extractCssFromStyleNode, isCssStyleType, isStyleNode, optionalImport, stripCssCdata, wrapCssCdata } from '../helpers';
-import { profileAsync } from '../profiling.js';
 import type {} from 'postcss';
 import type { HtmlnanoModule } from '../types';
 import type PostHTML from 'posthtml';
 import type { Options as CssnanoOptions } from 'cssnano';
-import type { HtmlnanoProfiler } from '../profiling.js';
 
 const postcssOptions = {
     // Prevent the following warning from being shown:
@@ -22,7 +20,7 @@ type CssProcessor = {
 
 /** Minify CSS with cssnano */
 const mod: HtmlnanoModule<CssnanoOptions> = {
-    async default(tree, options, cssnanoOptions) {
+    async default(tree, _, cssnanoOptions) {
         const cssnano = await optionalImport<typeof import('cssnano')>('cssnano');
         const postcss = await optionalImport<typeof import('postcss').default>('postcss');
 
@@ -30,7 +28,6 @@ const mod: HtmlnanoModule<CssnanoOptions> = {
             return tree;
         }
 
-        const profiler = options.profiling;
         const processor = postcss([cssnano(cssnanoOptions)]);
         const minifiedCssCache = new Map<string, Promise<string>>();
         const promises: Promise<void>[] = [];
@@ -44,12 +41,12 @@ const mod: HtmlnanoModule<CssnanoOptions> = {
             }
 
             if (isStyleNode(node) && isCssStyleType(node)) {
-                p = processStyleNode(node, processor, minifiedCssCache, profiler);
+                p = processStyleNode(node, processor, minifiedCssCache);
                 if (p) {
                     promises.push(p);
                 }
             } else if (node.attrs && node.attrs.style) {
-                p = processStyleAttr(node, processor, minifiedCssCache, profiler);
+                p = processStyleAttr(node, processor, minifiedCssCache);
                 if (p) {
                     promises.push(p);
                 }
@@ -67,8 +64,7 @@ export default mod;
 function processStyleNode(
     styleNode: PostHTML.Node,
     processor: CssProcessor,
-    minifiedCssCache: Map<string, Promise<string>>,
-    profiler: HtmlnanoProfiler | undefined
+    minifiedCssCache: Map<string, Promise<string>>
 ) {
     let css = extractCssFromStyleNode(styleNode);
     if (!css || css.trim() === '') return;
@@ -82,8 +78,6 @@ function processStyleNode(
         minifiedCssCache,
         `${isCdataWrapped ? 'style-cdata:' : 'style:'}${css}`,
         css,
-        'style-node',
-        profiler,
         isCdataWrapped
     ).then((minifiedCss) => {
         styleNode.content = [wrapCssCdata(minifiedCss, isCdataWrapped)];
@@ -93,8 +87,7 @@ function processStyleNode(
 function processStyleAttr(
     node: PostHTML.Node,
     processor: CssProcessor,
-    minifiedCssCache: Map<string, Promise<string>>,
-    profiler: HtmlnanoProfiler | undefined
+    minifiedCssCache: Map<string, Promise<string>>
 ) {
     // CSS "color: red;" is invalid. Therefore it should be wrapped inside some selector:
     // a{color: red;}
@@ -115,9 +108,7 @@ function processStyleAttr(
         processor,
         minifiedCssCache,
         `attr:${wrappedStyle}`,
-        wrappedStyle,
-        'style-attr',
-        profiler
+        wrappedStyle
     ).then((minifiedCss) => {
         // Remove wrapperStart at the start and wrapperEnd at the end of minifiedCss
         node.attrs!.style = minifiedCss.substring(
@@ -132,24 +123,11 @@ function processCss(
     minifiedCssCache: Map<string, Promise<string>>,
     cacheKey: string,
     css: string,
-    detail: string,
-    profiler: HtmlnanoProfiler | undefined,
     useToString = false
 ) {
     let minifiedCss = minifiedCssCache.get(cacheKey);
-    profiler?.add({
-        moduleName: 'minifyCss',
-        phase: 'cache',
-        detail: minifiedCss ? 'hit' : 'miss',
-        durationMs: 0
-    });
-
     if (!minifiedCss) {
-        minifiedCss = profileAsync(profiler, {
-            moduleName: 'minifyCss',
-            phase: 'process',
-            detail
-        }, async () => await processor.process(css, postcssOptions))
+        minifiedCss = processor.process(css, postcssOptions)
             .then(result => useToString ? result.toString() : result.css)
             .catch((error) => {
                 minifiedCssCache.delete(cacheKey);

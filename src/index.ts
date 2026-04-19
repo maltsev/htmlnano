@@ -3,12 +3,10 @@ import { cosmiconfigSync } from 'cosmiconfig';
 import safePreset from './presets/safe.js';
 import ampSafePreset from './presets/ampSafe.js';
 import maxPreset from './presets/max.js';
-import { createProfiler, profileAsync, profileSync } from './profiling.js';
 import type { HtmlnanoModule, HtmlnanoModuleAttrsHandler, HtmlnanoModuleContentHandler, HtmlnanoModuleNodeHandler, HtmlnanoOptions, HtmlnanoOptionsConfigFile, HtmlnanoPredefinedPresets, HtmlnanoPreset, PostHTMLTreeLike } from './types';
 import type PostHTML from 'posthtml';
 
 export type * from './types';
-export { createProfiler } from './profiling.js';
 
 export const presets: HtmlnanoPredefinedPresets = {
     safe: safePreset,
@@ -189,24 +187,14 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
 
     const minifier: PostHTML.Plugin<never> = async (_tree) => {
         const tree = (_tree as unknown) as PostHTMLTreeLike;
-        const profiledAttrsHandlers: Array<{
-            moduleName: string;
-            handler: HtmlnanoModuleAttrsHandler;
-        }> = [];
-        const profiledContentsHandlers: Array<{
-            moduleName: string;
-            handler: HtmlnanoModuleContentHandler;
-        }> = [];
-        const profiledNodeHandlers: Array<{
-            moduleName: string;
-            handler: HtmlnanoModuleNodeHandler;
-        }> = [];
+        const nodeHandlers: HtmlnanoModuleNodeHandler[] = [];
+        const attrsHandlers: HtmlnanoModuleAttrsHandler[] = [];
+        const contentsHandlers: HtmlnanoModuleContentHandler[] = [];
 
         options = { ...preset, ...options };
-        const profiler = options.profiling;
         let promise = Promise.resolve(tree);
 
-        const nonModuleOptions = new Set(['skipInternalWarnings', 'profiling']);
+        const nonModuleOptions = new Set(['skipInternalWarnings']);
 
         for (const [moduleName, moduleOptions] of Object.entries(options)) {
             if (nonModuleOptions.has(moduleName)) {
@@ -223,93 +211,46 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
 
             if (moduleName in optionalDependencies) {
                 const modules = optionalDependencies[moduleName as keyof typeof optionalDependencies];
-                await profileAsync(profiler, {
-                    moduleName,
-                    phase: 'dependencies'
-                }, async () => await Promise.all(modules.map(async (dependency) => {
+                await Promise.all(modules.map(async (dependency) => {
                     const isAvailable = await hasOptionalDependency(dependency);
                     if (!isAvailable && !options.skipInternalWarnings) {
                         console.warn(`You have to install "${dependency}" in order to use htmlnano's "${moduleName}" module`);
                     }
-                })));
+                }));
             }
 
-            const mod = await profileAsync(profiler, {
-                moduleName,
-                phase: 'load'
-            }, async () => await getLoadedModule(moduleName));
+            const mod = await getLoadedModule(moduleName);
 
             if (typeof mod.onAttrs === 'function') {
-                const handler = profileSync(profiler, {
-                    moduleName,
-                    phase: 'init',
-                    detail: 'onAttrs'
-                }, () => mod.onAttrs!(options, moduleOptions as Partial<any>));
-                profiledAttrsHandlers.push({
-                    moduleName,
-                    handler
-                });
+                attrsHandlers.push(mod.onAttrs(options, moduleOptions as Partial<any>));
             }
             if (typeof mod.onContent === 'function') {
-                const handler = profileSync(profiler, {
-                    moduleName,
-                    phase: 'init',
-                    detail: 'onContent'
-                }, () => mod.onContent!(options, moduleOptions as Partial<any>));
-                profiledContentsHandlers.push({
-                    moduleName,
-                    handler
-                });
+                contentsHandlers.push(mod.onContent(options, moduleOptions as Partial<any>));
             }
             if (typeof mod.onNode === 'function') {
-                const handler = profileSync(profiler, {
-                    moduleName,
-                    phase: 'init',
-                    detail: 'onNode'
-                }, () => mod.onNode!(options, moduleOptions as Partial<any>));
-                profiledNodeHandlers.push({
-                    moduleName,
-                    handler
-                });
+                nodeHandlers.push(mod.onNode(options, moduleOptions as Partial<any>));
             }
             if (typeof mod.default === 'function') {
-                promise = promise.then(async currentTree => await profileAsync(profiler, {
-                    moduleName,
-                    phase: 'transform'
-                }, async () => await mod.default!(currentTree, options, moduleOptions as Partial<any>)));
+                promise = promise.then(async tree => await mod.default!(tree, options, moduleOptions as Partial<any>));
             }
         }
 
-        if (profiledAttrsHandlers.length + profiledContentsHandlers.length + profiledNodeHandlers.length === 0) {
+        if (attrsHandlers.length + contentsHandlers.length + nodeHandlers.length === 0) {
             return promise;
         }
 
-        return promise.then(tree => profileSync(profiler, {
-            moduleName: 'core',
-            phase: 'walk'
-        }, () => {
+        return promise.then((tree) => {
             tree.walk((node) => {
                 if (node) {
                     if (node.attrs && typeof node.attrs === 'object') {
-                        const nodeAttrs = node.attrs;
                         // Convert all attrs' key to lower case
-                        let newAttrsObj = profileSync(profiler, {
-                            moduleName: 'core',
-                            phase: 'normalize-attrs'
-                        }, () => {
-                            const normalizedAttrs: Record<string, string | boolean | void> = {};
-                            Object.entries(nodeAttrs).forEach(([attrName, attrValue]) => {
-                                normalizedAttrs[attrName.toLowerCase()] = attrValue;
-                            });
-                            return normalizedAttrs;
+                        let newAttrsObj: Record<string, string | boolean | void> = {};
+                        Object.entries(node.attrs).forEach(([attrName, attrValue]) => {
+                            newAttrsObj[attrName.toLowerCase()] = attrValue;
                         });
 
-                        for (const { moduleName, handler } of profiledAttrsHandlers) {
-                            newAttrsObj = profileSync(profiler, {
-                                moduleName,
-                                phase: 'handler',
-                                detail: 'onAttrs'
-                            }, () => handler(newAttrsObj, node));
+                        for (const handler of attrsHandlers) {
+                            newAttrsObj = handler(newAttrsObj, node);
                         }
 
                         node.attrs = newAttrsObj as PostHTML.NodeAttributes;
@@ -319,24 +260,16 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
                         node.content = typeof node.content === 'string' ? [node.content] : node.content;
 
                         if (Array.isArray(node.content) && node.content.length > 0) {
-                            for (const { moduleName, handler } of profiledContentsHandlers) {
-                                const result = profileSync(profiler, {
-                                    moduleName,
-                                    phase: 'handler',
-                                    detail: 'onContent'
-                                }, () => handler(node.content ?? [], node));
+                            for (const handler of contentsHandlers) {
+                                const result = handler(node.content ?? [], node);
                                 node.content = Array.isArray(result) ? result : [result];
                             }
                         }
                     }
 
-                    for (const { moduleName, handler } of profiledNodeHandlers) {
+                    for (const handler of nodeHandlers) {
                         if (handler) {
-                            node = profileSync(profiler, {
-                                moduleName,
-                                phase: 'handler',
-                                detail: 'onNode'
-                            }, () => handler(node) as PostHTML.Node);
+                            node = handler(node) as PostHTML.Node;
                         }
                     }
                 }
@@ -345,12 +278,11 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
             });
 
             return tree;
-        }));
+        });
     };
 
     return minifier;
 }, {
-    createProfiler,
     presets,
     getRequiredOptionalDependencies,
     process,

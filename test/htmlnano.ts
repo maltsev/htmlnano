@@ -1,10 +1,10 @@
 import { expect } from 'expect';
 import posthtml from 'posthtml';
-import htmlnano, { createProfiler, loadConfig } from '../dist/index.mjs';
+import htmlnano, { loadConfig } from '../dist/index.mjs';
 import safePreset from '../dist/presets/safe.mjs';
 import ampSafePreset from '../dist/presets/ampSafe.mjs';
 import maxPreset from '../dist/presets/max.mjs';
-import type { HtmlnanoOptions, HtmlnanoProfileSummaryEntry } from '../src';
+import type { HtmlnanoOptions } from '../src';
 
 describe('[htmlnano]', () => {
     it('should do nothing if all modules are disabled', () => {
@@ -47,21 +47,6 @@ describe('[htmlnano]', () => {
 
     it('should not treat configFile as a module name', () => {
         return init('<div></div>', '<div></div>', { skipConfigLoading: true, configPath: './test/testrc.json' });
-    });
-
-    it('should collect profiling information without treating it as a module name', () => {
-        const profiler = createProfiler();
-
-        return posthtml([htmlnano({
-            collapseWhitespace: 'all',
-            profiling: profiler
-        }, {})]).process(' <div>  test  </div> ')
-            .then((result) => {
-                expect(result.html).toBe('<div>test</div>');
-                const summary = profiler.summarize() as HtmlnanoProfileSummaryEntry[];
-
-                expect(summary.some(entry => entry.moduleName === 'collapseWhitespace' && entry.phase === 'transform')).toBe(true);
-            });
     });
 });
 

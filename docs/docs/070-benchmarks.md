@@ -32,12 +32,3 @@
 | **Avg. minify rate**                                            |             |               **9.0%** |            **15.2%** |  **21.8%** | **15.6%** |      **9.9%** |
 
 Latest benchmarks: https://github.com/maltsev/html-minifiers-benchmark (updated daily).
-
-For local profiling against the built `dist/` output, run:
-
-```sh
-npm run build
-npm run benchmark:profile -- docs/build/index.html
-```
-
-The profiler prints the slowest top-level phases and hot sub-operations, which is useful when checking whether time is dominated by a specific module like `minifyCss` or `minifyJs`.
