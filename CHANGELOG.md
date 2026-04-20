@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.2.1] - 2026-04-20
+
+### Changed
+* Improved `minifyCss` performance by initializing cssnano only once [#400].
+* Reduced aggressive cssnano transforms for inline CSS in `minifyCss` to avoid non-relevant minifications [#400].
+
+### Fixed
+* Removed peer dependency type imports from public declaration files, fixing TypeScript type usage without requiring peer dependency types to be installed [#425].
+* Corrected the `safe` preset typing for `minifyJson` to use its supported boolean form, improving TypeScript compatibility.
+
 ## [3.2.0] - 2026-03-01
 
 ### Changed
@@ -370,7 +380,7 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 ### Changed
 - Remove attributes that contains only white spaces.
 
-
+[3.2.1]: https://github.com/maltsev/htmlnano/compare/3.2.0...3.2.1
 [3.2.0]: https://github.com/maltsev/htmlnano/compare/3.1.0...3.2.0
 [3.1.0]: https://github.com/maltsev/htmlnano/compare/3.0.0...3.1.0
 [3.0.0]: https://github.com/maltsev/htmlnano/compare/2.1.5...3.0.0
@@ -410,7 +420,9 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 [0.1.2]: https://github.com/maltsev/htmlnano/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/maltsev/htmlnano/compare/0.1.0...0.1.1
 
+[#425]: https://github.com/maltsev/htmlnano/issues/425
 [#401]: https://github.com/maltsev/htmlnano/issues/401
+[#400]: https://github.com/maltsev/htmlnano/issues/400
 [#398]: https://github.com/maltsev/htmlnano/issues/398
 [#394]: https://github.com/maltsev/htmlnano/issues/394
 [#373]: https://github.com/maltsev/htmlnano/issues/373
