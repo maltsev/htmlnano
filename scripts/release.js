@@ -59,7 +59,7 @@ function run(command, args, options = {}) {
 
 function assertReleaseType(releaseType) {
     if (!RELEASE_TYPES.has(releaseType)) {
-        throw new Error('Usage: node scripts/release.js <major|minor|patch>');
+        throw new Error('npm run release -- <major|minor|patch>');
     }
 }
 
