@@ -9,6 +9,7 @@
     "build": "npm run clean && bunchee",
     "postbuild": "chmod +x dist/bin.js",
     "compile": "npm run build",
+    "release": "node scripts/release.js",
     "lint:eslint": "eslint --fix .",
     "lint:duplicates": "jscpd",
     "lint:knip": "knip",
