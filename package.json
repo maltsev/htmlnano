@@ -75,7 +75,7 @@
     "@types/node": "^25.0.0",
     "bunchee": "^6.5.1",
     "c8": "^11.0.0",
-    "cssnano": "^7.0.0",
+    "cssnano": "^8.0.0",
     "eslint": "^10.2.0",
     "eslint-config-flat-gitignore": "^2.3.0",
     "eslint-plugin-import-x": "^4.16.2",
