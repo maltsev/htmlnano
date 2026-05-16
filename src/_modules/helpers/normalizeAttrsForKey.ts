@@ -22,7 +22,7 @@ export function normalizeAttrsForKey(
             continue;
         }
 
-        normalized[key] = value as string | boolean;
+        normalized[key] = value;
     }
 
     return normalized;

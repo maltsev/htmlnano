@@ -174,6 +174,6 @@ function isCommentNode(node: PostHTML.Node | string | undefined) {
 
 const mod: HtmlnanoModule<CollapseType> = {
     default: collapseWhitespace
-} as HtmlnanoModule<CollapseType>;
+};
 
 export default mod;
