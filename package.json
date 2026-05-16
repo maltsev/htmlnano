@@ -138,6 +138,9 @@
       "dist/**/*.cjs"
     ]
   },
+  "overrides": {
+    "yargs": "^18.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "git://github.com/maltsev/htmlnano.git"
