@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.3.1] - 2026-05-17
+
+### Fixed
+
+* Fixed `cssnano` version in `peerDependencies` [#432].
+
 ## [3.3.0] - 2026-05-16
 
 ### Changed
@@ -386,6 +392,7 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 ### Changed
 - Remove attributes that contains only white spaces.
 
+[3.3.1]: https://github.com/maltsev/htmlnano/compare/3.3.0...3.3.1
 [3.3.0]: https://github.com/maltsev/htmlnano/compare/3.2.1...3.3.0
 [3.2.1]: https://github.com/maltsev/htmlnano/compare/3.2.0...3.2.1
 [3.2.0]: https://github.com/maltsev/htmlnano/compare/3.1.0...3.2.0
@@ -427,6 +434,7 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 [0.1.2]: https://github.com/maltsev/htmlnano/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/maltsev/htmlnano/compare/0.1.0...0.1.1
 
+[#432]: https://github.com/maltsev/htmlnano/issues/432
 [#425]: https://github.com/maltsev/htmlnano/issues/425
 [#401]: https://github.com/maltsev/htmlnano/issues/401
 [#400]: https://github.com/maltsev/htmlnano/issues/400
