@@ -97,7 +97,7 @@
     "uncss": "^0.17.3"
   },
   "peerDependencies": {
-    "cssnano": "^8.0.0",
+    "cssnano": "^7.0.0 || ^8.0.0",
     "postcss": "^8.3.11",
     "purgecss": "^8.0.0",
     "relateurl": "^0.2.7",
