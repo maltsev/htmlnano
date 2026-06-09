@@ -82,7 +82,7 @@
     "eslint-plugin-unused-imports": "^4.4.1",
     "expect": "^30.1.1",
     "globals": "^17.0.0",
-    "jscpd": "^4.0.8",
+    "jscpd": "^5.0.4",
     "knip": "^6.0.2",
     "mocha": "^11.0.1",
     "postcss": "^8.3.11",
