@@ -91,6 +91,43 @@ echo '{"collapseWhitespace": "all", "removeComments": "all"}' > config.json
 npx htmlnano test.html -c config.json
 ```
 
+### Input and output
+
+With no input (or `-`) `htmlnano` reads from STDIN and writes to STDOUT:
+
+```bash
+cat test.html | npx htmlnano > test.min.html
+```
+
+A single input with `-o`/`--output` writes to a file:
+
+```bash
+npx htmlnano test.html -o test.min.html
+```
+
+You can pass multiple inputs and/or glob patterns. Quote glob patterns so they
+are expanded by `htmlnano` itself (this makes them behave the same on shells
+that don't expand globs, such as on Windows):
+
+```bash
+npx htmlnano "dist/**/*.html" extra.html --output-dir minified
+```
+
+With `--output-dir <dir>` every input is written under `<dir>`, preserving its
+path relative to the deepest common parent directory of all inputs. For
+example, given `pages/a.html` and `pages/nested/b.html`, the output is written
+to `<dir>/a.html` and `<dir>/nested/b.html`.
+
+Use `--in-place` to rewrite each input file in place (mutually exclusive with
+`-o`/`--output` and `--output-dir`):
+
+```bash
+npx htmlnano "dist/**/*.html" --in-place
+```
+
+Per-file progress is reported on STDERR. When more than one input is given,
+`--output-dir` or `--in-place` is required.
+
 
 ## Webpack
 

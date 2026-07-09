@@ -44,6 +44,16 @@ Also, you can use it as CLI tool:
 
 ```bash
 node_modules/.bin/htmlnano --help
+
+# STDIN -> STDOUT
+cat test.html | node_modules/.bin/htmlnano > test.min.html
+
+# Single file
+node_modules/.bin/htmlnano test.html -o test.min.html
+
+# Multiple files / globs (quote globs so htmlnano expands them itself)
+node_modules/.bin/htmlnano "dist/**/*.html" --output-dir minified
+node_modules/.bin/htmlnano "dist/**/*.html" --in-place
 ```
 
 More usage examples (PostHTML, CLI, Webpack): https://htmlnano.netlify.app/usage

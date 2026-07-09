@@ -82,4 +82,132 @@ describe('[cli]', () => {
             if (fs.existsSync(outFile)) fs.unlinkSync(outFile);
         }
     });
+
+    it('multiple files to --output-dir preserving nested structure', () => {
+        const workDir = fs.mkdtempSync(path.join(distDir, 'cli-multi-'));
+        const outDir = path.join(workDir, 'out');
+        try {
+            const aFile = path.join(workDir, 'a.html');
+            const nestedDir = path.join(workDir, 'nested');
+            const bFile = path.join(nestedDir, 'b.html');
+            fs.mkdirSync(nestedDir, { recursive: true });
+            fs.writeFileSync(aFile, inputHtml, 'utf8');
+            fs.writeFileSync(bFile, inputHtml, 'utf8');
+
+            const res = spawnSync(process.execPath, [bin, aFile, bFile, '--output-dir', outDir], {
+                encoding: 'utf8'
+            });
+
+            expect(res.error).toBeUndefined();
+            expect(res.status).toBe(0);
+            expect((res.stdout || '').trim()).toBe('');
+            expect(res.stderr).toContain('->');
+
+            expect(fs.readFileSync(path.join(outDir, 'a.html'), 'utf8').trim()).toBe(minifiedHtml);
+            expect(fs.readFileSync(path.join(outDir, 'nested', 'b.html'), 'utf8').trim()).toBe(minifiedHtml);
+        } finally {
+            fs.rmSync(workDir, { recursive: true, force: true });
+        }
+    });
+
+    it('glob pattern (quoted, expanded by the CLI)', () => {
+        const workDir = fs.mkdtempSync(path.join(distDir, 'cli-glob-'));
+        const outDir = path.join(workDir, 'out');
+        try {
+            fs.writeFileSync(path.join(workDir, 'a.html'), inputHtml, 'utf8');
+            fs.writeFileSync(path.join(workDir, 'b.html'), inputHtml, 'utf8');
+
+            const res = spawnSync(
+                process.execPath,
+                [bin, path.join(workDir, '*.html'), '--output-dir', outDir],
+                { encoding: 'utf8' }
+            );
+
+            expect(res.error).toBeUndefined();
+            expect(res.status).toBe(0);
+            expect(fs.readFileSync(path.join(outDir, 'a.html'), 'utf8').trim()).toBe(minifiedHtml);
+            expect(fs.readFileSync(path.join(outDir, 'b.html'), 'utf8').trim()).toBe(minifiedHtml);
+        } finally {
+            fs.rmSync(workDir, { recursive: true, force: true });
+        }
+    });
+
+    it('--in-place rewrites each input file', () => {
+        const workDir = fs.mkdtempSync(path.join(distDir, 'cli-inplace-'));
+        try {
+            const aFile = path.join(workDir, 'a.html');
+            const bFile = path.join(workDir, 'b.html');
+            fs.writeFileSync(aFile, inputHtml, 'utf8');
+            fs.writeFileSync(bFile, inputHtml, 'utf8');
+
+            const res = spawnSync(process.execPath, [bin, aFile, bFile, '--in-place'], {
+                encoding: 'utf8'
+            });
+
+            expect(res.error).toBeUndefined();
+            expect(res.status).toBe(0);
+            expect(fs.readFileSync(aFile, 'utf8').trim()).toBe(minifiedHtml);
+            expect(fs.readFileSync(bFile, 'utf8').trim()).toBe(minifiedHtml);
+        } finally {
+            fs.rmSync(workDir, { recursive: true, force: true });
+        }
+    });
+
+    it('error: multiple inputs without --output-dir/--in-place', () => {
+        const workDir = fs.mkdtempSync(path.join(distDir, 'cli-err-'));
+        try {
+            const aFile = path.join(workDir, 'a.html');
+            const bFile = path.join(workDir, 'b.html');
+            fs.writeFileSync(aFile, inputHtml, 'utf8');
+            fs.writeFileSync(bFile, inputHtml, 'utf8');
+
+            const res = spawnSync(process.execPath, [bin, aFile, bFile], {
+                encoding: 'utf8'
+            });
+
+            expect(res.error).toBeUndefined();
+            expect(res.status).toBe(1);
+            expect(res.stderr).toContain('Multiple input files require');
+        } finally {
+            fs.rmSync(workDir, { recursive: true, force: true });
+        }
+    });
+
+    it('error: glob matching nothing', () => {
+        const res = spawnSync(process.execPath, [bin, 'does-not-exist-*.html', '--output-dir', 'out'], {
+            encoding: 'utf8'
+        });
+
+        expect(res.error).toBeUndefined();
+        expect(res.status).toBe(1);
+        expect(res.stderr).toContain('No files matched the pattern');
+    });
+
+    it('error: nonexistent input file', () => {
+        const res = spawnSync(process.execPath, [bin, 'no-such-file.html'], {
+            encoding: 'utf8'
+        });
+
+        expect(res.error).toBeUndefined();
+        expect(res.status).toBe(1);
+        expect(res.stderr).toContain('does not exist');
+    });
+
+    it('error: --in-place combined with --output', () => {
+        const workDir = fs.mkdtempSync(path.join(distDir, 'cli-excl-'));
+        try {
+            const aFile = path.join(workDir, 'a.html');
+            fs.writeFileSync(aFile, inputHtml, 'utf8');
+
+            const res = spawnSync(process.execPath, [bin, aFile, '--in-place', '-o', 'out.html'], {
+                encoding: 'utf8'
+            });
+
+            expect(res.error).toBeUndefined();
+            expect(res.status).toBe(1);
+            expect(res.stderr).toContain('cannot be combined');
+        } finally {
+            fs.rmSync(workDir, { recursive: true, force: true });
+        }
+    });
 });
