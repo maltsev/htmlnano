@@ -145,6 +145,7 @@ const modules = {
     removeOptionalTags: () => interop(import('./_modules/removeOptionalTags')),
     removeRedundantAttributes: () => interop(import('./_modules/removeRedundantAttributes')),
     removeUnusedCss: () => interop(import('./_modules/removeUnusedCss')),
+    removeXmlLeftovers: () => interop(import('./_modules/removeXmlLeftovers')),
     sortAttributes: () => interop(import('./_modules/sortAttributes')),
     sortAttributesWithLists: () => interop(import('./_modules/sortAttributesWithLists'))
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module options vary per module

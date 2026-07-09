@@ -16,6 +16,9 @@ export default {
     // removeRedundantAttributes will remove attributes when missing value default matches the attribute's value
     // See https://html.spec.whatwg.org/#missing-value-default
     removeRedundantAttributes: false,
+    // removeXmlLeftovers removes XHTML-era leftovers meaningless in HTML documents.
+    // Max preset only, since it changes documents that are re-served as XHTML/XML.
+    removeXmlLeftovers: false,
     // collapseBooleanAttributes will also collapse those default state can be omitted
     collapseBooleanAttributes: {
         amphtml: false

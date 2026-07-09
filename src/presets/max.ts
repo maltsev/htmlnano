@@ -7,6 +7,7 @@ import safePreset from './safe';
 export default {
     ...safePreset,
     removeRedundantAttributes: true,
+    removeXmlLeftovers: true,
     sortAttributes: true,
     collapseWhitespace: 'all',
     minifyCharacterReferences: {

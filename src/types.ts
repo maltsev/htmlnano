@@ -111,6 +111,7 @@ export interface HtmlnanoOptions {
         removeWithAttributes?: boolean;
     };
     removeRedundantAttributes?: boolean;
+    removeXmlLeftovers?: boolean;
     removeOptionalTags?: boolean;
     removeUnusedCss?: boolean
         | HtmlnanoPurgeCssOptions
