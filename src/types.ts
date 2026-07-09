@@ -88,6 +88,9 @@ export interface HtmlnanoOptions {
     mergeScripts?: boolean;
     minifyCss?: HtmlnanoMinifyCssOptions | boolean;
     minifyHtmlTemplate?: MinifyHtmlTemplateOptions;
+    minifyCharacterReferences?: boolean | {
+        decodeAll?: boolean;
+    };
     minifyConditionalComments?: boolean;
     minifyJs?: HtmlnanoMinifyJsOptions | boolean;
     minifyJson?: boolean;

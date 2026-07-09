@@ -35,6 +35,7 @@ export default {
      * Minify HTML content
      * ---------------------------------------- */
     collapseWhitespace: 'conservative',
+    minifyCharacterReferences: true,
     removeComments: 'safe',
     removeEmptyElements: false,
     minifyConditionalComments: false,

@@ -127,6 +127,7 @@ const modules = {
     // example: () => import('./_modules/example.mjs'),
     mergeScripts: () => interop(import('./_modules/mergeScripts')),
     mergeStyles: () => interop(import('./_modules/mergeStyles')),
+    minifyCharacterReferences: () => interop(import('./_modules/minifyCharacterReferences')),
     minifyConditionalComments: () => interop(import('./_modules/minifyConditionalComments')),
     minifyCss: () => interop(import('./_modules/minifyCss')),
     minifyHtmlTemplate: () => interop(import('./_modules/minifyHtmlTemplate')),

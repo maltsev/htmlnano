@@ -493,6 +493,44 @@ Minified (with `conservative`):
 ```
 
 
+### minifyCharacterReferences
+Decodes HTML character references (entities) into shorter literal UTF-8
+characters in text nodes and attribute values. Most named references are
+5–8 bytes, while the equivalent character is only 2–3 bytes as UTF-8
+(`&mdash;` → `—`, `&hellip;` → `…`, `&copy;` → `©`). Decimal (`&#8212;`)
+and hexadecimal (`&#x2014;`) numeric references are decoded as well.
+
+#### Options
+- `true` — decode a conservative allowlist of common typographic/symbol named
+  references plus safe numeric references (default in the `safe` preset).
+- `{ decodeAll: true }` — decode every named reference the module knows about
+  (default in the `max` preset). The module never adds a runtime dependency,
+  so unknown named references are always left untouched.
+
+#### Notes
+- The syntactically required references are **never** decoded, because
+  posthtml-render does not re-escape text: `&amp;`, `&lt;`, `&gt;` in text
+  nodes, and `&amp;`, `&quot;`, `&apos;`/`&#39;` in attribute values.
+- Any reference (named or numeric) whose decoded form would be `&`, `<`, `>`
+  (or a quote inside an attribute value) is left as-is. This also prevents
+  double-encoded input like `&amp;mdash;` from collapsing into `&mdash;`.
+- Content of `<script>`, `<style>`, and `<textarea>` is left untouched, since
+  browsers do not entity-decode raw-text element content.
+- Invalid, unknown, or non-terminated references (for example `&fake;` or
+  `&mdash` without a semicolon) are left untouched.
+
+#### Example
+Source:
+```html
+<p title="a &mdash; b">Copyright &copy; 2024 &#8212; the end&hellip;</p>
+```
+
+Minified:
+```html
+<p title="a — b">Copyright © 2024 — the end…</p>
+```
+
+
 ### removeComments
 #### Options
 - `safe` – removes HTML comments but keeps:

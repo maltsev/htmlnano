@@ -9,6 +9,9 @@ export default {
     removeRedundantAttributes: true,
     sortAttributes: true,
     collapseWhitespace: 'all',
+    minifyCharacterReferences: {
+        decodeAll: true
+    },
     removeComments: 'all',
     removeEmptyElements: true,
     minifyConditionalComments: true,
