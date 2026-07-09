@@ -96,9 +96,9 @@ const isSrcsetAttribute = (tag: string, attr: string) => {
 type MinifyUrlsOptions = HtmlnanoOptions['minifyUrls'] | Partial<URL> | undefined;
 
 const processModuleOptions = (options: MinifyUrlsOptions) => {
-    // FIXME!
-    // relateurl@1.0.0-alpha only supports URL while stable version (0.2.7) only supports string
-    // should convert input into URL instance after relateurl@1 is stable
+    // The stable relateurl (0.2.7) works with string base URLs, so normalize a
+    // URL instance into a string. (relateurl@1.0.0-alpha switched to the WHATWG
+    // URL API; revisit this once/if that reaches a stable release.)
     if (typeof options === 'string') return options;
     if (options instanceof URL) return options.toString();
 
@@ -250,10 +250,8 @@ function shouldRelateUrlValue(value: string) {
 function relateUrlValue(relateUrl: RelateUrl, value: string) {
     if (!shouldRelateUrlValue(value)) return value;
 
-    // FIXME!
-    // relateurl@1.0.0-alpha only supports URL while stable version (0.2.7) only supports string
-    // the WHATWG URL API is very strict while attrValue might not be a valid URL
-    // new URL should be used, and relateUrl#relate should be wrapped in try...catch after relateurl@1 is stable
+    // relateUrl#relate is wrapped in try...catch because attrValue might not be
+    // a valid URL, and relateurl can throw for malformed input.
     try {
         return relateUrl.relate(value);
     } catch {

@@ -83,6 +83,14 @@ describe('minifyUrls', () => {
         ]);
     });
 
+    it('should produce protocol-relative urls for same-scheme cross-host links', () => {
+        return init(
+            '<a href="https://other.com/foo">bar</a>',
+            '<a href="//other.com/foo">bar</a>',
+            { minifyUrls: 'https://example.com/' }
+        );
+    });
+
     it('shouldn\'t process link[rel=canonical] tag', () => {
         const html = '<link href="https://example.com/baz/" rel="canonical">';
 
