@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SuperWidget &ndash; Ship Faster</title>
+    <style>
+        :root { --brand: #4f46e5; --gap: 16px; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, sans-serif; }
+        .hero {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: #ffffff;
+            padding: 64px 24px;
+            text-align: center;
+        }
+        .hero h1 { font-size: 3rem; margin: 0 0 var(--gap) 0; }
+        .btn {
+            display: inline-block;
+            padding: 12px 28px;
+            background: #ffffff;
+            color: var(--brand);
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 700;
+        }
+        .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; padding: 48px 24px; }
+        .feature svg { width: 48px; height: 48px; }
+    </style>
+</head>
+<body>
+    <section class="hero">
+        <h1>Ship Faster with SuperWidget</h1>
+        <p>The all-in-one toolkit for building modern web apps.</p>
+        <a class="btn" href="https://example.com/signup">Get Started &rarr;</a>
+    </section>
+
+    <section class="features">
+        <div class="feature">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+            </svg>
+            <h3>Fast</h3>
+            <p>Blazing performance out of the box.</p>
+        </div>
+        <div class="feature">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 6v6l4 2"></path>
+            </svg>
+            <h3>Reliable</h3>
+            <p>Battle-tested in production.</p>
+        </div>
+        <div class="feature">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                <path d="M9 12l2 2 4-4"></path>
+            </svg>
+            <h3>Simple</h3>
+            <p>An API you will actually enjoy.</p>
+        </div>
+    </section>
+
+    <script>
+        document.querySelectorAll('.btn').forEach(function (el) {
+            el.addEventListener('click', function (event) {
+                var target = event.currentTarget;
+                if (window.analytics && typeof window.analytics.track === 'function') {
+                    window.analytics.track('cta_click', { href: target.getAttribute('href') });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
