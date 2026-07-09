@@ -6,17 +6,74 @@ describe('mergeStyles', () => {
         mergeStyles: maxPreset.mergeStyles
     };
 
-    it('should merge multiple <style> with the same "type" and "media" into one', () => {
+    it('should merge multiple contiguous <style> with the same "type" and "media" into one', () => {
         return init(
             '<style>h1 { color: red }</style>'
             + '<div>hello</div>'
-            + '<style media="print">div { color: blue }</style>'
             + '<style>div { font-size: 20px }</style>'
+            + '<style media="print">div { color: blue }</style>'
             + '<style type="text/css" media="print">a {}</style>',
 
             '<style>h1 { color: red } div { font-size: 20px }</style>'
             + '<div>hello</div>'
             + '<style media="print">div { color: blue } a {}</style>',
+
+            options
+        );
+    });
+
+    it('should not merge <style> tags separated by a differing <style> (source order)', () => {
+        return init(
+            '<style>h1 { color: red }</style>'
+            + '<style media="print">div { color: blue }</style>'
+            + '<style>div { font-size: 20px }</style>',
+
+            '<style>h1 { color: red }</style>'
+            + '<style media="print">div { color: blue }</style>'
+            + '<style>div { font-size: 20px }</style>',
+
+            options
+        );
+    });
+
+    it('should not merge <style> tags across a <link rel="stylesheet"> (source order)', () => {
+        return init(
+            '<style>p { color: red }</style>'
+            + '<link rel="stylesheet" href="theme.css">'
+            + '<style>p { color: green }</style>',
+
+            '<style>p { color: red }</style>'
+            + '<link rel="stylesheet" href="theme.css">'
+            + '<style>p { color: green }</style>',
+
+            options
+        );
+    });
+
+    it('should merge <style> tags across a <link rel="preload"> (not a stylesheet source)', () => {
+        return init(
+            '<style>p { color: red }</style>'
+            + '<link rel="preload" href="theme.css" as="style">'
+            + '<style>p { color: green }</style>',
+
+            '<style>p { color: red } p { color: green }</style>'
+            + '<link rel="preload" href="theme.css" as="style">',
+
+            options
+        );
+    });
+
+    it('should start a new group after a media-mismatched <style> between matching ones', () => {
+        return init(
+            '<style>a { color: red }</style>'
+            + '<style>b { color: red }</style>'
+            + '<style media="print">c { color: blue }</style>'
+            + '<style>d { color: green }</style>'
+            + '<style>e { color: green }</style>',
+
+            '<style>a { color: red } b { color: red }</style>'
+            + '<style media="print">c { color: blue }</style>'
+            + '<style>d { color: green } e { color: green }</style>',
 
             options
         );

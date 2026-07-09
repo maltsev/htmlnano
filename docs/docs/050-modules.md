@@ -872,20 +872,44 @@ Skipped styles:
 - `<style integrity>...</style>`
 - AMP boilerplate styles (`amp-boilerplate`, `amp4ads-boilerplate`, `amp4email-boilerplate`)
 
+#### Source order is preserved
+
+CSS rules of equal specificity resolve by their source order, so moving a
+`<style>` past another stylesheet can silently change which rules win. To stay
+safe, only styles that form a **contiguous run** in document order are merged:
+the merge group is closed whenever a stylesheet source appears between two
+otherwise-mergeable styles, namely:
+
+- a `<link rel="stylesheet">` (any other `rel`, such as `preload`, is not a
+  stylesheet source and does not break a group);
+- a `<style>` with different group attributes (e.g. a different `media` or
+  `type`), or a skipped `scoped`/`integrity` style.
+
+Non-stylesheet content between styles (plain elements, text, comments, AMP
+boilerplate, preload links) does not break a group. When a group is closed a new
+one starts, so a document can produce several independent merged groups.
+
 #### Example
 Source:
 ```html
 <style>h1 { color: red }</style>
-<style media="print">div { color: blue }</style>
-
-<style type="text/css" media="print">a {}</style>
 <style>div { font-size: 20px }</style>
+<style media="print">div { color: blue }</style>
+<style type="text/css" media="print">a {}</style>
 ```
 
 Minified:
 ```html
 <style>h1 { color: red } div { font-size: 20px }</style>
 <style media="print">div { color: blue } a {}</style>
+```
+
+The following is **not** merged, because the external stylesheet sits between the
+two inline styles and could change the cascade:
+```html
+<style>p { color: red }</style>
+<link rel="stylesheet" href="theme.css">
+<style>p { color: green }</style>
 ```
 
 
