@@ -156,4 +156,92 @@ describe('minifyUrls', () => {
             { minifyUrls: 'https://example.com/foo/' }
         );
     });
+
+    it('should strip the default port for the matching scheme', () => {
+        return Promise.all([
+            init(
+                '<a href="https://example.com:443/foo/bar">bar</a>',
+                '<a href="bar">bar</a>',
+                { minifyUrls: 'https://example.com/foo/' }
+            ),
+            init(
+                '<a href="http://other.com:80/foo/bar">bar</a>',
+                '<a href="http://other.com/foo/bar">bar</a>',
+                { minifyUrls: 'https://example.com/foo/' }
+            )
+        ]);
+    });
+
+    it('shouldn\'t strip a non-default port', () => {
+        return Promise.all([
+            init(
+                '<a href="https://other.com:8443/foo/bar">bar</a>',
+                '<a href="//other.com:8443/foo/bar">bar</a>',
+                { minifyUrls: 'https://example.com/foo/' }
+            ),
+            init(
+                '<a href="http://other.com:443/foo/bar">bar</a>',
+                '<a href="http://other.com:443/foo/bar">bar</a>',
+                { minifyUrls: 'https://example.com/foo/' }
+            )
+        ]);
+    });
+
+    it('should remove a trailing empty query or fragment', () => {
+        return Promise.all([
+            init(
+                '<a href="https://example.com/foo/bar?">bar</a>',
+                '<a href="bar">bar</a>',
+                { minifyUrls: 'https://example.com/foo/' }
+            ),
+            init(
+                '<a href="https://example.com/foo/bar#">bar</a>',
+                '<a href="bar">bar</a>',
+                { minifyUrls: 'https://example.com/foo/' }
+            ),
+            init(
+                '<a href="https://example.com/foo/bar?#">bar</a>',
+                '<a href="bar">bar</a>',
+                { minifyUrls: 'https://example.com/foo/' }
+            )
+        ]);
+    });
+
+    it('shouldn\'t remove a non-empty query or fragment', () => {
+        return Promise.all([
+            init(
+                '<a href="https://example.com/foo/bar?x=1">bar</a>',
+                '<a href="bar?x=1">bar</a>',
+                { minifyUrls: 'https://example.com/foo/' }
+            ),
+            init(
+                '<a href="https://example.com/foo/bar#top">bar</a>',
+                '<a href="bar#top">bar</a>',
+                { minifyUrls: 'https://example.com/foo/' }
+            )
+        ]);
+    });
+
+    it('should normalize srcset urls', () => {
+        return init(
+            '<img srcset="https://example.com:443/foo/bar.png 1x, https://example.com/foo/baz.png# 2x">',
+            '<img srcset="bar.png 1x, baz.png 2x">',
+            { minifyUrls: 'https://example.com/foo/' }
+        );
+    });
+
+    it('shouldn\'t normalize canonical link or javascript urls', () => {
+        return Promise.all([
+            init(
+                '<link href="https://example.com:443/foo/bar#" rel="canonical">',
+                '<link href="https://example.com:443/foo/bar#" rel="canonical">',
+                { minifyUrls: 'https://example.com/foo/' }
+            ),
+            init(
+                '<a href="javascript:alert(true)">js</a>',
+                '<a href="javascript:alert(!0)">js</a>',
+                { minifyUrls: 'https://example.com/foo/' }
+            )
+        ]);
+    });
 });

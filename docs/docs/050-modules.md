@@ -307,6 +307,8 @@ htmlnano.process(html, {
 
 - Only `http(s)` and relative URLs are related. Non-HTTP schemes (e.g. `mailto:`, `tel:`, `data:`) are left untouched.
 - Hash-only (`#...`) and query-only (`?...`) URLs are left untouched.
+- A default port matching the scheme is stripped (`https://example.com:443/x` → `https://example.com/x`, `http://example.com:80/x` → `http://example.com/x`). A mismatched port is kept (e.g. `:443` is not removed for `http`, nor `:8443` for `https`).
+- A trailing empty query (`?`) or empty fragment (`#`) is removed (`foo?` and `foo#` → `foo`). A non-empty query (`?x=1`) or fragment (`#top`) is kept.
 - `link[rel="canonical"]` is never rewritten.
 - `srcset` and `imagesrcset` are processed when `srcset` is installed; invalid `srcset` strings are left unchanged.
 - `javascript:` URLs are minified with `terser` when available, preserving leading whitespace and normalizing the protocol to lowercase.

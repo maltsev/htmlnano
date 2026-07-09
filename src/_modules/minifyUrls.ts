@@ -253,10 +253,33 @@ function relateUrlValue(relateUrl: RelateUrl, value: string) {
     // relateUrl#relate is wrapped in try...catch because attrValue might not be
     // a valid URL, and relateurl can throw for malformed input.
     try {
-        return relateUrl.relate(value);
+        // relateurl (with its default `defaultPorts`) already strips default ports
+        // (e.g. `:443` for https, `:80` for http, but not mismatched ones)
+        // and a trailing empty query ("?"), but it keeps a trailing empty
+        // fragment ("#"). Normalize the result to also drop that.
+        return normalizeRelatedUrl(relateUrl.relate(value));
     } catch {
         return value;
     }
+}
+
+/**
+ * Remove a trailing lone "?" (empty query) or "#" (empty fragment).
+ * A non-empty query ("?x=1") or fragment ("#top") is left untouched.
+ */
+function normalizeRelatedUrl(value: string) {
+    // Drop an empty fragment ("#"). "#top" ends with "p", so it is untouched.
+    if (value.endsWith('#')) {
+        value = value.slice(0, -1);
+    }
+
+    // Drop an empty query ("?"), including one exposed by removing a "?#" tail.
+    // "?x=1" ends with "1", so it is untouched.
+    if (value.endsWith('?')) {
+        value = value.slice(0, -1);
+    }
+
+    return value;
 }
 
 function minifyJavaScriptUrl(
