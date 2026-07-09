@@ -216,7 +216,7 @@ trimming whitespace, and dropping empty URLs.
 - `metaContent` (`boolean`) - enable minification for `meta[http-equiv="refresh"]`.
 - `redundantWhitespaces` - remove redundant whitespace from attribute values.
   - `safe` - collapse whitespace in list-like attributes and trim single-value attributes (similar to `collapseAttributeWhitespace`).
-  - `agressive` - also trims other attribute values.
+  - `aggressive` - also trims other attribute values. (`agressive` is a deprecated alias kept for backwards compatibility.)
   - `false` - disable this behavior.
 
 #### Example

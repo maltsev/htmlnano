@@ -92,7 +92,19 @@ describe('minifyAttributes', () => {
             );
         });
 
-        it('should trim other attributes in agressive mode', () => {
+        it('should trim other attributes in aggressive mode', () => {
+            return init(
+                '<div id="  foo  bar  " data-value="  keep  "></div>',
+                '<div id="foo  bar" data-value="keep"></div>',
+                {
+                    minifyAttributes: {
+                        redundantWhitespaces: 'aggressive'
+                    }
+                }
+            );
+        });
+
+        it('should support the deprecated "agressive" alias', () => {
             return init(
                 '<div id="  foo  bar  " data-value="  keep  "></div>',
                 '<div id="foo  bar" data-value="keep"></div>',

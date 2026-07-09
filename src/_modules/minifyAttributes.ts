@@ -4,11 +4,12 @@ import { isListAttribute, isSingleValueAttribute } from './collapseAttributeWhit
 
 const asciiWhitespace = new Set(['\t', '\n', '\f', '\r', ' ']);
 
-type RedundantWhitespaceMode = 'safe' | 'agressive' | false;
+type RedundantWhitespaceMode = 'safe' | 'aggressive' | false;
 
 type MinifyAttributesOptions = {
     metaContent?: boolean;
-    redundantWhitespaces?: RedundantWhitespaceMode | 'aggressive';
+    /** `'agressive'` is a deprecated alias for `'aggressive'`. */
+    redundantWhitespaces?: RedundantWhitespaceMode | 'agressive';
 };
 
 type NormalizedOptions = {
@@ -119,11 +120,12 @@ function normalizeOptions(moduleOptions: Partial<MinifyAttributesOptions> | bool
     if (moduleOptions && typeof moduleOptions === 'object') {
         let redundantWhitespaces: RedundantWhitespaceMode = defaultOptions.redundantWhitespaces;
 
-        if (moduleOptions.redundantWhitespaces === 'aggressive') {
-            redundantWhitespaces = 'agressive';
+        if (moduleOptions.redundantWhitespaces === 'agressive') {
+            // Deprecated alias for 'aggressive'.
+            redundantWhitespaces = 'aggressive';
         } else if (
             moduleOptions.redundantWhitespaces === 'safe'
-            || moduleOptions.redundantWhitespaces === 'agressive'
+            || moduleOptions.redundantWhitespaces === 'aggressive'
             || moduleOptions.redundantWhitespaces === false
         ) {
             redundantWhitespaces = moduleOptions.redundantWhitespaces;
@@ -169,7 +171,7 @@ function minifyAttributeWhitespace(
         return trimmed === attrValue ? null : trimmed;
     }
 
-    if (mode === 'agressive') {
+    if (mode === 'aggressive') {
         const trimmed = attrValue.trim();
         return trimmed === attrValue ? null : trimmed;
     }

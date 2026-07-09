@@ -93,7 +93,8 @@ export interface HtmlnanoOptions {
     minifyJson?: boolean;
     minifyAttributes?: boolean | {
         metaContent?: boolean;
-        redundantWhitespaces?: 'safe' | 'agressive' | false;
+        /** `'agressive'` is a deprecated alias for `'aggressive'`. */
+        redundantWhitespaces?: 'safe' | 'aggressive' | 'agressive' | false;
     };
     minifySvg?: HtmlnanoMinifySvgOptions | boolean;
     normalizeAttributeValues?: boolean;

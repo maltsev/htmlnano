@@ -16,7 +16,7 @@ export default {
     removeAttributeQuotes: true,
     minifyAttributes: {
         metaContent: true,
-        redundantWhitespaces: 'agressive'
+        redundantWhitespaces: 'aggressive'
     },
     mergeScripts: true,
     mergeStyles: true,
