@@ -8,6 +8,15 @@ import type PostHTML from 'posthtml';
 
 export type * from './types';
 
+/**
+ * Maps each module name to its own option type, derived from HtmlnanoOptions.
+ * Used to type the per-module options passed to module hooks, so consumers of
+ * HtmlnanoOptions keep full IntelliSense for each module's options.
+ */
+type ModuleOptions = {
+    [Key in keyof HtmlnanoOptions]-?: NonNullable<HtmlnanoOptions[Key]>;
+};
+
 export const presets: HtmlnanoPredefinedPresets = {
     safe: safePreset,
     ampSafe: ampSafePreset,
@@ -192,21 +201,21 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
                 ? (await (modules[moduleName as keyof typeof modules]())) as HtmlnanoModule
                 : (await import(`./_modules/${moduleName}.mjs`)) as HtmlnanoModule;
 
+            // `moduleName` is a validated module key (see the `safePreset` check
+            // above), so the corresponding option value is typed by HtmlnanoOptions.
+            const typedModuleOptions = moduleOptions as ModuleOptions[keyof ModuleOptions];
+
             if (typeof mod.onAttrs === 'function') {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module options are generic
-                attrsHandlers.push(mod.onAttrs(options, moduleOptions as Partial<any>));
+                attrsHandlers.push(mod.onAttrs(options, typedModuleOptions));
             }
             if (typeof mod.onContent === 'function') {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module options are generic
-                contentsHandlers.push(mod.onContent(options, moduleOptions as Partial<any>));
+                contentsHandlers.push(mod.onContent(options, typedModuleOptions));
             }
             if (typeof mod.onNode === 'function') {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module options are generic
-                nodeHandlers.push(mod.onNode(options, moduleOptions as Partial<any>));
+                nodeHandlers.push(mod.onNode(options, typedModuleOptions));
             }
             if (typeof mod.default === 'function') {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module options are generic
-                promise = promise.then(async tree => await mod.default!(tree, options, moduleOptions as Partial<any>));
+                promise = promise.then(async tree => await mod.default!(tree, options, typedModuleOptions));
             }
         }
 

@@ -24,7 +24,9 @@ jobs:
       - if: matrix.node-version != 'current'
         run: npm test
 
-      # Until https://github.com/bcoe/c8/issues/582 is fixed
+      # TODO: The Node "current" entry skips c8 coverage because of a c8 bug.
+      # Once https://github.com/bcoe/c8/issues/582 is fixed, drop this branch
+      # and run the full `npm test` (with c8) on "current" as well.
       - if: matrix.node-version == 'current'
         run: npm run pretest && npm run test:mocha
 

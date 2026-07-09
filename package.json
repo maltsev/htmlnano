@@ -18,7 +18,7 @@
     "test:mocha": "mocha --timeout 5000 --require @swc-node/register --recursive --ignore 'test/typecheck/**/*.ts' --check-leaks --globals addresses 'test/**/*.ts'",
     "pretest": "npm run lint && npm run compile && npm run test:types",
     "test": "c8 -r text -r html npm run test:mocha",
-    "posttest": "c8 check-coverage --lines 85 --per-file",
+    "posttest": "c8 check-coverage --lines 85 --branches 65 --per-file",
     "prepare": "npm run compile"
   },
   "files": [
