@@ -1,10 +1,10 @@
 import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLTreeLike } from '../types';
 
-type CustomModule = (tree: PostHTMLTreeLike, options: Partial<HtmlnanoOptions>) => PostHTMLTreeLike;
+type CustomModule = (tree: PostHTMLTreeLike, options: Partial<HtmlnanoOptions>) => PostHTMLTreeLike | Promise<PostHTMLTreeLike>;
 
 /** Meta-module that runs custom modules */
 const mod: HtmlnanoModule<CustomModule[]> = {
-    default: function custom(tree, options, customModules) {
+    default: async function custom(tree, options, customModules) {
         if (!customModules) {
             return tree;
         }
@@ -13,11 +13,11 @@ const mod: HtmlnanoModule<CustomModule[]> = {
             customModules = [customModules];
         }
 
-        customModules.forEach((customModule) => {
+        for (const customModule of customModules) {
             if (customModule) {
-                tree = customModule(tree, options);
+                tree = await customModule(tree, options);
             }
-        });
+        }
 
         return tree;
     }
