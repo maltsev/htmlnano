@@ -40,6 +40,13 @@ function isCommentToRemove(text: PostHTMLNodeLike, removeType: Partial<RemoveCom
 
     if (removeType === 'safe') {
         const commentBody = getCommentBody(text);
+
+        // Preserve license comments "<!--! ... -->", the HTML analogue of the
+        // "/*! ... */" comments kept by Terser/cssnano.
+        if (commentBody && commentBody.startsWith('!')) {
+            return false;
+        }
+
         const isNoindex = commentBody ? MATCH_NOINDEX_REGEXP.test(commentBody) : false;
         // Don't remove noindex comments. It was used by some search engines in the past.
         if (isNoindex) {

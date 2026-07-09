@@ -89,6 +89,14 @@ describe('removeComments', () => {
             );
         });
 
+        it('should not remove license comments <!--! ... -->', () => {
+            return init(
+                '<!--! Copyright 2024 Example --><div>x</div>',
+                '<!--! Copyright 2024 Example --><div>x</div>',
+                options
+            );
+        });
+
         // https://github.com/maltsev/htmlnano/issues/137
         it('issue #137', () => {
             return init(
@@ -140,6 +148,14 @@ describe('removeComments', () => {
             return init(
                 'Lorem ipsum dolor sit amet <!-- more --> consectetur adipiscing elit',
                 'Lorem ipsum dolor sit amet  consectetur adipiscing elit',
+                options
+            );
+        });
+
+        it('should remove license comments <!--! ... -->', () => {
+            return init(
+                '<!--! Copyright 2024 Example --><div>x</div>',
+                '<div>x</div>',
                 options
             );
         });

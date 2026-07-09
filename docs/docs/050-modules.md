@@ -500,6 +500,7 @@ Minified (with `conservative`):
   - `<!--noindex-->...<!--/noindex-->` (case/spacing tolerant)
   - `<!--sse-->...<!--/sse-->` Server-Side Excludes markers (case/spacing tolerant)
   - excerpt markers that start with `more` (case/spacing tolerant), e.g. `<!-- more -->`, `<!-- MORE -->`, `<!-- more Read more -->`
+  - license comments `<!--! ... -->` (the HTML analogue of the `/*! ... */` comments kept by Terser/cssnano)
   (default)
 - `all` — removes all HTML comments, including conditional/noindex/sse/excerpt comments
 - A `RegExp` — removes HTML comments that match the regexp (non-matching comments are kept)
