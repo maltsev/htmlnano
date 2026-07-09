@@ -15,6 +15,7 @@
     "lint:knip": "knip",
     "lint": "npm run lint:eslint && npm run lint:duplicates && npm run lint:knip",
     "test:types": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test:package": "npm run compile && publint && attw --pack .",
     "test:mocha": "mocha --timeout 5000 --require @swc-node/register --recursive --ignore 'test/typecheck/**/*.ts' --check-leaks --globals addresses 'test/**/*.ts'",
     "pretest": "npm run lint && npm run compile && npm run test:types",
     "test": "c8 -r text -r html npm run test:mocha",
@@ -29,29 +30,54 @@
   "bin": "./dist/bin.js",
   "exports": {
     "./helpers": {
-      "types": "./dist/helpers.d.ts",
-      "import": "./dist/helpers.mjs",
-      "require": "./dist/helpers.js"
+      "import": {
+        "types": "./dist/helpers.d.mts",
+        "default": "./dist/helpers.mjs"
+      },
+      "require": {
+        "types": "./dist/helpers.d.ts",
+        "default": "./dist/helpers.js"
+      }
     },
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
     },
     "./presets/ampSafe": {
-      "types": "./dist/presets/ampSafe.d.ts",
-      "import": "./dist/presets/ampSafe.mjs",
-      "require": "./dist/presets/ampSafe.js"
+      "import": {
+        "types": "./dist/presets/ampSafe.d.mts",
+        "default": "./dist/presets/ampSafe.mjs"
+      },
+      "require": {
+        "types": "./dist/presets/ampSafe.d.ts",
+        "default": "./dist/presets/ampSafe.js"
+      }
     },
     "./presets/max": {
-      "types": "./dist/presets/max.d.ts",
-      "import": "./dist/presets/max.mjs",
-      "require": "./dist/presets/max.js"
+      "import": {
+        "types": "./dist/presets/max.d.mts",
+        "default": "./dist/presets/max.mjs"
+      },
+      "require": {
+        "types": "./dist/presets/max.d.ts",
+        "default": "./dist/presets/max.js"
+      }
     },
     "./presets/safe": {
-      "types": "./dist/presets/safe.d.ts",
-      "import": "./dist/presets/safe.mjs",
-      "require": "./dist/presets/safe.js"
+      "import": {
+        "types": "./dist/presets/safe.d.mts",
+        "default": "./dist/presets/safe.mjs"
+      },
+      "require": {
+        "types": "./dist/presets/safe.d.ts",
+        "default": "./dist/presets/safe.js"
+      }
     }
   },
   "keywords": [
@@ -68,6 +94,7 @@
     "posthtml": "^0.16.5"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.4",
     "@eslint/js": "^10.0.1",
     "@stylistic/eslint-plugin": "^5.3.1",
     "@swc-node/register": "^1.10.10",
@@ -86,6 +113,7 @@
     "knip": "^6.0.2",
     "mocha": "^11.0.1",
     "postcss": "^8.3.11",
+    "publint": "^0.3.21",
     "purgecss": "^8.0.0",
     "relateurl": "^0.2.7",
     "rimraf": "^6.0.0",

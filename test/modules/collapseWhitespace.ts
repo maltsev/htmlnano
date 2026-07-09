@@ -52,7 +52,7 @@ describe('collapseWhitespace', () => {
 
     context('all', () => {
         const options: HtmlnanoOptions = {
-            collapseWhitespace: maxPreset.collapseWhitespace as HtmlnanoOptions['collapseWhitespace']
+            collapseWhitespace: maxPreset.collapseWhitespace
         };
 
         it('should collapse redundant whitespaces', () => {
@@ -269,7 +269,7 @@ describe('collapseWhitespace', () => {
 
     context('conservative (default)', () => {
         const options: HtmlnanoOptions = {
-            collapseWhitespace: safePreset.collapseWhitespace as HtmlnanoOptions['collapseWhitespace']
+            collapseWhitespace: safePreset.collapseWhitespace
         };
 
         it('should collapse to 1 space', () => {

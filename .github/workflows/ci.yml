@@ -30,6 +30,26 @@ jobs:
       - if: matrix.node-version == 'current'
         run: npm run pretest && npm run test:mocha
 
+  test-package:
+    name: Check package health
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['lts/*']
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - run: npm install
+
+      # publint + arethetypeswrong (attw); the script builds dist first
+      - run: npm run test:package
+
   test-docs:
     name: Run tests for docs
     runs-on: ubuntu-latest

@@ -1,0 +1,5 @@
+{
+  "$schema": "https://raw.githubusercontent.com/arethetypeswrong/arethetypeswrong.github.io/main/packages/cli/config-schema.json",
+  "_comment": "Use the node16 profile so the legacy node10 module-resolution check is skipped. node10 (TypeScript < 4.7 'node' resolution) ignores the package.json `exports` map entirely and can only resolve subpath types via physical paths or `typesVersions`. Our subpaths (htmlnano/helpers, htmlnano/presets/*) are only exposed through `exports`, so node10 can't find their type declarations. Supporting it would require legacy `typesVersions` mapping that we don't want to maintain for a ~2022 toolchain. The root '.' entry still resolves fine under node10 via main/module/types. All modern resolvers (node16 CJS + ESM, bundler) are green.",
+  "profile": "node16"
+}
