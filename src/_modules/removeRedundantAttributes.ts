@@ -68,6 +68,8 @@ const missingValueDefaultAttributes: Record<string, Record<string, string | ((at
 
     script: {
         language: 'javascript',
+        // https://html.spec.whatwg.org/#fetch-priority-attributes
+        fetchpriority: 'auto',
         type: (attrs) => {
             const typeValue = getNormalizedAttrValue(attrs, 'type');
             return typeValue !== null && redundantScriptTypes.has(typeValue);
@@ -87,6 +89,8 @@ const missingValueDefaultAttributes: Record<string, Record<string, string | ((at
 
     link: {
         media: 'all',
+        // https://html.spec.whatwg.org/#fetch-priority-attributes
+        fetchpriority: 'auto',
         type: (attrs) => {
             // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet
             const relValue = getNormalizedAttrValue(attrs, 'rel');
@@ -109,7 +113,9 @@ const missingValueDefaultAttributes: Record<string, Record<string, string | ((at
     img: {
         loading: 'eager',
         // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decoding
-        decoding: 'auto'
+        decoding: 'auto',
+        // https://html.spec.whatwg.org/#fetch-priority-attributes
+        fetchpriority: 'auto'
     },
     iframe: {
         loading: 'eager'

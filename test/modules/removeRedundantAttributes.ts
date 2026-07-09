@@ -189,4 +189,20 @@ describe('removeRedundantAttributes', () => {
             options
         );
     });
+
+    it('should remove fetchpriority="auto" from <img>, <link> & <script>', () => {
+        return init(
+            '<img src="example.com" fetchpriority="auto"><link rel="preload" fetchpriority="auto"><script fetchpriority="auto"></script>',
+            '<img src="example.com"><link rel="preload"><script></script>',
+            options
+        );
+    });
+
+    it('shouldn\'t remove fetchpriority="high" from <img>, <link> & <script>', () => {
+        return init(
+            '<img src="example.com" fetchpriority="high"><link rel="preload" fetchpriority="high"><script fetchpriority="high"></script>',
+            '<img src="example.com" fetchpriority="high"><link rel="preload" fetchpriority="high"><script fetchpriority="high"></script>',
+            options
+        );
+    });
 });

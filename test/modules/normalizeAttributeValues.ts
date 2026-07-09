@@ -55,6 +55,27 @@ describe('normalizeAttributeValues', () => {
         );
     });
 
+    it('normalizes fetchpriority values', () => {
+        return Promise.all([
+            init(
+                '<img fetchpriority="HIGH">',
+                '<img fetchpriority="high">',
+                options
+            ),
+            init(
+                '<img fetchpriority="bogus">',
+                '<img fetchpriority="auto">',
+                options
+            ),
+            // unaffected on other tags
+            init(
+                '<iframe fetchpriority="HIGH"></iframe>',
+                '<iframe fetchpriority="HIGH"></iframe>',
+                options
+            )
+        ]);
+    });
+
     it('normalizes casing and whitespace for invalid defaults', () => {
         return Promise.all([
             init(

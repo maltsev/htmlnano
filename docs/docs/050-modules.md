@@ -9,9 +9,9 @@ The order in which the modules are documented is also the order in which they ar
 
 ### normalizeAttributeValues
 
-- Normalize casing of specific attribute values that are case-insensitive (for example `form[method]`, `img[crossorigin]`, `script[type]`, `link[sizes]`).
+- Normalize casing of specific attribute values that are case-insensitive (for example `form[method]`, `img[crossorigin]`, `script[type]`, `link[sizes]`, `img[fetchpriority]`).
 - Trim surrounding whitespace for normalized values.
-- Apply the [invalid value default](https://html.spec.whatwg.org/#invalid-value-default) for specific attributes (for example `img[loading]`, `img[decoding]`, `track[kind]`, `button[type]`, `textarea[wrap]`, `crossorigin`, `referrerpolicy`, `hidden`, `autocapitalize`, `marquee[behavior]`, `marquee[direction]`).
+- Apply the [invalid value default](https://html.spec.whatwg.org/#invalid-value-default) for specific attributes (for example `img[loading]`, `img[decoding]`, `img[fetchpriority]`, `link[fetchpriority]`, `script[fetchpriority]`, `track[kind]`, `button[type]`, `textarea[wrap]`, `crossorigin`, `referrerpolicy`, `hidden`, `autocapitalize`, `marquee[behavior]`, `marquee[direction]`).
 
 Invalid value defaults are only applied to the specific elements listed above
 (for example `button[type]` is normalized, but `input[type]` is not changed).
@@ -100,6 +100,7 @@ Removes redundant attributes from tags when they match HTML defaults:
 - `type="text/css"` from `<link rel="stylesheet">`
 - `loading="eager"` from `<img>` and `<iframe>`
 - `decoding="auto"` from `<img>`
+- `fetchpriority="auto"` from `<img>`, `<link>` and `<script>`
 - `kind="subtitles"` from `<track>`
 - `wrap="soft"` from `<textarea>`
 - `shape="rect"` from `<area>`
@@ -169,6 +170,9 @@ Minified:
 - Collapses attributes whose value is an empty string to the minimized form (for example `href=""` becomes `href`).
 - Collapses [missing value default](https://html.spec.whatwg.org/#missing-value-default) attributes when they match the default, currently `audio[preload=auto]` and `video[preload=auto]`.
 - Collapses `crossorigin="anonymous"` (case-insensitive) to `crossorigin`.
+- Collapses `popover="auto"` (case-insensitive) to `popover`, since the empty string maps to the same state. `popover="manual"` and `popover="hint"` are left untouched.
+- Collapses the declarative shadow DOM template booleans `shadowrootclonable`, `shadowrootdelegatesfocus`, and `shadowrootserializable` (but not the enumerated `shadowrootmode`).
+- Leaves `hidden="until-found"` untouched, since it is a distinct state from the collapsed `hidden`.
 - Leaves `visible` untouched on A-Frame elements (`<a-*>`) to avoid breaking `visible="false"`.
 
 #### Options

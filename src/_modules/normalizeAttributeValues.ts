@@ -8,6 +8,7 @@ const caseInsensitiveAttributes: Record<string, null | string[]> = {
     dir: null,
     draggable: null,
     dropzone: null,
+    fetchpriority: ['img', 'link', 'script'],
     formmethod: ['button', 'input'],
     inputmode: ['input', 'textarea'],
     kind: ['track'],
@@ -85,6 +86,13 @@ const invalidValueDefault: Record<string, { tag: null | string[]; default: strin
         tag: null,
         default: 'hidden',
         valid: ['hidden', 'until-found']
+    },
+    // https://html.spec.whatwg.org/#lazy-loading-attributes
+    // https://html.spec.whatwg.org/#fetch-priority-attributes
+    fetchpriority: {
+        tag: ['img', 'link', 'script'],
+        default: 'auto',
+        valid: ['high', 'low', 'auto']
     },
     // https://html.spec.whatwg.org/#autocapitalization
     autocapitalize: {

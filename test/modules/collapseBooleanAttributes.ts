@@ -132,4 +132,68 @@ describe('collapseBooleanAttributes', () => {
             options
         );
     });
+
+    it('should collapse declarative shadow DOM template booleans', () => {
+        return init(
+            '<template shadowrootclonable="" shadowrootdelegatesfocus="true" shadowrootserializable="shadowrootserializable"></template>',
+            '<template shadowrootclonable shadowrootdelegatesfocus shadowrootserializable></template>',
+            options
+        );
+    });
+
+    it('should not collapse shadowrootmode', () => {
+        return init(
+            '<template shadowrootmode="open"></template>',
+            '<template shadowrootmode="open"></template>',
+            options
+        );
+    });
+
+    it('should collapse popover="auto" to bare popover', () => {
+        return init(
+            '<div popover="auto"></div>',
+            '<div popover></div>',
+            options
+        );
+    });
+
+    it('should collapse popover="AUTO" case-insensitively', () => {
+        return init(
+            '<div popover="AUTO"></div>',
+            '<div popover></div>',
+            options
+        );
+    });
+
+    it('should not collapse popover="manual"', () => {
+        return init(
+            '<div popover="manual"></div>',
+            '<div popover="manual"></div>',
+            options
+        );
+    });
+
+    it('should not collapse popover="hint"', () => {
+        return init(
+            '<div popover="hint"></div>',
+            '<div popover="hint"></div>',
+            options
+        );
+    });
+
+    it('should not collapse hidden="until-found"', () => {
+        return init(
+            '<div hidden="until-found"></div>',
+            '<div hidden="until-found"></div>',
+            options
+        );
+    });
+
+    it('should collapse hidden="hidden"', () => {
+        return init(
+            '<div hidden="hidden"></div>',
+            '<div hidden></div>',
+            options
+        );
+    });
 });

@@ -46,6 +46,9 @@ const htmlBooleanAttributes = new Set([
     'scoped',
     'seamless',
     'selected',
+    'shadowrootclonable',
+    'shadowrootdelegatesfocus',
+    'shadowrootserializable',
     'sortable',
     'truespeed',
     'typemustmatch',
@@ -155,6 +158,16 @@ const mod: HtmlnanoModule<CollapseBooleanAttributesOptions> = {
                 }
 
                 if (htmlBooleanAttributes.has(attrNameLower)) {
+                    // https://html.spec.whatwg.org/#the-hidden-attribute
+                    // "until-found" is a distinct state and must not be collapsed to bare "hidden".
+                    if (
+                        attrNameLower === 'hidden'
+                        && typeof newAttrs[attrName] === 'string'
+                        && (newAttrs[attrName]).toLowerCase() === 'until-found'
+                    ) {
+                        continue;
+                    }
+
                     newAttrs[attrName] = true;
                     continue;
                 }
@@ -184,6 +197,14 @@ const mod: HtmlnanoModule<CollapseBooleanAttributesOptions> = {
                 // collapse crossorigin attributes
                 // Specification: https://html.spec.whatwg.org/multipage/urls-and-fetching.html#cors-settings-attributes
                 if (attrNameLower === 'crossorigin' && attrValueLower === 'anonymous') {
+                    newAttrs[attrName] = true;
+                    continue;
+                }
+
+                // collapse popover="auto" to bare popover
+                // The empty string and "auto" map to the same state.
+                // Specification: https://html.spec.whatwg.org/multipage/popover.html#attr-popover
+                if (attrNameLower === 'popover' && attrValueLower === 'auto') {
                     newAttrs[attrName] = true;
                 }
             }
