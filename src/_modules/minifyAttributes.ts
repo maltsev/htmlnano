@@ -107,6 +107,53 @@ function minifyMetaRefreshValue(value: string): string | null {
     return `${time}${separator} ${url}`;
 }
 
+function minifyViewportNumber(value: string): string {
+    // Only strip a redundant trailing ".0"/".00"/"0" fraction when the result
+    // parses to the same number, e.g. "1.0" -> "1", "2.50" -> "2.5".
+    if (!/^[+-]?(?:\d+\.\d+|\.\d+|\d+\.)$/.test(value)) {
+        return value;
+    }
+
+    const trimmed = value.replace(/\.?0+$/, '');
+    const normalized = trimmed === '' || trimmed === '+' || trimmed === '-' ? value : trimmed;
+
+    return Number(normalized) === Number(value) ? normalized : value;
+}
+
+function minifyMetaViewportValue(value: string): string {
+    // Viewport content is a comma/semicolon-separated list of key=value pairs.
+    // We normalize whitespace around separators and "=", and strip redundant
+    // trailing zeros in numeric values. The author's separator characters are
+    // preserved to stay conservative.
+    return value
+        .trim()
+        .split(/([,;])/)
+        .map((part) => {
+            if (part === ',' || part === ';') return part;
+
+            const trimmed = part.trim();
+            if (trimmed === '') return trimmed;
+
+            const eqIndex = trimmed.indexOf('=');
+            if (eqIndex === -1) return trimmed;
+
+            const key = trimmed.slice(0, eqIndex).trim();
+            const rawValue = trimmed.slice(eqIndex + 1).trim();
+
+            return `${key}=${minifyViewportNumber(rawValue)}`;
+        })
+        .join('');
+}
+
+function isMetaViewport(attrs: Record<string, string | boolean | void>, tagName?: string): boolean {
+    if (!tagName || tagName.toLowerCase() !== 'meta') return false;
+
+    const name = attrs.name;
+    if (typeof name !== 'string') return false;
+
+    return name.trim().toLowerCase() === 'viewport';
+}
+
 function isMetaRefresh(attrs: Record<string, string | boolean | void>, tagName?: string): boolean {
     if (!tagName || tagName.toLowerCase() !== 'meta') return false;
 
@@ -191,6 +238,16 @@ const mod: HtmlnanoModule<MinifyAttributesOptions> = {
                 if (typeof content === 'string') {
                     const minified = minifyMetaRefreshValue(content);
                     if (minified !== null && minified !== content) {
+                        attrs.content = minified;
+                    }
+                }
+            }
+
+            if (normalizedOptions.metaContent && isMetaViewport(attrs, tagName)) {
+                const content = attrs.content;
+                if (typeof content === 'string') {
+                    const minified = minifyMetaViewportValue(content);
+                    if (minified !== content) {
                         attrs.content = minified;
                     }
                 }

@@ -79,6 +79,69 @@ describe('minifyAttributes', () => {
         });
     });
 
+    context('<meta name="viewport" content=...>', () => {
+        it('should remove spaces after commas and around "="', () => {
+            return init(
+                '<meta name="viewport" content="width = device-width, initial-scale = 1">',
+                '<meta name="viewport" content="width=device-width,initial-scale=1">',
+                options
+            );
+        });
+
+        it('should drop redundant trailing .0', () => {
+            return init(
+                '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+                '<meta name="viewport" content="width=device-width,initial-scale=1">',
+                options
+            );
+        });
+
+        it('should drop redundant trailing zero in fractions', () => {
+            return init(
+                '<meta name="viewport" content="maximum-scale=2.50">',
+                '<meta name="viewport" content="maximum-scale=2.5">',
+                options
+            );
+        });
+
+        it('should handle semicolon-separated variant', () => {
+            return init(
+                '<meta name="viewport" content="width=device-width ; initial-scale=1.0">',
+                '<meta name="viewport" content="width=device-width;initial-scale=1">',
+                options
+            );
+        });
+
+        it('should leave already-minimal content untouched', () => {
+            return init(
+                '<meta name="viewport" content="width=device-width,initial-scale=1">',
+                '<meta name="viewport" content="width=device-width,initial-scale=1">',
+                options
+            );
+        });
+
+        it('should skip meta with other name values', () => {
+            return init(
+                '<meta name="description" content="initial-scale = 1.0">',
+                '<meta name="description" content="initial-scale = 1.0">',
+                options
+            );
+        });
+
+        it('should allow disabling viewport minification', () => {
+            return init(
+                '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+                '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+                {
+                    minifyAttributes: {
+                        metaContent: false,
+                        redundantWhitespaces: false
+                    }
+                }
+            );
+        });
+    });
+
     context('redundantWhitespaces', () => {
         it('should collapse list-like and trim single-value attributes in safe mode', () => {
             return init(

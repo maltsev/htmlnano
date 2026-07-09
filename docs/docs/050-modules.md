@@ -232,12 +232,16 @@ Minified:
 ```
 
 ### minifyAttributes
-Minify specific attribute values. Currently this module targets
+Minify specific attribute values. This module targets
 `meta[http-equiv="refresh"]` by removing the `url=` prefix when present,
-trimming whitespace, and dropping empty URLs.
+trimming whitespace, and dropping empty URLs. It also minifies
+`meta[name="viewport"]` content by normalizing whitespace around separators
+(commas/semicolons) and `=`, and by dropping redundant trailing zeros in
+numeric values (e.g. `initial-scale=1.0` → `initial-scale=1`). The author's
+separator characters (`,` or `;`) are preserved.
 
 #### Options
-- `metaContent` (`boolean`) - enable minification for `meta[http-equiv="refresh"]`.
+- `metaContent` (`boolean`) - enable minification for `meta[http-equiv="refresh"]` and `meta[name="viewport"]` content.
 - `redundantWhitespaces` - remove redundant whitespace from attribute values.
   - `safe` - collapse whitespace in list-like attributes and trim single-value attributes (similar to `collapseAttributeWhitespace`).
   - `aggressive` - also trims other attribute values. (`agressive` is a deprecated alias kept for backwards compatibility.)
@@ -248,12 +252,14 @@ Source:
 ```html
 <meta http-equiv="refresh" content="5; url=">
 <meta http-equiv="refresh" content="5; url=http://example.com/">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 ```
 
 Minified:
 ```html
 <meta http-equiv="refresh" content="5">
 <meta http-equiv="refresh" content="5; http://example.com/">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 ```
 
 ### minifyUrls
