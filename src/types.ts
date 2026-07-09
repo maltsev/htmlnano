@@ -101,6 +101,7 @@ export interface HtmlnanoOptions {
     };
     minifySvg?: HtmlnanoMinifySvgOptions | boolean;
     normalizeAttributeValues?: boolean;
+    normalizeDoctype?: boolean;
     removeAttributeQuotes?: boolean | {
         force?: boolean;
     };

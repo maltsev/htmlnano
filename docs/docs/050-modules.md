@@ -740,6 +740,41 @@ Minified:
 <title>Title</title><p>Hi</p>
 ```
 
+### normalizeDoctype
+Normalize a legacy doctype to the short HTML5 form `<!doctype html>`.
+
+Legacy XHTML 1.0 / HTML 4.01 doctypes carry a `PUBLIC`/`SYSTEM` identifier and
+are typically 90–120 bytes; the short form is only 15 bytes.
+
+This module is **enabled only in the `max` preset** (or by explicitly setting
+`normalizeDoctype: true`). It is not part of the `safe` preset.
+
+#### Notes
+- Only the top-level doctype string node is inspected; posthtml-parser emits the
+  doctype as a raw string, so no DOM node is created for it.
+- **Quirks-mode caveat:** rewriting an HTML 4.01 / XHTML 1.0 `PUBLIC` doctype to
+  the short form can subtly change how a browser renders the page. Different
+  legacy doctypes can trigger *standards*, *almost-standards*, or *quirks* mode,
+  and the short form always selects full standards mode. This may alter, for
+  example, inline image spacing inside table cells. Because that change is not
+  guaranteed to be visually neutral, this module is `max`-only.
+- The XML declaration (`<?xml ...?>`) is never treated as a doctype.
+- An already-short doctype is normalized to lowercase (`<!DOCTYPE html>` becomes
+  `<!doctype html>`); a document without a doctype is left unchanged.
+
+#### Example
+Source:
+```html
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html></html>
+```
+
+Minified:
+```html
+<!doctype html>
+<html></html>
+```
+
 ### removeAttributeQuotes
 Remove quotes around attributes when possible, see
 [HTML Standard - 12.1.2.3 Attributes - Unquoted attribute value syntax](https://html.spec.whatwg.org/multipage/syntax.html#attributes-2).

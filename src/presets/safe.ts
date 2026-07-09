@@ -40,6 +40,7 @@ export default {
     removeEmptyElements: false,
     minifyConditionalComments: false,
     removeOptionalTags: false,
+    normalizeDoctype: false,
     removeAttributeQuotes: false,
     /* ----------------------------------------
      * Minify inline <style>, <script> and <svg> tag

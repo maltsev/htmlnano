@@ -16,6 +16,7 @@ export default {
     removeEmptyElements: true,
     minifyConditionalComments: true,
     removeOptionalTags: true,
+    normalizeDoctype: true,
     removeAttributeQuotes: true,
     minifyAttributes: {
         metaContent: true,

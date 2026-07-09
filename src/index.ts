@@ -137,6 +137,7 @@ const modules = {
     minifySvg: () => interop(import('./_modules/minifySvg')),
     minifyUrls: () => interop(import('./_modules/minifyUrls')),
     normalizeAttributeValues: () => interop(import('./_modules/normalizeAttributeValues')),
+    normalizeDoctype: () => interop(import('./_modules/normalizeDoctype')),
     removeAttributeQuotes: () => interop(import('./_modules/removeAttributeQuotes')),
     removeComments: () => interop(import('./_modules/removeComments')),
     removeEmptyAttributes: () => interop(import('./_modules/removeEmptyAttributes')),
