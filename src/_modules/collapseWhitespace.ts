@@ -22,6 +22,15 @@ const noTrimWhitespacesInsideElements = new Set([
     'a', 'abbr', 'acronym', 'b', 'bdi', 'bdo', 'big', 'cite', 'code', 'del', 'dfn', 'em', 'font', 'i', 'ins', 'kbd', 'label', 'mark', 'nobr', 'q', 'rp', 'rt', 'rtc', 'ruby', 's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'time', 'tt', 'u', 'var'
 ]);
 
+/*
+ * Matches an inline `white-space` declaration whose value preserves whitespace.
+ * The property name is anchored with (^|;|\s) so that e.g. `white-space-collapse`
+ * is NOT matched. `pre-line` collapses spaces but preserves newlines; we treat it
+ * as fully protected here as the conservative choice (keep whitespace we could have
+ * collapsed rather than risk breaking layout).
+ */
+const whitespacePreservingStylePattern = /(?:^|;|\s)white-space\s*:\s*(?:pre|pre-wrap|pre-line|break-spaces)/i;
+
 const startsWithWhitespacePattern = /^\s/;
 const endsWithWhitespacePattern = /\s$/;
 // See https://infra.spec.whatwg.org/#strip-and-collapse-ascii-whitespace and https://infra.spec.whatwg.org/#ascii-whitespace
@@ -61,7 +70,8 @@ function collapseWhitespace(tree: PostHTMLTreeLike | Array<PostHTML.Node | strin
 
             node = collapseRedundantWhitespaces(node, collapseType, shouldTrim, parent, prevNode, nextNode);
         } else if (node.tag) {
-            const isAllowCollapseWhitespace = !noWhitespaceCollapseElements.has(node.tag);
+            const isAllowCollapseWhitespace = !noWhitespaceCollapseElements.has(node.tag)
+                && !hasWhitespacePreservingStyle(node);
             if (isAllowCollapseWhitespace && node.content?.length) {
                 node.content = collapseWhitespace(node.content, options, collapseType, {
                     node,
@@ -160,6 +170,17 @@ function collapseRedundantWhitespaces(
     }
 
     return text;
+}
+
+/*
+ * Returns true when the node carries an inline `style` attribute that preserves
+ * whitespace (white-space: pre / pre-wrap / pre-line / break-spaces). Such nodes,
+ * together with their whole subtree, are treated like <pre> and skipped, because
+ * the recursion into `node.content` is what collapses descendant whitespace.
+ */
+function hasWhitespacePreservingStyle(node: PostHTML.Node) {
+    const style = node.attrs?.style;
+    return typeof style === 'string' && whitespacePreservingStylePattern.test(style);
 }
 
 function isTrimmableAroundNode(node: PostHTML.Node | string | undefined) {

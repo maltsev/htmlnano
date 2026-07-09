@@ -103,6 +103,58 @@ describe('collapseWhitespace', () => {
                 options
             );
         });
+
+        it('preserves whitespace inside white-space:pre elements byte-for-byte', () => {
+            return init(
+                '<div style="white-space:pre">  a\n  b  </div>',
+                '<div style="white-space:pre">  a\n  b  </div>',
+                options
+            );
+        });
+
+        it('preserves whitespace inside descendants of white-space:pre elements', () => {
+            return init(
+                '<div style="white-space:pre">  a  <span>  b  </span>  c  </div>',
+                '<div style="white-space:pre">  a  <span>  b  </span>  c  </div>',
+                options
+            );
+        });
+
+        it('preserves whitespace for pre-wrap / pre-line / break-spaces variants', () => {
+            return init(
+                '<div style="white-space: pre-wrap">  a  b  </div>'
+                + '<div style="white-space: pre-line">  a  b  </div>'
+                + '<div style="white-space: break-spaces">  a  b  </div>',
+                '<div style="white-space: pre-wrap">  a  b  </div>'
+                + '<div style="white-space: pre-line">  a  b  </div>'
+                + '<div style="white-space: break-spaces">  a  b  </div>',
+                options
+            );
+        });
+
+        it('matches uppercase property/value and extra spaces in the style', () => {
+            return init(
+                '<div style="color: red ; WHITE-SPACE :   PRE">  a  b  </div>',
+                '<div style="color: red ; WHITE-SPACE :   PRE">  a  b  </div>',
+                options
+            );
+        });
+
+        it('does not treat white-space-collapse as whitespace preserving', () => {
+            return init(
+                '<div style="white-space-collapse: collapse">  a  b  </div>',
+                '<div style="white-space-collapse: collapse">a b</div>',
+                options
+            );
+        });
+
+        it('still collapses whitespace in plain divs', () => {
+            return init(
+                '<div>  a  b  </div>',
+                '<div>a b</div>',
+                options
+            );
+        });
     });
 
     context('aggressive', () => {
@@ -191,6 +243,14 @@ describe('collapseWhitespace', () => {
                 options
             );
         });
+
+        it('preserves whitespace inside white-space:pre elements and their subtree', () => {
+            return init(
+                '<div style="white-space:pre">  a  <span>  b  </span>\n  c  </div>',
+                '<div style="white-space:pre">  a  <span>  b  </span>\n  c  </div>',
+                options
+            );
+        });
     });
 
     context('invalid option', () => {
@@ -249,6 +309,22 @@ describe('collapseWhitespace', () => {
             return init(
                 documentationHtml,
                 '<div> hello world! <a href="#">answer</a> <style>div  { color: red; }  </style> <main></main> </div>',
+                options
+            );
+        });
+
+        it('preserves whitespace inside white-space:pre elements', () => {
+            return init(
+                '<div style="white-space:pre">  a\n  b  </div>',
+                '<div style="white-space:pre">  a\n  b  </div>',
+                options
+            );
+        });
+
+        it('does not treat white-space-collapse as whitespace preserving', () => {
+            return init(
+                '<div style="white-space-collapse: collapse">  a  b  </div>',
+                '<div style="white-space-collapse: collapse"> a b </div>',
                 options
             );
         });

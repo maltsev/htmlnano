@@ -495,6 +495,7 @@ It doesn’t affect white spaces in the elements `<style>`, `<textarea>`, `<scri
 #### Notes
 - Comments are preserved, but whitespace around them can be collapsed depending on the option.
 - Template content is left untouched.
+- Elements carrying an inline `white-space` style that preserves whitespace (`white-space: pre`, `pre-wrap`, `pre-line`, or `break-spaces`) are treated like `<pre>`: their content and their whole subtree are left untouched, so layout is not broken. The check is a simple regexp on the `style` attribute value (no full CSS parsing), and `pre-line` (which technically collapses spaces but keeps newlines) is treated as fully protected as the conservative choice.
 
 #### Side effects
 
