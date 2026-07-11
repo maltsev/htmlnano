@@ -126,8 +126,8 @@ function minify(html: string, preset: HtmlnanoPreset): Promise<string> {
 }
 
 const PRESETS: Array<[string, HtmlnanoPreset]> = [
-    ['safe', safePreset as HtmlnanoPreset],
-    ['max', maxPreset as HtmlnanoPreset]
+    ['safe', safePreset],
+    ['max', maxPreset]
 ];
 
 describe('[property] htmlnano fuzz', () => {
@@ -197,7 +197,7 @@ describe('[property] htmlnano fuzz', () => {
         this.timeout(20000);
         return fc.assert(
             fc.asyncProperty(documentArb(), async (html) => {
-                const output = await minify(html, safePreset as HtmlnanoPreset);
+                const output = await minify(html, safePreset);
                 expect(protectedTextsOf(output)).toEqual(protectedTextsOf(html));
             })
         );
