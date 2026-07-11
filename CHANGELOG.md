@@ -2,6 +2,40 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.4.0] - 2026-07-12
+
+This release adds several new modules and optimizations. A few of them change the minified output of the default `safe` preset (all producing semantically-equivalent HTML) — see **Changed** below so nothing surprises you in a diff. No configuration options were removed and existing configs keep working.
+
+### Added
+
+* `minifyCharacterReferences` module — decodes HTML character references to shorter UTF-8 characters (e.g. `&mdash;` → `—`, `&#x2014;` → `—`) in text and attribute values. Enabled in the `safe` preset; never decodes syntactically required references (`&amp;`, `&lt;`, `&gt;`, `&quot;`) and skips `script`/`style`/`textarea` content. `max` preset runs it with `{ decodeAll: true }`.
+* `normalizeDoctype` module (`max` preset only) — rewrites legacy XHTML/HTML4 doctypes to the short `<!doctype html>`.
+* `removeXmlLeftovers` module (`max` preset only) — removes XHTML-era leftovers: `xmlns="http://www.w3.org/1999/xhtml"` on `<html>` and `xml:lang` when a matching `lang` attribute is present.
+* `minifyAttributes` now minifies `<meta name="viewport">` `content` (under the existing `metaContent` option), e.g. `width=device-width, initial-scale=1.0` → `width=device-width,initial-scale=1`.
+* `minifyUrls` now strips default ports (`:80` for http, `:443` for https) and trailing empty `?`/`#`, including inside `srcset`.
+* `normalizeAttributeValues` and `removeRedundantAttributes` now handle the `fetchpriority` attribute (`high`/`low`/`auto`) on `img`, `link` and `script`.
+* CLI: multiple input files and glob patterns, plus `--output-dir <dir>` (preserves relative structure) and `--in-place`. Single-file and stdin/stdout usage is unchanged. Adds `tinyglobby` as a dependency.
+
+### Changed
+
+* `minifyCharacterReferences` is on by default in the `safe` preset, so entity-heavy documents now produce different (shorter) bytes.
+* `mergeStyles` no longer merges `<style>` tags across an intervening stylesheet source (a `<link rel="stylesheet">` or a `<style>` with different `media`). This preserves CSS source-order / cascade correctness; only contiguous same-group styles are merged.
+* `collapseWhitespace` now preserves whitespace in elements (and their subtrees) carrying an inline `style` with `white-space: pre` / `pre-wrap` / `pre-line` / `break-spaces`, matching how `<pre>` is treated.
+* `collapseBooleanAttributes` now collapses `popover="auto"` to bare `popover` and recognizes the declarative shadow DOM booleans `shadowrootclonable`, `shadowrootdelegatesfocus`, `shadowrootserializable`.
+* `removeComments` in `safe` mode now preserves license comments (`<!--! ... -->`), matching the `/*! ... */` convention used by Terser and cssnano.
+* `custom` functions that return a Promise are now awaited, including multiple promise-returning functions applied in order.
+
+### Deprecated
+
+* `redundantWhitespaces: 'agressive'` — use the correctly-spelled `'aggressive'`. The old value still works as an alias and will be kept for backwards compatibility.
+
+### Fixed
+
+* `collapseBooleanAttributes` no longer collapses `hidden="until-found"` to bare `hidden` — `until-found` is a distinct state and is now preserved.
+* Fixed the `redundantWhitespaces` option to accept the correctly-spelled `'aggressive'` (see Deprecated).
+* Fixed package `exports` so TypeScript consumers get the correct type declarations for ESM and CommonJS under modern (`node16`/`bundler`) resolution; the previous map pointed ESM consumers at CommonJS `.d.ts` files. Validated in CI with `publint` and `@arethetypeswrong/cli`.
+
+
 ## [3.3.2] - 2026-05-21
 
 ### Fixed
