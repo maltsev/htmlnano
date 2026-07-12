@@ -185,4 +185,77 @@ describe('minifyJs', () => {
             options
         );
     });
+
+    it('should not treat a "CDATA" substring without markers as CDATA', () => {
+        return init(
+            '<script>var x = "CDATA" + 1;</script>',
+            '<script>var x="CDATA1";</script>',
+            options
+        );
+    });
+
+    it('should switch to single quotes when an on* handler contains double quotes', () => {
+        return init(
+            `<a href="#" onclick='alert("hi")'>x</a>`,
+            `<a href="#" onclick='alert("hi")'>x</a>`,
+            options
+        );
+    });
+
+    it('should apply smart quotes even when boolean attributes are present', () => {
+        return init(
+            `<button hidden onclick='alert("hi")'>x</button>`,
+            `<button hidden="" onclick='alert("hi")'>x</button>`,
+            options
+        );
+    });
+
+    it('should skip smart quotes when an attribute mixes single and double quotes', () => {
+        return init(
+            `<a title="it's &quot;x&quot;" onclick='f("a")'>y</a>`,
+            `<a title="it's &quot;x&quot;" onclick="f(&quot;a&quot;)">y</a>`,
+            options
+        );
+    });
+
+    it('should keep user-provided quote_style in Terser format option', () => {
+        return init(
+            `<a onclick="f('s')"></a>`,
+            `<a onclick="f('s')"></a>`,
+            // eslint-disable-next-line camelcase -- Terser format option name
+            { minifyJs: { format: { quote_style: 1 } } }
+        );
+    });
+
+    it('should resolve on* Terser options with an empty output option', () => {
+        return init(
+            `<a onclick="f('s')"></a>`,
+            `<a onclick="f('s')"></a>`,
+            { minifyJs: { output: {} } }
+        );
+    });
+
+    it('should resolve on* Terser options with an empty format option', () => {
+        return init(
+            `<a onclick="f('s')"></a>`,
+            `<a onclick="f('s')"></a>`,
+            { minifyJs: { format: {} } }
+        );
+    });
+
+    it('should respect an explicit module option on module scripts', () => {
+        return init(
+            '<script type="module">export const foo = 1;</script>',
+            '<script type="module">export const foo=1;</script>',
+            { minifyJs: { module: false } }
+        );
+    });
+
+    it('should honor explicit toplevel/mangle/compress on module scripts', () => {
+        return init(
+            '<script type="module">const foo = 1; export { foo };</script>',
+            '<script type="module">const o=1;export{o as foo};</script>',
+            { minifyJs: { toplevel: true, mangle: true, compress: true } }
+        );
+    });
 });
