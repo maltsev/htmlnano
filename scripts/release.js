@@ -72,7 +72,7 @@ function ensureCleanWorktree() {
 }
 
 function getLatestTag() {
-    const result = run('git', ['describe', '--tags', '--abbrev=0'], {
+    const result = run('git', ['tag', '--list', '--sort=-v:refname'], {
         allowFailure: true
     });
 
@@ -80,7 +80,12 @@ function getLatestTag() {
         return null;
     }
 
-    return result.stdout.trim() || null;
+    const tags = result.stdout
+        .split('\n')
+        .map(line => line.trim())
+        .filter(tag => /^v?\d+\.\d+\.\d+$/.test(tag));
+
+    return tags[0] || null;
 }
 
 function normalizeVersion(tagOrVersion) {
