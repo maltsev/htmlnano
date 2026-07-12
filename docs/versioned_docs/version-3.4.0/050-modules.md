@@ -9,9 +9,9 @@ The order in which the modules are documented is also the order in which they ar
 
 ### normalizeAttributeValues
 
-- Normalize casing of specific attribute values that are case-insensitive (for example `form[method]`, `img[crossorigin]`, `script[type]`, `link[sizes]`).
+- Normalize casing of specific attribute values that are case-insensitive (for example `form[method]`, `img[crossorigin]`, `script[type]`, `link[sizes]`, `img[fetchpriority]`).
 - Trim surrounding whitespace for normalized values.
-- Apply the [invalid value default](https://html.spec.whatwg.org/#invalid-value-default) for specific attributes (for example `img[loading]`, `img[decoding]`, `track[kind]`, `button[type]`, `textarea[wrap]`, `crossorigin`, `referrerpolicy`, `hidden`, `autocapitalize`, `marquee[behavior]`, `marquee[direction]`).
+- Apply the [invalid value default](https://html.spec.whatwg.org/#invalid-value-default) for specific attributes (for example `img[loading]`, `img[decoding]`, `img[fetchpriority]`, `link[fetchpriority]`, `script[fetchpriority]`, `track[kind]`, `button[type]`, `textarea[wrap]`, `crossorigin`, `referrerpolicy`, `hidden`, `autocapitalize`, `marquee[behavior]`, `marquee[direction]`).
 
 Invalid value defaults are only applied to the specific elements listed above
 (for example `button[type]` is normalized, but `input[type]` is not changed).
@@ -100,6 +100,7 @@ Removes redundant attributes from tags when they match HTML defaults:
 - `type="text/css"` from `<link rel="stylesheet">`
 - `loading="eager"` from `<img>` and `<iframe>`
 - `decoding="auto"` from `<img>`
+- `fetchpriority="auto"` from `<img>`, `<link>` and `<script>`
 - `kind="subtitles"` from `<track>`
 - `wrap="soft"` from `<textarea>`
 - `shape="rect"` from `<area>`
@@ -139,12 +140,39 @@ Minified:
 <script src="app.js" charset="utf-8"></script>
 ```
 
+### removeXmlLeftovers
+Removes XHTML-era leftovers that are meaningless in HTML documents (commonly found in CMS output):
+- `xmlns="http://www.w3.org/1999/xhtml"` on `<html>`. The HTML parser ignores it — `<html>` is always in the HTML namespace regardless. Only the exact XHTML namespace value is removed, and only on the `<html>` tag; `xmlns` on `<svg>`, `<math>`, or any other value/element is left untouched.
+- `xml:lang` when an identical (case-insensitive) `lang` attribute is present on the same element. If `lang` is absent or differs, `xml:lang` is left alone, since it may be the only language signal for XML tooling.
+
+Attribute names and values are matched case-insensitively.
+
+#### Options
+This module is only enabled in the `max` preset (disabled by default). Set the option to `true` to enable it explicitly.
+
+#### Side effects
+This changes documents that are re-served as XHTML/XML: the `xmlns` declaration and `xml:lang` are significant in true XML processing. Only enable this if your document is served and consumed as HTML.
+
+#### Example
+Source:
+```html
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"></html>
+```
+
+Minified:
+```html
+<html lang="en"></html>
+```
+
 ### collapseBooleanAttributes
 
 - Collapses HTML boolean attributes (like `disabled`, `checked`, `readonly`) to the minimized form, regardless of their string value (for example `checked="false"` still becomes `checked`).
 - Collapses attributes whose value is an empty string to the minimized form (for example `href=""` becomes `href`).
 - Collapses [missing value default](https://html.spec.whatwg.org/#missing-value-default) attributes when they match the default, currently `audio[preload=auto]` and `video[preload=auto]`.
 - Collapses `crossorigin="anonymous"` (case-insensitive) to `crossorigin`.
+- Collapses `popover="auto"` (case-insensitive) to `popover`, since the empty string maps to the same state. `popover="manual"` and `popover="hint"` are left untouched.
+- Collapses the declarative shadow DOM template booleans `shadowrootclonable`, `shadowrootdelegatesfocus`, and `shadowrootserializable` (but not the enumerated `shadowrootmode`).
+- Leaves `hidden="until-found"` untouched, since it is a distinct state from the collapsed `hidden`.
 - Leaves `visible` untouched on A-Frame elements (`<a-*>`) to avoid breaking `visible="false"`.
 
 #### Options
@@ -208,15 +236,19 @@ Minified:
 ```
 
 ### minifyAttributes
-Minify specific attribute values. Currently this module targets
+Minify specific attribute values. This module targets
 `meta[http-equiv="refresh"]` by removing the `url=` prefix when present,
-trimming whitespace, and dropping empty URLs.
+trimming whitespace, and dropping empty URLs. It also minifies
+`meta[name="viewport"]` content by normalizing whitespace around separators
+(commas/semicolons) and `=`, and by dropping redundant trailing zeros in
+numeric values (e.g. `initial-scale=1.0` → `initial-scale=1`). The author's
+separator characters (`,` or `;`) are preserved.
 
 #### Options
-- `metaContent` (`boolean`) - enable minification for `meta[http-equiv="refresh"]`.
+- `metaContent` (`boolean`) - enable minification for `meta[http-equiv="refresh"]` and `meta[name="viewport"]` content.
 - `redundantWhitespaces` - remove redundant whitespace from attribute values.
   - `safe` - collapse whitespace in list-like attributes and trim single-value attributes (similar to `collapseAttributeWhitespace`).
-  - `agressive` - also trims other attribute values.
+  - `aggressive` - also trims other attribute values. (`agressive` is a deprecated alias kept for backwards compatibility.)
   - `false` - disable this behavior.
 
 #### Example
@@ -224,12 +256,14 @@ Source:
 ```html
 <meta http-equiv="refresh" content="5; url=">
 <meta http-equiv="refresh" content="5; url=http://example.com/">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 ```
 
 Minified:
 ```html
 <meta http-equiv="refresh" content="5">
 <meta http-equiv="refresh" content="5; http://example.com/">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 ```
 
 ### minifyUrls
@@ -277,6 +311,8 @@ htmlnano.process(html, {
 
 - Only `http(s)` and relative URLs are related. Non-HTTP schemes (e.g. `mailto:`, `tel:`, `data:`) are left untouched.
 - Hash-only (`#...`) and query-only (`?...`) URLs are left untouched.
+- A default port matching the scheme is stripped (`https://example.com:443/x` → `https://example.com/x`, `http://example.com:80/x` → `http://example.com/x`). A mismatched port is kept (e.g. `:443` is not removed for `http`, nor `:8443` for `https`).
+- A trailing empty query (`?`) or empty fragment (`#`) is removed (`foo?` and `foo#` → `foo`). A non-empty query (`?x=1`) or fragment (`#top`) is kept.
 - `link[rel="canonical"]` is never rewritten.
 - `srcset` and `imagesrcset` are processed when `srcset` is installed; invalid `srcset` strings are left unchanged.
 - `javascript:` URLs are minified with `terser` when available, preserving leading whitespace and normalizing the protocol to lowercase.
@@ -459,6 +495,7 @@ It doesn’t affect white spaces in the elements `<style>`, `<textarea>`, `<scri
 #### Notes
 - Comments are preserved, but whitespace around them can be collapsed depending on the option.
 - Template content is left untouched.
+- Elements carrying an inline `white-space` style that preserves whitespace (`white-space: pre`, `pre-wrap`, `pre-line`, or `break-spaces`) are treated like `<pre>`: their content and their whole subtree are left untouched, so layout is not broken. The check is a simple regexp on the `style` attribute value (no full CSS parsing), and `pre-line` (which technically collapses spaces but keeps newlines) is treated as fully protected as the conservative choice.
 
 #### Side effects
 
@@ -493,6 +530,44 @@ Minified (with `conservative`):
 ```
 
 
+### minifyCharacterReferences
+Decodes HTML character references (entities) into shorter literal UTF-8
+characters in text nodes and attribute values. Most named references are
+5–8 bytes, while the equivalent character is only 2–3 bytes as UTF-8
+(`&mdash;` → `—`, `&hellip;` → `…`, `&copy;` → `©`). Decimal (`&#8212;`)
+and hexadecimal (`&#x2014;`) numeric references are decoded as well.
+
+#### Options
+- `true` — decode a conservative allowlist of common typographic/symbol named
+  references plus safe numeric references (default in the `safe` preset).
+- `{ decodeAll: true }` — decode every named reference the module knows about
+  (default in the `max` preset). The module never adds a runtime dependency,
+  so unknown named references are always left untouched.
+
+#### Notes
+- The syntactically required references are **never** decoded, because
+  posthtml-render does not re-escape text: `&amp;`, `&lt;`, `&gt;` in text
+  nodes, and `&amp;`, `&quot;`, `&apos;`/`&#39;` in attribute values.
+- Any reference (named or numeric) whose decoded form would be `&`, `<`, `>`
+  (or a quote inside an attribute value) is left as-is. This also prevents
+  double-encoded input like `&amp;mdash;` from collapsing into `&mdash;`.
+- Content of `<script>`, `<style>`, and `<textarea>` is left untouched, since
+  browsers do not entity-decode raw-text element content.
+- Invalid, unknown, or non-terminated references (for example `&fake;` or
+  `&mdash` without a semicolon) are left untouched.
+
+#### Example
+Source:
+```html
+<p title="a &mdash; b">Copyright &copy; 2024 &#8212; the end&hellip;</p>
+```
+
+Minified:
+```html
+<p title="a — b">Copyright © 2024 — the end…</p>
+```
+
+
 ### removeComments
 #### Options
 - `safe` – removes HTML comments but keeps:
@@ -500,6 +575,7 @@ Minified (with `conservative`):
   - `<!--noindex-->...<!--/noindex-->` (case/spacing tolerant)
   - `<!--sse-->...<!--/sse-->` Server-Side Excludes markers (case/spacing tolerant)
   - excerpt markers that start with `more` (case/spacing tolerant), e.g. `<!-- more -->`, `<!-- MORE -->`, `<!-- more Read more -->`
+  - license comments `<!--! ... -->` (the HTML analogue of the `/*! ... */` comments kept by Terser/cssnano)
   (default)
 - `all` — removes all HTML comments, including conditional/noindex/sse/excerpt comments
 - A `RegExp` — removes HTML comments that match the regexp (non-matching comments are kept)
@@ -701,6 +777,41 @@ Minified:
 <title>Title</title><p>Hi</p>
 ```
 
+### normalizeDoctype
+Normalize a legacy doctype to the short HTML5 form `<!doctype html>`.
+
+Legacy XHTML 1.0 / HTML 4.01 doctypes carry a `PUBLIC`/`SYSTEM` identifier and
+are typically 90–120 bytes; the short form is only 15 bytes.
+
+This module is **enabled only in the `max` preset** (or by explicitly setting
+`normalizeDoctype: true`). It is not part of the `safe` preset.
+
+#### Notes
+- Only the top-level doctype string node is inspected; posthtml-parser emits the
+  doctype as a raw string, so no DOM node is created for it.
+- **Quirks-mode caveat:** rewriting an HTML 4.01 / XHTML 1.0 `PUBLIC` doctype to
+  the short form can subtly change how a browser renders the page. Different
+  legacy doctypes can trigger *standards*, *almost-standards*, or *quirks* mode,
+  and the short form always selects full standards mode. This may alter, for
+  example, inline image spacing inside table cells. Because that change is not
+  guaranteed to be visually neutral, this module is `max`-only.
+- The XML declaration (`<?xml ...?>`) is never treated as a doctype.
+- An already-short doctype is normalized to lowercase (`<!DOCTYPE html>` becomes
+  `<!doctype html>`); a document without a doctype is left unchanged.
+
+#### Example
+Source:
+```html
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html></html>
+```
+
+Minified:
+```html
+<!doctype html>
+<html></html>
+```
+
 ### removeAttributeQuotes
 Remove quotes around attributes when possible, see
 [HTML Standard - 12.1.2.3 Attributes - Unquoted attribute value syntax](https://html.spec.whatwg.org/multipage/syntax.html#attributes-2).
@@ -766,20 +877,44 @@ Skipped styles:
 - `<style integrity>...</style>`
 - AMP boilerplate styles (`amp-boilerplate`, `amp4ads-boilerplate`, `amp4email-boilerplate`)
 
+#### Source order is preserved
+
+CSS rules of equal specificity resolve by their source order, so moving a
+`<style>` past another stylesheet can silently change which rules win. To stay
+safe, only styles that form a **contiguous run** in document order are merged:
+the merge group is closed whenever a stylesheet source appears between two
+otherwise-mergeable styles, namely:
+
+- a `<link rel="stylesheet">` (any other `rel`, such as `preload`, is not a
+  stylesheet source and does not break a group);
+- a `<style>` with different group attributes (e.g. a different `media` or
+  `type`), or a skipped `scoped`/`integrity` style.
+
+Non-stylesheet content between styles (plain elements, text, comments, AMP
+boilerplate, preload links) does not break a group. When a group is closed a new
+one starts, so a document can produce several independent merged groups.
+
 #### Example
 Source:
 ```html
 <style>h1 { color: red }</style>
-<style media="print">div { color: blue }</style>
-
-<style type="text/css" media="print">a {}</style>
 <style>div { font-size: 20px }</style>
+<style media="print">div { color: blue }</style>
+<style type="text/css" media="print">a {}</style>
 ```
 
 Minified:
 ```html
 <style>h1 { color: red } div { font-size: 20px }</style>
 <style media="print">div { color: blue } a {}</style>
+```
+
+The following is **not** merged, because the external stylesheet sits between the
+two inline styles and could change the cascade:
+```html
+<style>p { color: red }</style>
+<link rel="stylesheet" href="theme.css">
+<style>p { color: green }</style>
 ```
 
 
@@ -831,6 +966,8 @@ Skipped nodes:
 
 Notes:
 - `style` attributes are wrapped in a temporary selector (`a{...}`) before minification so cssnano can parse them, then the wrapper is removed.
+- When htmlnano uses cssnano's `default` preset for `style` attributes, it disables inline-irrelevant optimizations such as `mergeRules`, `minifySelectors`, `minifyParams`, `normalizeCharset`, `uniqueSelectors`, and `normalizeUnicode`.
+- If you explicitly configure any of those plugins in `preset: ['default', ...]`, or pass a custom cssnano `plugins` list, htmlnano keeps your settings instead of overwriting them.
 
 You have to install `cssnano` and `postcss` in order to use this feature:
 
@@ -1217,3 +1354,15 @@ const options = {
 ```
 
 htmlnano's options are passed to your custom plugin by the second parameter `options`.
+
+Custom functions may be asynchronous. If a custom function returns a `Promise`, htmlnano awaits it before running the next custom function:
+```js
+const options = {
+    custom: async function (tree, options) {
+        await someAsyncMinification(tree);
+        return tree;
+    }
+};
+```
+
+Errors thrown (or rejected promises) from a custom function propagate to the caller of `htmlnano.process()` and are not swallowed.
