@@ -433,6 +433,7 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 ### Changed
 - Remove attributes that contains only white spaces.
 
+[3.4.0]: https://github.com/maltsev/htmlnano/compare/3.3.2...3.4.0
 [3.3.2]: https://github.com/maltsev/htmlnano/compare/3.3.1...3.3.2
 [3.3.1]: https://github.com/maltsev/htmlnano/compare/3.3.0...3.3.1
 [3.3.0]: https://github.com/maltsev/htmlnano/compare/3.2.1...3.3.0
