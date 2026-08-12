@@ -93,4 +93,12 @@ describe('minifyJson', () => {
             options
         );
     });
+
+    it('should keep `<` escaped so JSON payloads cannot terminate the <script> element', () => {
+        return init(
+            '<script type="application/json">{"c":"\\u003Cscript>alert(1)\\u003C\\u002Fscript>\\u003Cp>injected\\u003C\\u002Fp>"}</script>',
+            '<script type="application/json">{"c":"\\u003Cscript>alert(1)\\u003C/script>\\u003Cp>injected\\u003C/p>"}</script>',
+            options
+        );
+    });
 });

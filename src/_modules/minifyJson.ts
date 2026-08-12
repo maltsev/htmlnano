@@ -27,7 +27,14 @@ const mod: HtmlnanoModule = {
                         return content;
                     }
 
-                    return [JSON.stringify(JSON.parse(jsonContent))];
+                    // Re-escape `<` as `<` after stringifying. `JSON.stringify`
+                    // emits `<` and `/` literally, so round-tripping a payload that
+                    // relied on `<` escaping (e.g. Nuxt/Next.js/JSON-LD data
+                    // containing markup) would otherwise produce a literal `</script>`
+                    // that terminates the containing element and injects live DOM.
+                    // `<` and `<` are the same character to a JSON parser, so the
+                    // parsed value is unchanged and markup-free payloads are byte-identical.
+                    return [JSON.stringify(JSON.parse(jsonContent)).replace(/</g, '\\u003C')];
                 } catch {
                     // Invalid JSON
                 }
