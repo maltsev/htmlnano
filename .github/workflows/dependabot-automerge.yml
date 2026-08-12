@@ -2,12 +2,17 @@ name: dependabot-automerge
 
 on:
   workflow_run:
-    workflows: ["build"]
+    workflows: ["CI"]
     types: [completed]
 
 permissions:
   contents: write
   pull-requests: write
+
+# CI runs twice per PR (`push` + `pull_request`), so two automerge runs can race.
+concurrency:
+  group: dependabot-automerge-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
 
 jobs:
   automerge:
@@ -15,36 +20,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # No `ref:` on purpose. On `workflow_run` this checks out the default branch,
+      # so the Dependabot PR's own code never runs with the write-scoped token.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
       - name: Merge Dependabot PR if eligible
         uses: actions/github-script@v9
         with:
           script: |
-            const prs = context.payload.workflow_run.pull_requests;
-            if (!prs || prs.length === 0) {
-              core.info('No pull requests associated with this workflow_run.');
-              return;
-            }
-
-            const prNumber = prs[0].number;
-            const { owner, repo } = context.repo;
-            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
-
-            const author = pr.user?.login || '';
-            if (author !== 'dependabot[bot]' && author !== 'dependabot') {
-              core.info(`PR #${prNumber} is not from Dependabot (${author}).`);
-              return;
-            }
-
-            if (pr.mergeable_state !== 'clean') {
-              core.info(`PR #${prNumber} is not mergeable yet (state: ${pr.mergeable_state}).`);
-              return;
-            }
-
-            await github.rest.pulls.merge({
-              owner,
-              repo,
-              pull_number: prNumber,
-              merge_method: 'merge'
-            });
-
-            core.info(`Merged Dependabot PR #${prNumber}.`);
+            const automerge = require('./.github/scripts/dependabot-automerge.js');
+            await automerge({ github, context, core });
