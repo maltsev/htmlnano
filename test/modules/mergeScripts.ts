@@ -135,4 +135,40 @@ describe('mergeScripts', () => {
             options
         );
     });
+
+    it('should not merge <script> inside <noscript> with the document scripts', () => {
+        return init(
+            '<script>window.foo = 1</script>'
+            + '<noscript><script>window.bar = 2</script></noscript>'
+            + '<script>window.baz = 3</script>',
+
+            '<noscript><script>window.bar = 2</script></noscript>'
+            + '<script>window.foo = 1;window.baz = 3</script>',
+
+            options
+        );
+    });
+
+    it('should not merge <script> inside <noscript> with each other', () => {
+        const html = '<noscript>'
+            + '<script>window.foo = 1</script>'
+            + '<script>window.bar = 2</script>'
+            + '</noscript>';
+        return init(
+            html, html, options
+        );
+    });
+
+    it('should not merge <script> inside <template> with the document scripts', () => {
+        return init(
+            '<script>window.foo = 1</script>'
+            + '<template><script>window.bar = 2</script></template>'
+            + '<script>window.baz = 3</script>',
+
+            '<template><script>window.bar = 2</script></template>'
+            + '<script>window.foo = 1;window.baz = 3</script>',
+
+            options
+        );
+    });
 });

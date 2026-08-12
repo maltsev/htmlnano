@@ -894,6 +894,32 @@ Non-stylesheet content between styles (plain elements, text, comments, AMP
 boilerplate, preload links) does not break a group. When a group is closed a new
 one starts, so a document can produce several independent merged groups.
 
+#### `<noscript>` and `<template>` are separate scopes
+
+Styles inside `<noscript>` only apply when scripting is disabled, and styles
+inside `<template>` are inert until the template is cloned. Their styles are
+merged among themselves, but never with the styles of the surrounding document
+in either direction. A `<noscript>` also closes an open group, because with
+scripting disabled its styles do apply at that exact position:
+
+```html
+<style>h1 { color: red }</style>
+<style>div { color: blue }</style>
+<noscript>
+    <style>h1 { color: green }</style>
+    <style>div { color: black }</style>
+</noscript>
+```
+
+becomes:
+
+```html
+<style>h1 { color: red } div { color: blue }</style>
+<noscript>
+    <style>h1 { color: green } div { color: black }</style>
+</noscript>
+```
+
 #### Example
 Source:
 ```html
@@ -925,6 +951,7 @@ The merged content is appended into the last script in the group and the earlier
 #### Notes
 - Only inline scripts with mergeable types are considered: `text/javascript` and `application/javascript` (default is `text/javascript`). Other types (including `type="module"`) are left untouched.
 - Scripts with `src` or `integrity` are never merged and they break a merge group, so code on each side stays separate.
+- Scripts inside `<noscript>` or `<template>` are left untouched: they don't run alongside the surrounding scripts (a `<script>` in `<noscript>` never executes, and one in `<template>` only executes once the template is cloned), so they neither merge nor break a group.
 - Boolean attributes (`async`, `defer`, `nomodule`) are normalized and treated as present, so `defer` and `defer="defer"` match.
 - Scripts are separated by `nonce` value, by `nomodule`, and by `async`/`defer` differences.
 - A missing trailing semicolon is added when concatenating. If a script ends with a line comment, the merger inserts `\n;` before the next script to avoid comment swallowing.

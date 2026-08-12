@@ -79,6 +79,77 @@ describe('mergeStyles', () => {
         );
     });
 
+    it('should not merge <style> inside <noscript> with the ones outside', () => {
+        return init(
+            '<style>h1 { color: red }</style>'
+            + '<style>div { color: blue }</style>'
+            + '<noscript>'
+            + '<style>h1 { color: green }</style>'
+            + '<style>div { color: black }</style>'
+            + '</noscript>',
+
+            '<style>h1 { color: red } div { color: blue }</style>'
+            + '<noscript>'
+            + '<style>h1 { color: green } div { color: black }</style>'
+            + '</noscript>',
+
+            options
+        );
+    });
+
+    it('should not move a <style> into a preceding <noscript>', () => {
+        const html = '<noscript><style>h1 { color: green }</style></noscript>'
+            + '<style>h1 { color: red }</style>';
+        return init(
+            html, html, options
+        );
+    });
+
+    it('should not merge <style> tags across a <noscript> (source order)', () => {
+        const html = '<style>h1 { color: red }</style>'
+            + '<noscript><style>h1 { color: green }</style></noscript>'
+            + '<style>h1 { color: blue }</style>';
+        return init(
+            html, html, options
+        );
+    });
+
+    it('should not merge <style> inside <template> with the ones outside', () => {
+        const html = '<style>h1 { color: red }</style>'
+            + '<template><style>h1 { color: green }</style></template>';
+        return init(
+            html, html, options
+        );
+    });
+
+    it('should merge <style> tags across a <template> (its content is inert)', () => {
+        return init(
+            '<style>h1 { color: red }</style>'
+            + '<template><style>h1 { color: green }</style></template>'
+            + '<style>div { color: blue }</style>',
+
+            '<style>h1 { color: red } div { color: blue }</style>'
+            + '<template><style>h1 { color: green }</style></template>',
+
+            options
+        );
+    });
+
+    it('should merge <style> inside <template> with each other', () => {
+        return init(
+            '<template>'
+            + '<style>h1 { color: red }</style>'
+            + '<style>div { color: blue }</style>'
+            + '</template>',
+
+            '<template>'
+            + '<style>h1 { color: red } div { color: blue }</style>'
+            + '</template>',
+
+            options
+        );
+    });
+
     it('should skip <style> with the "scoped" attribute', () => {
         const html = `<style>h1 { color: red }</style>
                       <div></div>

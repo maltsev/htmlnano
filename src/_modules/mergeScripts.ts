@@ -1,6 +1,7 @@
 import type PostHTML from 'posthtml';
 import type { HtmlnanoModule } from '../types';
 import { extractTextContentFromNode } from '../helpers';
+import { isIsolatedScope } from './helpers/isolatedScopes';
 import { normalizeAttrsForKey } from './helpers/normalizeAttrsForKey';
 
 type ScriptTracking = {
@@ -65,6 +66,29 @@ function endsWithLineComment(scriptContent: string) {
     return /\/\/.*$/.test(lastLine);
 }
 
+// A <script> inside <noscript> never executes, and a <script> inside <template>
+// only executes once the template is cloned into the document. Neither belongs
+// to the execution order of the surrounding document, so merging them with the
+// regular scripts would make dead or deferred code run — collect them upfront
+// to leave them alone.
+function collectScriptNodes(node: PostHTML.Node, scriptNodes: WeakSet<PostHTML.Node>) {
+    if (!Array.isArray(node.content)) {
+        return;
+    }
+
+    for (const childNode of node.content) {
+        if (typeof childNode !== 'object') {
+            continue;
+        }
+
+        if (childNode.tag === 'script') {
+            scriptNodes.add(childNode);
+        }
+
+        collectScriptNodes(childNode, scriptNodes);
+    }
+}
+
 function mergeScriptNodes(
     scriptNodesIndex: Record<string, PostHTML.Node[]>,
     tracking: ScriptTracking
@@ -115,7 +139,22 @@ const mod: HtmlnanoModule = {
         };
         let scriptSrcIndex = 1;
 
+        const isolatedScriptNodes = new WeakSet<PostHTML.Node>();
+        tree.walk((node) => {
+            if (isIsolatedScope(node)) {
+                collectScriptNodes(node, isolatedScriptNodes);
+            }
+
+            return node;
+        });
+
         tree.match({ tag: 'script' }, (node) => {
+            // Scripts of an isolated scope don't run alongside the surrounding
+            // ones, so they neither merge nor split the document's own scripts.
+            if (isolatedScriptNodes.has(node)) {
+                return node;
+            }
+
             const nodeAttrs = node.attrs || {};
             normalizeAsyncAttr(nodeAttrs);
             if (
