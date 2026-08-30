@@ -1,9 +1,8 @@
-import type { HtmlnanoModule, PostHTMLTreeLike } from '../types';
+import type { HtmlnanoModule, PostHTMLTreeLike, SortAttributesOption } from '../types';
 import {
     resolveSortType
 
 } from './helpers/sortAttributesShared';
-import type { SortAttributesOption } from './helpers/sortAttributesShared';
 
 class AttributeTokenChain {
     /** <attr, frequency> */

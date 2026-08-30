@@ -1,4 +1,4 @@
-export type SortAttributesOption = 'alphabetical' | 'frequency';
+import type { SortAttributesOption } from '../../types';
 
 const validOptions = new Set<SortAttributesOption>(['frequency', 'alphabetical']);
 

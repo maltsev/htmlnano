@@ -71,6 +71,8 @@ export interface HtmlnanoPurgeCssOptions {
     dynamicAttributes?: string[];
 }
 
+export type SortAttributesOption = 'alphabetical' | 'frequency';
+
 export interface HtmlnanoOptions {
     skipConfigLoading?: boolean;
     configPath?: string;
@@ -130,8 +132,8 @@ export interface HtmlnanoOptions {
             uncssrc?: string;
             userAgent?: string;
         };
-    sortAttributes?: boolean | 'alphabetical' | 'frequency';
-    sortAttributesWithLists?: boolean | 'alphabetical' | 'frequency';
+    sortAttributes?: boolean | SortAttributesOption;
+    sortAttributesWithLists?: boolean | SortAttributesOption;
 }
 
 export interface HtmlnanoPreset extends Omit<HtmlnanoOptions, 'skipConfigLoading' | 'configPath'> { }

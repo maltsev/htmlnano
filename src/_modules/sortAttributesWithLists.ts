@@ -1,11 +1,10 @@
 // class, rel, ping
-import type { HtmlnanoModule, PostHTMLTreeLike } from '../types';
+import type { HtmlnanoModule, PostHTMLTreeLike, SortAttributesOption } from '../types';
 import { isListAttribute } from './collapseAttributeWhitespace';
 import {
     resolveSortType
 
 } from './helpers/sortAttributesShared';
-import type { SortAttributesOption } from './helpers/sortAttributesShared';
 
 class ListAttributeTokenChain {
     /** <attr, frequency> */

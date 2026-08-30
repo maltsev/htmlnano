@@ -101,7 +101,7 @@
     "@swc-node/register": "^1.10.10",
     "@types/mocha": "^10.0.10",
     "@types/node": "^26.0.0",
-    "bunchee": "^6.5.1",
+    "bunchee": "^7.0.0",
     "c8": "^12.0.0",
     "cssnano": "^8.0.0",
     "eslint": "^10.2.0",
