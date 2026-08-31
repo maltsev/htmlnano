@@ -9,7 +9,7 @@ const process = require('node:process');
 
 const RELEASE_TYPES = new Set(['major', 'minor', 'patch']);
 const OPENAI_API_URL = 'https://api.openai.com/v1/responses';
-const OPENAI_MODEL = 'gpt-5.4';
+const OPENAI_MODEL = 'gpt-5.6-sol';
 const GITHUB_FALLBACK_REPOSITORY_URL = 'https://github.com/maltsev/htmlnano';
 const COMMIT_RECORD_SEPARATOR = '\x1e';
 const COMMIT_FIELD_SEPARATOR = '\x1f';
