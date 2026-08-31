@@ -4,6 +4,12 @@ import type { HtmlnanoModule } from '../types';
 import type PostHTML from 'posthtml';
 import type { Options as CssnanoOptions } from 'cssnano';
 
+// cssnano 7 and 8 ship CJS types (`export =`), while cssnano 9 is ESM and exposes
+// the plugin factory as a `default` export. All three are in the peer dependency range.
+type Cssnano = typeof import('cssnano') extends { default: infer Factory }
+    ? Factory
+    : typeof import('cssnano');
+
 const postcssOptions = {
     // Prevent the following warning from being shown:
     // > Without `from` option PostCSS could generate wrong source map and will not find Browserslist config.
@@ -39,7 +45,7 @@ const inlineCssExcludedPlugins = {
 /** Minify CSS with cssnano */
 const mod: HtmlnanoModule<CssnanoOptions> = {
     async default(tree, _, cssnanoOptions) {
-        const cssnano = await optionalImport<typeof import('cssnano')>('cssnano');
+        const cssnano = await optionalImport<Cssnano>('cssnano');
         const postcss = await optionalImport<typeof import('postcss').default>('postcss');
 
         if (!cssnano || !postcss) {
@@ -82,7 +88,7 @@ export default mod;
 
 function createCssProcessor(
     postcss: typeof import('postcss').default,
-    cssnano: typeof import('cssnano'),
+    cssnano: Cssnano,
     cssnanoOptions: CssnanoOptions | undefined
 ) {
     return postcss([cssnano(cssnanoOptions)]);
