@@ -2,6 +2,17 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.4.1] - 2026-08-31
+
+### Changed
+
+* Upgraded to cssnano 9 [#457].
+
+### Fixed
+
+* Correctly handle isolated scopes when merging `<style>` and `<script>` elements [#456].
+* Preserve escaped `<` characters when using `minifyJson`.
+
 ## [3.4.0] - 2026-07-12
 
 This release adds several new modules and optimizations. A few of them change the minified output of the default `safe` preset (all producing semantically-equivalent HTML) — see **Changed** below so nothing surprises you in a diff. No configuration options were removed and existing configs keep working.
@@ -433,6 +444,7 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 ### Changed
 - Remove attributes that contains only white spaces.
 
+[3.4.1]: https://github.com/maltsev/htmlnano/compare/3.4.0...3.4.1
 [3.4.0]: https://github.com/maltsev/htmlnano/compare/3.3.2...3.4.0
 [3.3.2]: https://github.com/maltsev/htmlnano/compare/3.3.1...3.3.2
 [3.3.1]: https://github.com/maltsev/htmlnano/compare/3.3.0...3.3.1
@@ -477,6 +489,8 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 [0.1.2]: https://github.com/maltsev/htmlnano/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/maltsev/htmlnano/compare/0.1.0...0.1.1
 
+[#457]: https://github.com/maltsev/htmlnano/issues/457
+[#456]: https://github.com/maltsev/htmlnano/issues/456
 [#434]: https://github.com/maltsev/htmlnano/issues/434
 [#432]: https://github.com/maltsev/htmlnano/issues/432
 [#425]: https://github.com/maltsev/htmlnano/issues/425

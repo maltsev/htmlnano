@@ -1,6 +1,6 @@
 {
   "name": "htmlnano",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "description": "Modular HTML minifier, built on top of the PostHTML",
   "author": "Kirill Maltsev <maltsevkirill@gmail.com>",
   "license": "MIT",
