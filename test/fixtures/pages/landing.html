@@ -25,6 +25,9 @@
             font-weight: 700;
         }
         .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; padding: 48px 24px; }
+        .carousel { display: flex; gap: 8px; justify-content: center; padding: 0 0 48px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #d4d4d8; }
+        .dot--active { background: var(--brand); }
         .feature svg { width: 48px; height: 48px; }
     </style>
 </head>
@@ -60,6 +63,13 @@
             <p>An API you will actually enjoy.</p>
         </div>
     </section>
+
+    <div class="carousel" role="group" aria-label="Screenshots">
+        <span class="dot dot--active" aria-hidden="true"></span>
+        <span class="dot" aria-hidden="true"></span>
+        <div id="carousel-status" role="status"></div>
+        <sw-lightbox class="lightbox"></sw-lightbox>
+    </div>
 
     <script>
         document.querySelectorAll('.btn').forEach(function (el) {

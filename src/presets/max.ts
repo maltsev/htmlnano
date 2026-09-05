@@ -14,7 +14,9 @@ export default {
         decodeAll: true
     },
     removeComments: 'all',
-    removeEmptyElements: true,
+    removeEmptyElements: {
+        removeWithAttributes: 'presentational'
+    },
     minifyConditionalComments: true,
     removeOptionalTags: true,
     normalizeDoctype: true,

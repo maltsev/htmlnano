@@ -111,7 +111,7 @@ export interface HtmlnanoOptions {
     removeComments?: boolean | RegExp | ((comment: string) => boolean) | string;
     removeEmptyAttributes?: boolean;
     removeEmptyElements?: boolean | {
-        removeWithAttributes?: boolean;
+        removeWithAttributes?: boolean | 'presentational' | string[];
     };
     removeRedundantAttributes?: boolean;
     removeXmlLeftovers?: boolean;

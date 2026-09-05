@@ -690,32 +690,73 @@ Removes elements that have no meaningful content.
 
 #### Options
 - `true` — removes empty elements without attributes.
-- `{ removeWithAttributes: true }` — removes empty elements even if they have attributes.
+- `{ removeWithAttributes: 'presentational' }` — also removes empty elements whose
+  attributes are all *presentational*: `class`, `style` and `aria-hidden`.
+  Used by the `max` preset.
+- `{ removeWithAttributes: ['data-decoration', 'class'] }` — same as `'presentational'`,
+  but with your own list of attributes that don't prevent the removal.
+- `{ removeWithAttributes: true }` — removes empty elements no matter what they carry.
 
 Empty elements are defined as elements with no child elements and only whitespace/comments as content.
 Void elements (like `<img>` or `<br>`) are never removed.
 
+##### The `'presentational'` mode
+
+An element is removed only when every attribute it has is in the list, so anything
+that gives the element a meaning beyond its looks keeps it: `id`, `name`, `role`,
+`aria-*` (except `aria-hidden`), `data-*`, event handlers, `href`, `src`, `title`,
+framework attributes like `x-data` or `hx-get`, and the geometry attributes of SVG
+shapes (`<path d="…">` is empty markup-wise, but it is the drawing).
+`aria-hidden` is in the list because an element that is hidden from the accessibility
+tree contributes nothing to it once it's empty.
+
+Elements that keep doing their job while empty are never removed by this mode, even
+when they only have presentational attributes: `<canvas>` (painted by scripts),
+`<slot>` (projects light DOM into a shadow tree), `<iframe>` (renders a nested
+document) and custom elements — any tag with a dash in it, like
+`<my-widget class="widget"></my-widget>`, which builds its own content once the
+element definition is upgraded. Note that `removeWithAttributes: true` doesn't make
+those exceptions: it removes everything empty.
+
 #### Side effects
-This module can remove elements that are used for styling or scripting (for example `<span class="icon"></span>`).
-It is disabled by default.
+This module removes elements that are used for styling or scripting, so it's disabled
+in the `safe` preset.
+
+`removeWithAttributes: 'presentational'` is **lossy on purpose**: it drops empty
+elements that are only there to be *seen* — carousel dots, skeleton loaders, spinner
+bars, gradient overlays, hamburger-menu bars, spacers. If your page relies on those,
+the rendering will change. Use `removeEmptyElements: true` (or a narrower
+`removeWithAttributes` list) if you want to keep them, and note that a script that
+looks an element up by class (`document.querySelector('.spinner')`) will no longer
+find it.
 
 #### Example
 Source:
 ```html
 <div>hello<span><b></b></span></div>
-<div><span class="icon"></span></div>
+<div><span class="icon"></span>Download</div>
+<div><span id="anchor"></span><my-widget class="widget"></my-widget>Widget</div>
 ```
 
 Minified (`removeEmptyElements: true`):
 ```html
 <div>hello</div>
-<div><span class="icon"></span></div>
+<div><span class="icon"></span>Download</div>
+<div><span id="anchor"></span><my-widget class="widget"></my-widget>Widget</div>
+```
+
+Minified (`removeEmptyElements: { removeWithAttributes: 'presentational' }`):
+```html
+<div>hello</div>
+<div>Download</div>
+<div><span id="anchor"></span><my-widget class="widget"></my-widget>Widget</div>
 ```
 
 Minified (`removeEmptyElements: { removeWithAttributes: true }`):
 ```html
 <div>hello</div>
-<div></div>
+<div>Download</div>
+<div>Widget</div>
 ```
 
 ### minifyConditionalComments

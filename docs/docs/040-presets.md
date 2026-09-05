@@ -7,6 +7,19 @@ Currently the following presets are available:
 - [ampSafe](https://github.com/maltsev/htmlnano/blob/master/src/presets/ampSafe.ts) — same as `safe` but tailored for [AMP pages](https://www.ampproject.org/).
 - [max](https://github.com/maltsev/htmlnano/blob/master/src/presets/max.ts) — maximal minification (might break some pages).
 
+`max` enables lossy modules on purpose. The most visible one is
+[`removeEmptyElements`](./modules#removeemptyelements) with
+`removeWithAttributes: 'presentational'`: empty elements whose attributes are all
+presentational (`class`, `style`, `aria-hidden`) are dropped, which removes
+purely decorative markup such as carousel dots, skeleton loaders and spacers.
+Elements with an `id`, a `role`, `data-*`, event handlers and the like are kept,
+as are `<canvas>`, `<slot>`, `<iframe>` and custom elements. If you want those
+decorations back, override the module:
+
+```js
+htmlnano.process(html, { removeEmptyElements: true }, htmlnano.presets.max);
+```
+
 
 You can use them the following way:
 ```js

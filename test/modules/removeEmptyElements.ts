@@ -27,6 +27,60 @@ describe('removeEmptyElements', () => {
         );
     });
 
+    it('should remove empty elements with presentational attributes only', () => {
+        return init(
+            '<div>hello<span class="carousel-dot"></span><i style="width:4px"></i><b aria-hidden="true" class="bar"></b></div>',
+            '<div>hello</div>',
+            { removeEmptyElements: { removeWithAttributes: 'presentational' } }
+        );
+    });
+
+    it('should keep empty elements with meaningful attributes in the presentational mode', () => {
+        const html = '<div><span id="anchor"></span><span role="status"></span><span aria-label="loading"></span>'
+            + '<span data-controller="tooltip"></span><span onclick="go()"></span><span title="hint"></span>'
+            + '<input name="q"><a href="/next" class="link"></a></div>';
+        return init(
+            html,
+            html,
+            { removeEmptyElements: { removeWithAttributes: 'presentational' } }
+        );
+    });
+
+    it('should keep scripted and custom elements in the presentational mode', () => {
+        const html = '<div><canvas class="chart"></canvas><slot class="body"></slot><iframe class="frame"></iframe>'
+            + '<my-widget class="widget"></my-widget></div>';
+        return init(
+            html,
+            html,
+            { removeEmptyElements: { removeWithAttributes: 'presentational' } }
+        );
+    });
+
+    it('should keep svg shapes in the presentational mode', () => {
+        const html = '<svg viewBox="0 0 8 8"><path class="icon" d="M0 0h8v8H0z"></path></svg>';
+        return init(
+            html,
+            html,
+            { removeEmptyElements: { removeWithAttributes: 'presentational' } }
+        );
+    });
+
+    it('should still remove empty elements without attributes in the presentational mode', () => {
+        return init(
+            '<div>hello<span><b></b></span></div>',
+            '<div>hello</div>',
+            { removeEmptyElements: { removeWithAttributes: 'presentational' } }
+        );
+    });
+
+    it('should accept a custom list of attributes that do not prevent the removal', () => {
+        return init(
+            '<div>hello<span data-decoration="dot"></span><span class="icon"></span></div>',
+            '<div>hello<span class="icon"></span></div>',
+            { removeEmptyElements: { removeWithAttributes: ['data-decoration'] } }
+        );
+    });
+
     it('should keep void elements', () => {
         return init(
             '<div><img></div>',
