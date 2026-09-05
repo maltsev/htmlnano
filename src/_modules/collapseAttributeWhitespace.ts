@@ -99,6 +99,149 @@ export function isSingleValueAttribute(attrName: string, tagName?: string) {
     return tagSet.has(tagName.toLowerCase());
 }
 
+/**
+ * Attributes holding a srcset, i.e. a comma-separated list of image candidate strings.
+ * https://html.spec.whatwg.org/multipage/images.html#srcset-attributes
+ */
+export const attributesWithSrcset = new Map<string, Set<string>>([
+    ['srcset', new Set(['img', 'source'])],
+    ['imagesrcset', new Set(['link'])]
+]);
+
+export function isSrcsetAttribute(attrName: string, tagName?: string) {
+    const tagSet = attributesWithSrcset.get(attrName.toLowerCase());
+    if (!tagSet || !tagName) {
+        return false;
+    }
+
+    return tagSet.has(tagName.toLowerCase());
+}
+
+interface SrcsetCandidate {
+    url: string;
+    descriptors: string[];
+}
+
+/** A srcset is split on ASCII whitespace only: anything else belongs to the URL */
+const ASCII_WHITESPACE_REGEXP = /[\t\n\f\r ]/;
+
+function isWhitespace(char: string | undefined) {
+    return char !== undefined && ASCII_WHITESPACE_REGEXP.test(char);
+}
+
+/**
+ * Splits a srcset into image candidates, following
+ * https://html.spec.whatwg.org/multipage/images.html#parsing-a-srcset-attribute
+ *
+ * Returns null when there is nothing to parse, so that the attribute is left as is.
+ */
+function parseSrcset(srcset: string): SrcsetCandidate[] | null {
+    const candidates: SrcsetCandidate[] = [];
+    let position = 0;
+
+    while (position < srcset.length) {
+        // Splitting loop: whitespaces and commas separate the candidates
+        while (position < srcset.length && (isWhitespace(srcset[position]) || srcset[position] === ',')) {
+            position += 1;
+        }
+
+        const urlStart = position;
+        while (position < srcset.length && !isWhitespace(srcset[position])) {
+            position += 1;
+        }
+
+        const url = srcset.slice(urlStart, position);
+        if (!url) {
+            break;
+        }
+
+        // An URL ending with a comma has no descriptors: the comma is the separator
+        if (url.endsWith(',')) {
+            candidates.push({ url: url.replace(/,+$/, ''), descriptors: [] });
+            continue;
+        }
+
+        candidates.push({ url, descriptors: [] });
+        const { descriptors } = candidates[candidates.length - 1];
+
+        // Descriptor tokenizer: descriptors are separated by whitespaces,
+        // and the candidate ends at the first comma outside of parentheses
+        let currentDescriptor = '';
+        let state: 'inDescriptor' | 'inParens' | 'afterDescriptor' = 'inDescriptor';
+
+        while (position <= srcset.length) {
+            const char: string | undefined = srcset[position];
+            position += 1;
+
+            if (state === 'inParens') {
+                if (char === undefined) {
+                    break;
+                }
+
+                currentDescriptor += char;
+                if (char === ')') {
+                    state = 'inDescriptor';
+                }
+
+                continue;
+            }
+
+            if (state === 'afterDescriptor') {
+                if (char === undefined) {
+                    break;
+                }
+
+                if (!isWhitespace(char)) {
+                    // Reconsume the character as the start of the next descriptor
+                    state = 'inDescriptor';
+                    position -= 1;
+                }
+
+                continue;
+            }
+
+            if (char === undefined || char === ',') {
+                if (currentDescriptor) {
+                    descriptors.push(currentDescriptor);
+                }
+
+                break;
+            }
+
+            if (isWhitespace(char)) {
+                if (currentDescriptor) {
+                    descriptors.push(currentDescriptor);
+                    currentDescriptor = '';
+                }
+
+                state = 'afterDescriptor';
+                continue;
+            }
+
+            currentDescriptor += char;
+            if (char === '(') {
+                state = 'inParens';
+            }
+        }
+    }
+
+    return candidates.length > 0 ? candidates : null;
+}
+
+function stringifySrcset(candidates: SrcsetCandidate[]) {
+    return candidates
+        .map(({ url, descriptors }) => (descriptors.length > 0 ? `${url} ${descriptors.join(' ')}` : url))
+        .reduce((srcset, candidate, index) => {
+            /**
+             * The URL of a candidate is parsed as a sequence of non-whitespace characters,
+             * so a candidate without descriptors would swallow both the comma and the next URL
+             * unless a whitespace keeps them apart.
+             */
+            const separator = candidates[index - 1].descriptors.length > 0 ? ',' : ', ';
+            return srcset + separator + candidate;
+        });
+}
+
 /** Collapse whitespaces inside list-like attributes (e.g. class, rel) */
 const mod: HtmlnanoModule = {
     onAttrs() {
@@ -114,6 +257,15 @@ const mod: HtmlnanoModule = {
 
                 if (isListAttribute(attrNameLower, tagName)) {
                     newAttrs[attrName] = attrValue.replace(/\s+/g, ' ').trim();
+                    return;
+                }
+
+                if (isSrcsetAttribute(attrNameLower, tagName)) {
+                    const candidates = parseSrcset(attrValue);
+                    if (candidates) {
+                        newAttrs[attrName] = stringifySrcset(candidates);
+                    }
+
                     return;
                 }
 

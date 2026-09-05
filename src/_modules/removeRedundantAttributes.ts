@@ -53,6 +53,17 @@ export const redundantScriptTypes = new Set([
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#missing-value-default
 const missingValueDefaultAttributes: Record<string, Record<string, string | ((attrs: Attrs) => boolean)>> = {
+    html: {
+        /**
+         * The missing value default of "dir" is the undefined state, whose directionality
+         * is inherited from the parent element — and "ltr" for an element without a parent.
+         * https://html.spec.whatwg.org/multipage/dom.html#the-directionality
+         *
+         * So dropping dir="ltr" is only safe on the root element, which is what <html> is.
+         */
+        dir: 'ltr'
+    },
+
     form: {
         method: 'get'
     },

@@ -198,6 +198,31 @@ describe('removeRedundantAttributes', () => {
         );
     });
 
+    it('should remove dir="ltr" from <html>', () => {
+        return init(
+            '<html dir="LTR" lang="en"><body>text</body></html>',
+            '<html lang="en"><body>text</body></html>',
+            options
+        );
+    });
+
+    it('shouldn\'t remove dir="rtl" from <html>', () => {
+        return init(
+            '<html dir="rtl" lang="ar"><body>text</body></html>',
+            '<html dir="rtl" lang="ar"><body>text</body></html>',
+            options
+        );
+    });
+
+    it('shouldn\'t remove dir="ltr" from other tags', () => {
+        // Only the root element is guaranteed to have no ancestor overriding the direction
+        return init(
+            '<div dir="rtl"><p dir="ltr">text</p></div>',
+            '<div dir="rtl"><p dir="ltr">text</p></div>',
+            options
+        );
+    });
+
     it('shouldn\'t remove fetchpriority="high" from <img>, <link> & <script>', () => {
         return init(
             '<img src="example.com" fetchpriority="high"><link rel="preload" fetchpriority="high"><script fetchpriority="high"></script>',

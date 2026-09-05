@@ -74,6 +74,7 @@ Collapse redundant whitespace in attribute values where it is safe:
 - List-like attributes are normalized by collapsing internal whitespace and trimming ends (`class`, `rel`, `ping`, `sandbox`, `headers`, `dropzone`, `sizes` on `<link>`).
 - Single-value attributes are trimmed (for example `href`, `style`, `src`, `width`, `height`) when they are on the correct elements.
 - Event handler attributes (like `onclick`) are trimmed only at the ends; inner whitespace is preserved.
+- `srcset` (on `<img>` and `<source>`) and `imagesrcset` (on `<link>`) are re-serialized with a single whitespace between an URL and its descriptors, and without any whitespace after the commas separating the image candidates. A whitespace is kept after the comma when the preceding candidate has no descriptor, since the parser would otherwise read the comma and the next URL as a part of the URL. Values that can't be parsed as a srcset are left untouched.
 
 `sizes` on `<img>` is not modified.
 
@@ -81,11 +82,13 @@ Collapse redundant whitespace in attribute values where it is safe:
 Source:
 ```html
 <a class=" content  page  " style="  display: block;    " href="   https://example.com"></a>
+<img srcset="image.png   480w ,  image2.png 2x">
 ```
 
 Minified:
 ```html
 <a class="content page" style="display: block;" href="https://example.com"></a>
+<img srcset="image.png 480w,image2.png 2x">
 ```
 
 ### removeRedundantAttributes
@@ -104,8 +107,10 @@ Removes redundant attributes from tags when they match HTML defaults:
 - `kind="subtitles"` from `<track>`
 - `wrap="soft"` from `<textarea>`
 - `shape="rect"` from `<area>`
+- `dir="ltr"` from `<html>`
 
 Attribute values are matched case-insensitively with surrounding whitespace ignored.
+`dir="ltr"` is only removed from `<html>`: an element without a `dir` attribute inherits the direction of its parent, and the direction of an element without a parent is `ltr` — so the attribute is redundant on the root element, but not anywhere else.
 Script `type="module"` is preserved, and `link[rel]` is treated as a space-separated token list when checking for `rel="stylesheet"`.
 
 #### Options
