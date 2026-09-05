@@ -31,6 +31,8 @@ type InlineCssExcludedPluginOptions = {
     normalizeCharset?: false;
     uniqueSelectors?: false;
     normalizeUnicode?: false;
+    reduceIdents?: false;
+    zindex?: false;
 };
 
 const inlineCssExcludedPlugins = {
@@ -39,7 +41,13 @@ const inlineCssExcludedPlugins = {
     minifyParams: false,
     normalizeCharset: false,
     uniqueSelectors: false,
-    normalizeUnicode: false
+    normalizeUnicode: false,
+    // The two plugins below ship with the `advanced` preset. Both rewrite identifiers
+    // that are declared outside of the `style` attribute (`@keyframes`, `grid-template-areas`)
+    // or that are only meaningful next to other elements (`z-index`), so a `style`
+    // attribute never holds enough context to rewrite them safely.
+    reduceIdents: false,
+    zindex: false
 } satisfies InlineCssExcludedPluginOptions;
 
 /** Minify CSS with cssnano */
@@ -105,32 +113,35 @@ export function getInlineCssnanoOptions(cssnanoOptions: CssnanoOptions | undefin
         return cssnanoOptions;
     }
 
-    if (!('preset' in cssnanoOptions) || cssnanoOptions.preset === undefined) {
+    const preset = cssnanoOptions.preset;
+
+    if (preset === undefined) {
         return {
             ...cssnanoOptions,
             preset: ['default', inlineCssExcludedPlugins]
         };
     }
 
-    if (cssnanoOptions.preset === 'default') {
+    if (typeof preset === 'string' || typeof preset === 'function') {
         return {
             ...cssnanoOptions,
-            preset: ['default', inlineCssExcludedPlugins]
+            preset: [preset, inlineCssExcludedPlugins]
         };
     }
 
-    if (Array.isArray(cssnanoOptions.preset) && cssnanoOptions.preset[0] === 'default') {
-        const presetOptions = cssnanoOptions.preset[1] as unknown;
+    if (Array.isArray(preset)) {
+        const presetOptions = preset[1] as unknown;
 
         return {
             ...cssnanoOptions,
-            preset: ['default', {
+            preset: [preset[0], {
                 ...inlineCssExcludedPlugins,
                 ...(presetOptions && typeof presetOptions === 'object' ? presetOptions : {})
             }]
         };
     }
 
+    // A preset given as `{ plugins: [...] }` carries no per-plugin options to override
     return cssnanoOptions;
 }
 

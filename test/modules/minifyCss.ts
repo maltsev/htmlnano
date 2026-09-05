@@ -122,7 +122,9 @@ describe('minifyCss', function () {
                 minifyParams: false,
                 normalizeCharset: false,
                 uniqueSelectors: {},
-                normalizeUnicode: false
+                normalizeUnicode: false,
+                reduceIdents: false,
+                zindex: false
             }]
         });
     });
@@ -143,7 +145,9 @@ describe('minifyCss', function () {
                 minifyParams: false,
                 normalizeCharset: false,
                 uniqueSelectors: false,
-                normalizeUnicode: false
+                normalizeUnicode: false,
+                reduceIdents: false,
+                zindex: false
             }]
         });
     });
@@ -163,7 +167,9 @@ describe('minifyCss', function () {
                 minifyParams: false,
                 normalizeCharset: false,
                 uniqueSelectors: false,
-                normalizeUnicode: false
+                normalizeUnicode: false,
+                reduceIdents: false,
+                zindex: false
             }]
         });
     });
@@ -178,17 +184,99 @@ describe('minifyCss', function () {
                 minifyParams: false,
                 normalizeCharset: false,
                 uniqueSelectors: false,
-                normalizeUnicode: false
+                normalizeUnicode: false,
+                reduceIdents: false,
+                zindex: false
             }]
         });
     });
 
-    it('should leave non-default presets untouched', () => {
+    it('should add inline exclusions to non-default presets', () => {
+        expect(getInlineCssnanoOptions({
+            preset: ['advanced', { zindex: {} }]
+        })).toEqual({
+            preset: ['advanced', {
+                mergeRules: false,
+                minifySelectors: false,
+                minifyParams: false,
+                normalizeCharset: false,
+                uniqueSelectors: false,
+                normalizeUnicode: false,
+                reduceIdents: false,
+                zindex: {}
+            }]
+        });
+    });
+
+    it('should add inline exclusions to a shorthand non-default preset', () => {
+        expect(getInlineCssnanoOptions({
+            preset: 'advanced'
+        })).toEqual({
+            preset: ['advanced', {
+                mergeRules: false,
+                minifySelectors: false,
+                minifyParams: false,
+                normalizeCharset: false,
+                uniqueSelectors: false,
+                normalizeUnicode: false,
+                reduceIdents: false,
+                zindex: false
+            }]
+        });
+    });
+
+    it('should add inline exclusions to a preset passed as a factory', () => {
+        function presetFactory() {
+            return { plugins: [] };
+        }
+
+        expect(getInlineCssnanoOptions({ preset: presetFactory })).toEqual({
+            preset: [presetFactory, {
+                mergeRules: false,
+                minifySelectors: false,
+                minifyParams: false,
+                normalizeCharset: false,
+                uniqueSelectors: false,
+                normalizeUnicode: false,
+                reduceIdents: false,
+                zindex: false
+            }]
+        });
+    });
+
+    it('should leave a preset given as a plugin list untouched', () => {
         const customPresetOptions = {
-            preset: ['lite', {}]
+            preset: { plugins: [] }
         };
 
         expect(getInlineCssnanoOptions(customPresetOptions)).toBe(customPresetOptions);
+    });
+
+    it('should pass the inline exclusions to a custom preset for style attributes only', async () => {
+        const receivedOptions: unknown[] = [];
+
+        function presetFactory(presetOptions: unknown) {
+            receivedOptions.push(presetOptions);
+            return { plugins: [] };
+        }
+
+        await init(
+            '<style>h1{color:red}</style><div style="z-index:9999"></div>',
+            '<style>h1{color:red}</style><div style="z-index:9999"></div>',
+            { minifyCss: { preset: presetFactory } }
+        );
+
+        expect(receivedOptions).toContainEqual({
+            mergeRules: false,
+            minifySelectors: false,
+            minifyParams: false,
+            normalizeCharset: false,
+            uniqueSelectors: false,
+            normalizeUnicode: false,
+            reduceIdents: false,
+            zindex: false
+        });
+        expect(receivedOptions).toContainEqual({});
     });
 
     it('should ignore non-object default preset options when building inline config', () => {
@@ -203,7 +291,9 @@ describe('minifyCss', function () {
                 minifyParams: false,
                 normalizeCharset: false,
                 uniqueSelectors: false,
-                normalizeUnicode: false
+                normalizeUnicode: false,
+                reduceIdents: false,
+                zindex: false
             }]
         });
     });

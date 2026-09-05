@@ -1084,8 +1084,12 @@ Skipped nodes:
 
 Notes:
 - `style` attributes are wrapped in a temporary selector (`a{...}`) before minification so cssnano can parse them, then the wrapper is removed.
-- When htmlnano uses cssnano's `default` preset for `style` attributes, it disables inline-irrelevant optimizations such as `mergeRules`, `minifySelectors`, `minifyParams`, `normalizeCharset`, `uniqueSelectors`, and `normalizeUnicode`.
-- If you explicitly configure any of those plugins in `preset: ['default', ...]`, or pass a custom cssnano `plugins` list, htmlnano keeps your settings instead of overwriting them.
+- For `style` attributes htmlnano disables the optimizations that a single declaration list can't give
+  enough context for: `mergeRules`, `minifySelectors`, `minifyParams`, `normalizeCharset`,
+  `uniqueSelectors`, `normalizeUnicode`, and (for the `advanced` preset) `reduceIdents` and `zindex`.
+  This happens for every preset, including custom preset factories.
+- If you explicitly configure any of those plugins in `preset: [..., { ... }]`, or pass a custom cssnano
+  `plugins` list, htmlnano keeps your settings instead of overwriting them.
 
 You have to install `cssnano` and `postcss` in order to use this feature:
 
@@ -1113,6 +1117,35 @@ htmlnano.process(html, {
     }
 });
 ```
+
+##### The `advanced` preset
+
+cssnano also ships an [`advanced` preset](https://cssnano.github.io/cssnano/docs/what-are-optimisations/).
+htmlnano does not use it in any preset, including `max`, and does not depend on it — install
+`cssnano-preset-advanced` yourself if you want it:
+
+```js
+htmlnano.process(html, {
+    minifyCss: {
+        preset: 'advanced'
+    }
+});
+```
+
+Be aware of what you are opting into. htmlnano minifies every `<style>` tag and every `style`
+attribute on its own, and it never sees the page's external stylesheets or its scripts, so the
+`advanced` plugins that reason about a whole document are unsound here:
+
+- `discardUnused` drops `@font-face`, `@keyframes` and `@counter-style` rules that nothing in the same `<style>` tag references — including fonts and animations used by an external stylesheet or added at runtime. On a real page this silently changes the rendering.
+- `reduceIdents` and `mergeIdents` rename those identifiers, which breaks the same cross-stylesheet
+  and JavaScript references (`element.style.animationName`, `grid-template-areas`, …).
+- `zindex` rebases `z-index` values, which is only safe for a self-contained stylesheet.
+- `autoprefixer` (in `add: false` mode) removes vendor prefixes according to the Browserslist
+  configuration and caniuse-lite version found on the *build* machine, so the output is no longer a
+  function of the input alone.
+
+htmlnano does disable `reduceIdents` and `zindex` for `style` attributes, where they are always
+wrong (see the notes above), but it cannot make the `<style>`-tag transformations safe for you.
 
 #### Example
 Source:
