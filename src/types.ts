@@ -7,6 +7,7 @@ export type PostHTMLTreeLike = [PostHTMLNodeLike] & PostHTML.NodeAPI & {
         quoteAllAttributes?: boolean | undefined;
         quoteStyle?: 0 | 1 | 2 | undefined;
         replaceQuote?: boolean | undefined;
+        closingSingleTag?: 'tag' | 'slash' | 'default' | 'closeAs' | undefined;
     } | undefined;
 
     render(): string;

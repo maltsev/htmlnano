@@ -53,6 +53,19 @@ export function loadConfig(
     ];
 }
 
+/**
+ * Modules that must see the final tree, after every other module (including the
+ * `onAttrs`/`onContent`/`onNode` walk) is done with it.
+ *
+ * `removeOptionalTags` decides what may be dropped from the markup based on the
+ * exact shape of the tree, so it has to look at the tree nobody will touch
+ * anymore. Running it earlier both misses omissions that only became possible
+ * later (e.g. `removeXmlLeftovers` stripping the last attribute off `<html>`)
+ * and hides elements from later modules (e.g. `removeUnusedCss` would drop a
+ * `body { … }` rule after `<body>` had already been omitted).
+ */
+const finalPassModules = new Set<string>(['removeOptionalTags']);
+
 const optionalDependencies = {
     minifyCss: ['cssnano', 'postcss'],
     minifyJs: ['terser'],
@@ -161,6 +174,7 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
         const nodeHandlers: HtmlnanoModuleNodeHandler[] = [];
         const attrsHandlers: HtmlnanoModuleAttrsHandler[] = [];
         const contentsHandlers: HtmlnanoModuleContentHandler[] = [];
+        const finalPasses: Array<(tree: PostHTMLTreeLike) => Promise<PostHTMLTreeLike>> = [];
 
         options = { ...preset, ...options };
         let promise = Promise.resolve(tree);
@@ -218,12 +232,23 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
                 nodeHandlers.push(mod.onNode(options, typedModuleOptions));
             }
             if (typeof mod.default === 'function') {
-                promise = promise.then(async tree => await mod.default!(tree, options, typedModuleOptions));
+                const runModule = async (tree: PostHTMLTreeLike) => await mod.default!(tree, options, typedModuleOptions);
+
+                if (finalPassModules.has(moduleName)) {
+                    finalPasses.push(runModule);
+                } else {
+                    promise = promise.then(runModule);
+                }
             }
         }
 
+        const runFinalPasses = (tree: PostHTMLTreeLike) => finalPasses.reduce(
+            (chain, runModule) => chain.then(runModule),
+            Promise.resolve(tree)
+        );
+
         if (attrsHandlers.length + contentsHandlers.length + nodeHandlers.length === 0) {
-            return promise;
+            return promise.then(runFinalPasses);
         }
 
         return promise.then((tree) => {
@@ -265,7 +290,7 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
             });
 
             return tree;
-        });
+        }).then(runFinalPasses);
     };
 
     return minifier;
