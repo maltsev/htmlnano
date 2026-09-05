@@ -540,31 +540,45 @@ and hexadecimal (`&#x2014;`) numeric references are decoded as well.
 #### Options
 - `true` — decode a conservative allowlist of common typographic/symbol named
   references plus safe numeric references (default in the `safe` preset).
-- `{ decodeAll: true }` — decode every named reference the module knows about
-  (default in the `max` preset). The module never adds a runtime dependency,
-  so unknown named references are always left untouched.
+- `{ decodeAll: true }` — additionally decode every named reference of the
+  HTML standard, such as `&hearts;` or `&Longleftrightarrow;`
+  (default in the `max` preset).
 
 #### Notes
-- The syntactically required references are **never** decoded, because
-  posthtml-render does not re-escape text: `&amp;`, `&lt;`, `&gt;` in text
-  nodes, and `&amp;`, `&quot;`, `&apos;`/`&#39;` in attribute values.
-- Any reference (named or numeric) whose decoded form would be `&`, `<`, `>`
-  (or a quote inside an attribute value) is left as-is. This also prevents
-  double-encoded input like `&amp;mdash;` from collapsing into `&mdash;`.
+- The decoding is lossless: a reference is only decoded when the literal
+  character is parsed back into exactly the same character in that context.
+- `&amp;` becomes a bare `&` unless that would create an [ambiguous
+  ampersand](https://html.spec.whatwg.org/multipage/syntax.html#syntax-ambiguous-ampersand),
+  i.e. unless the following text would turn it back into a character
+  reference. `&amp;copy;`, `&amp;copy` and `&amp;#169;` are therefore kept,
+  while `?a=1&amp;b=2` becomes `?a=1&b=2`. At the very end of a text node the
+  following context is not known yet, so `&amp;` is kept there as well.
+- `&lt;` is never decoded in text nodes, since posthtml-render does not
+  re-escape text and a literal `<` would open a tag. `&gt;` is decoded, and
+  both are decoded in attribute values — values containing `<` or `>` are
+  always rendered quoted.
+- `&quot;` and `&#34;` are kept in attribute values (posthtml-render would
+  re-encode or break on a literal `"`), but decoded in text nodes.
+  `&apos;`/`&#39;`/`&#x27;` are decoded in attribute values, except in the
+  ones posthtml-render renders single-quoted (JSON-ish values, or every value
+  when the `quoteStyle` render option asks for single quotes).
 - Content of `<script>`, `<style>`, and `<textarea>` is left untouched, since
   browsers do not entity-decode raw-text element content.
 - Invalid, unknown, or non-terminated references (for example `&fake;` or
-  `&mdash` without a semicolon) are left untouched.
+  `&mdash` without a semicolon) are left untouched, and double-encoded input
+  like `&amp;mdash;` never collapses into `&mdash;`.
 
 #### Example
 Source:
 ```html
 <p title="a &mdash; b">Copyright &copy; 2024 &#8212; the end&hellip;</p>
+<a href="/search?q=1&amp;page=2">R &amp; D</a>
 ```
 
 Minified:
 ```html
 <p title="a — b">Copyright © 2024 — the end…</p>
+<a href="/search?q=1&page=2">R & D</a>
 ```
 
 
