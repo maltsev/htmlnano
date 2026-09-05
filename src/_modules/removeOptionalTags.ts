@@ -407,9 +407,25 @@ function canOmitStartTag(
 function removeOptionalTagsFrom(nodes: PostHTMLNodeLike[], parent: PostHTML.Node | null, context: OmissionContext) {
     nodes.forEach((node, index) => {
         if (typeof node === 'string') return;
-        if (!node.tag) return;
 
         const tagName = node.tag;
+
+        /*
+         * A node without a tag renders as its content only. posthtml-include and
+         * similar plugins build those to splice a parsed document into the tree,
+         * so it has no tags of its own to omit while the elements below it do —
+         * the traversal must not stop here. The node is passed on as the parent,
+         * where its missing tag name blocks every "no more content in the parent
+         * element" rule: what its content really ends up nested in is unknown.
+         */
+        if (typeof tagName !== 'string') {
+            if (node.content && node.content.length) {
+                removeOptionalTagsFrom(node.content, node, context);
+            }
+
+            return;
+        }
+
         const prevNode = getPrevRenderedNode(nodes, index);
         const nextNode = getNextRenderedNode(nodes, index);
         const isPrevEndTagOmitted = prevNode !== null

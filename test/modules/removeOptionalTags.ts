@@ -1,6 +1,7 @@
 // this file has trailing whitespaces that should be kept
 
 import { init, initWithPostHtmlOptions } from '../htmlnano.ts';
+import type { PostHTMLTreeLike } from '../../src/types.js';
 
 describe('removeOptionalTags', () => {
     const options = {
@@ -26,6 +27,57 @@ describe('removeOptionalTags', () => {
         const expected = '<title>Title</title><p>Hi';
 
         return init(input, expected, options);
+    });
+
+    context('attributes only block the start tag of their own element', () => {
+        it('omits the tags of the descendants of an element with attributes', () => {
+            const input = '<html class="no-js"><head><title>Title</title></head><body class="page"><ul><li>one</li><li>two</li></ul></body></html>';
+            const expected = '<html class="no-js"><title>Title</title><body class="page"><ul><li>one<li>two</ul>';
+
+            return init(input, expected, options);
+        });
+
+        it('omits </head> and </body> of elements with attributes', () => {
+            const input = '<html><head class="h"><title>Title</title></head><body class="b"><p>Hi</p></body></html>';
+            const expected = '<head class="h"><title>Title</title><body class="b"><p>Hi';
+
+            return init(input, expected, options);
+        });
+
+        it('omits </tbody> of an element with attributes', () => {
+            const input = '<table><tbody class="x"><tr><td>a</td></tr></tbody></table>';
+            const expected = '<table><tbody class="x"><tr><td>a</table>';
+
+            return init(input, expected, options);
+        });
+
+        it('omits </colgroup> of an element with attributes', () => {
+            const input = '<table><colgroup class="c"><col></colgroup><tr><td>a</td></tr></table>';
+            const expected = '<table><colgroup class="c"><col><tr><td>a</table>';
+
+            return init(input, expected, options);
+        });
+    });
+
+    it('omits the tags below a node without a tag', () => {
+        // posthtml-include and friends splice a parsed document in as such a node
+        function wrapContentInATaglessNode(tree: PostHTMLTreeLike) {
+            tree.walk((node) => {
+                if (typeof node !== 'string' && node.tag === 'div') {
+                    // @ts-expect-error -- a node without a tag renders as its content only
+                    node.content = [{ tag: false, content: node.content }];
+                }
+
+                return node;
+            });
+
+            return tree;
+        }
+
+        const input = '<div><ul><li>one</li><li>two</li></ul></div>';
+        const expected = '<div><ul><li>one<li>two</ul></div>';
+
+        return init(input, expected, { ...options, custom: wrapContentInATaglessNode });
     });
 
     context('omit optional <html>', () => {

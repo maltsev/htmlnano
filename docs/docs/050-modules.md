@@ -737,8 +737,10 @@ Minified:
 Remove certain tags that can be omitted, see [HTML Standard - 13.1.2.4 Optional tags](https://html.spec.whatwg.org/multipage/syntax.html#optional-tags).
 
 #### Notes
-- Attributes only block the *start* tag: `<li class="x">…</li>` keeps its start
-  tag but still loses `</li>`. An element whose start tag can be omitted must
+- Attributes only block the start tag of the element that carries them:
+  `<li class="x">…</li>` keeps its start tag but still loses `</li>`, and a
+  `<html class="no-js">` still gets its `</html>` and the optional tags of
+  everything inside it removed. An element whose start tag can be omitted must
   have no attributes at all.
 - htmlnano can omit an end tag on its own, and it can omit a start and an end
   tag together, but it can’t omit *only* a start tag — posthtml-render has no way
@@ -749,6 +751,9 @@ Remove certain tags that can be omitted, see [HTML Standard - 13.1.2.4 Optional 
   this module together with `collapseWhitespace: 'all'` (as the `max` preset
   does) to get the most out of it.
 - The module runs after every other module, on the final tree.
+- Nodes that another posthtml plugin left without a tag (posthtml-include builds
+  those to splice a file in) render as their content only, and the elements
+  inside them are minified as well.
 
 ##### Optional start tags
 
