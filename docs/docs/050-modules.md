@@ -1162,6 +1162,28 @@ htmlnano.process(html, {
 The module treats script types with parameters (for example `text/javascript; charset=utf-8`) as JavaScript.
 For `type="module"` scripts, it enables Terser's `module` option unless you explicitly set `module` yourself.
 
+#### Legal comments (`@license`, `@preserve`, `/*!`)
+By default Terser keeps "legal" comments — those matching `@license`, `@preserve`, `@cc_on` or starting with `/*!`
+(this covers `@licstart`/`@licend` blocks as well). The `safe` and `ampSafe` presets keep that default,
+so license notices stay in the output.
+
+The [`max` preset](./presets) turns them off with Terser's own option:
+```js
+minifyJs: {
+    format: { comments: false }
+}
+```
+
+**This is a legal decision, not a technical one.** Many JS licenses (MIT, Apache-2.0, GPL, …) require the
+copyright notice to be distributed with the code, and dropping the comment can put you in breach of them.
+Only use it when you ship the notices elsewhere (a `LICENSE`/`NOTICE` file, a separate license page, a preserved
+bundle header), or when the inlined scripts are your own.
+
+To keep legal comments while still using the `max` preset, override the module:
+```js
+htmlnano.process(html, { minifyJs: { format: { comments: 'some' } } }, htmlnano.presets.max);
+```
+
 #### Notes
 - Only JavaScript script types are processed: the default type, `text/javascript`, `application/javascript`, and legacy `text/ecmascript`. Other types (for example `application/json`) are left untouched.
 - Any `<script>` with an `integrity` attribute is skipped to preserve SRI safety. Generate SRI after minification if you rely on it.

@@ -20,6 +20,15 @@ decorations back, override the module:
 htmlnano.process(html, { removeEmptyElements: true }, htmlnano.presets.max);
 ```
 
+`max` also configures [`minifyJs`](./modules#minifyjs) with `format: { comments: false }`, which drops the
+`@license`/`@preserve`/`/*!` comments Terser keeps by default. That is a legal trade-off — most JS licenses
+require the notice to be distributed with the code — so only use it when the notices are shipped elsewhere.
+To keep them:
+
+```js
+htmlnano.process(html, { minifyJs: { format: { comments: 'some' } } }, htmlnano.presets.max);
+```
+
 
 You can use them the following way:
 ```js

@@ -1,6 +1,7 @@
 import { init } from '../htmlnano.ts';
 import safePreset from '../../dist/presets/safe.mjs';
 import ampSafePreset from '../../dist/presets/ampSafe.mjs';
+import maxPreset from '../../dist/presets/max.mjs';
 
 describe('minifyJs', () => {
     const options = {
@@ -256,6 +257,30 @@ describe('minifyJs', () => {
             '<script type="module">const foo = 1; export { foo };</script>',
             '<script type="module">const o=1;export{o as foo};</script>',
             { minifyJs: { toplevel: true, mangle: true, compress: true } }
+        );
+    });
+
+    it('should keep legal comments with the safe preset', () => {
+        return init(
+            '<script>/*! @license MIT */\n/* @licstart notice */\nvar foob = 1;\n/* @licend */</script>',
+            '<script>/*! @license MIT */\n/* @licstart notice */\nvar foob=1;\n/* @licend */</script>',
+            options
+        );
+    });
+
+    it('should drop legal comments with the max preset', () => {
+        return init(
+            '<script>/*! @license MIT */\n/* @licstart notice */\nvar foob = 1;\n/* @licend */</script>',
+            '<script>var foob=1;</script>',
+            { minifyJs: maxPreset.minifyJs }
+        );
+    });
+
+    it('should drop legal comments from on* attributes with the max preset', () => {
+        return init(
+            '<a onclick="/*! @license MIT */ foob()"></a>',
+            '<a onclick="foob()"></a>',
+            { minifyJs: maxPreset.minifyJs }
         );
     });
 });

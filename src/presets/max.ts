@@ -33,5 +33,12 @@ export default {
     minifyCss: {
         preset: 'default'
     },
+    // Terser keeps `@license`/`@preserve`/`/*!` comments by default. Dropping them
+    // is a legal decision, not a technical one, so it only happens in `max`.
+    minifyJs: {
+        format: {
+            comments: false
+        }
+    },
     minifySvg: {}
 } as HtmlnanoPreset;
