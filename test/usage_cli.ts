@@ -9,7 +9,7 @@ describe('[cli]', () => {
 
     const inputHtml = ' <div><!-- foo --><i>Hello</i> <i>world!</i></div> \n';
     const minifiedHtml = '<div><i>Hello</i> <i>world!</i></div>';
-    const minifiedHtmlMax = '<div><i>Hello</i><i>world!</i></div>';
+    const minifiedHtmlMax = '<div><i>Hello</i> <i>world!</i></div>';
 
     it('reads from STDIN and prints to STDOUT', () => {
         const stdout = execFileSync(process.execPath, [bin], {

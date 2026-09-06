@@ -1,6 +1,6 @@
 import type PostHTML from 'posthtml';
 import { isComment } from '../helpers';
-import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLTreeLike } from '../types';
+import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLNodeLike, PostHTMLTreeLike } from '../types';
 
 const noWhitespaceCollapseElements = new Set([
     'script',
@@ -44,6 +44,13 @@ interface ParentInfo {
     node: PostHTML.Node;
     prevNode: PostHTML.Node | string | undefined;
     nextNode: PostHTML.Node | string | undefined;
+    /**
+     * 'all' only: whether whitespace at the very start / end of this node's
+     * content is rendered as a space separating two pieces of inline content.
+     * `undefined` at the top level, where there is no parent element.
+     */
+    spaceBefore?: boolean;
+    spaceAfter?: boolean;
 }
 
 /** Collapses redundant whitespaces */
@@ -56,27 +63,40 @@ function collapseWhitespace(tree: PostHTMLTreeLike | Array<PostHTML.Node | strin
         const nextNode = tree[index + 1];
 
         if (typeof node === 'string') {
-            const parentNodeTag = parent?.node.tag;
-            const isTopLevel = parentNodeTag == null || parentNodeTag === 'html' || parentNodeTag === 'head';
-            const shouldTrim = (
-                isTopLevel
-                || collapseType === 'all'
-                /*
-                 * When collapseType is set to 'aggressive', and the tag is not inside 'noTrimWhitespacesInsideElements'.
-                 * the first & last space inside the tag will be trimmed
-                 */
-                || collapseType === 'aggressive'
-            );
+            if (collapseType === 'all') {
+                node = collapseAllWhitespaces(node, tree, index, parent);
+            } else {
+                const parentNodeTag = parent?.node.tag;
+                const isTopLevel = parentNodeTag == null || parentNodeTag === 'html' || parentNodeTag === 'head';
+                const shouldTrim = (
+                    isTopLevel
+                    /*
+                     * When collapseType is set to 'aggressive', and the tag is not inside 'noTrimWhitespacesInsideElements'.
+                     * the first & last space inside the tag will be trimmed
+                     */
+                    || collapseType === 'aggressive'
+                );
 
-            node = collapseRedundantWhitespaces(node, collapseType, shouldTrim, parent, prevNode, nextNode);
+                node = collapseRedundantWhitespaces(node, collapseType, shouldTrim, parent, prevNode, nextNode);
+            }
         } else if (node.tag) {
             const isAllowCollapseWhitespace = !noWhitespaceCollapseElements.has(node.tag)
                 && !hasWhitespacePreservingStyle(node);
             if (isAllowCollapseWhitespace && node.content?.length) {
+                /*
+                 * Whitespace at the edges of an element's content is only rendered
+                 * when the element itself is inline: a block box drops it. So the
+                 * boundaries the children inherit are the element's own ones,
+                 * closed off as soon as a non-inline element is reached.
+                 */
+                const isInlineContent = collapseType === 'all' && noTrimWhitespacesInsideElements.has(node.tag);
+
                 node.content = collapseWhitespace(node.content, options, collapseType, {
                     node,
                     prevNode,
-                    nextNode
+                    nextNode,
+                    spaceBefore: isInlineContent && isRenderedSpaceBefore(tree, index, parent),
+                    spaceAfter: isInlineContent && isRenderedSpaceAfter(tree, index, parent)
                 });
             }
         }
@@ -99,8 +119,8 @@ function collapseRedundantWhitespaces(
     }
 
     if (shouldTrim) {
-        // either all or top level, trim all
-        if (collapseType === 'all' || collapseType === 'conservative') {
+        // top level, trim all ('all' is handled by collapseAllWhitespaces)
+        if (collapseType === 'conservative') {
             return text.trim();
         }
 
@@ -170,6 +190,88 @@ function collapseRedundantWhitespaces(
     }
 
     return text;
+}
+
+/**
+ * 'all' trims every text node, which is only lossless where the trimmed
+ * whitespace isn't rendered. Between two pieces of inline content a whitespace
+ * *is* rendered — it is what keeps the words apart — so exactly one space is
+ * kept there, and nowhere else.
+ */
+function collapseAllWhitespaces(text: string, tree: ArrayLike<PostHTMLNodeLike>, index: number, parent: ParentInfo | undefined) {
+    if (!text) {
+        return NONE;
+    }
+
+    if (isComment(text)) {
+        return text;
+    }
+
+    text = text.replace(multipleWhitespacePattern, SINGLE_SPACE);
+
+    const keepSpaceBefore = startsWithWhitespacePattern.test(text) && isRenderedSpaceBefore(tree, index, parent);
+    const keepSpaceAfter = endsWithWhitespacePattern.test(text) && isRenderedSpaceAfter(tree, index, parent);
+
+    const trimmedText = text.trim();
+    if (!trimmedText) {
+        // A whitespace-only node is the separator itself, so one space is enough
+        return keepSpaceBefore && keepSpaceAfter ? SINGLE_SPACE : NONE;
+    }
+
+    return (keepSpaceBefore ? SINGLE_SPACE : NONE) + trimmedText + (keepSpaceAfter ? SINGLE_SPACE : NONE);
+}
+
+/**
+ * Whether a whitespace right before `tree[index]` would be rendered as a space
+ * separating it from what comes before, i.e. whether inline content ends there.
+ *
+ * Comments render nothing, so they are looked through. A preceding text node
+ * that already ends with a whitespace brings its own separator, and once the
+ * siblings run out the answer is the one the parent element inherited.
+ */
+function isRenderedSpaceBefore(tree: ArrayLike<PostHTMLNodeLike>, index: number, parent: ParentInfo | undefined) {
+    for (let i = index - 1; i >= 0; i--) {
+        const sibling = tree[i];
+
+        if (typeof sibling === 'string') {
+            if (sibling === NONE || isComment(sibling)) continue;
+            return !endsWithWhitespacePattern.test(sibling);
+        }
+
+        return isInlineNode(sibling);
+    }
+
+    return parent?.spaceBefore ?? false;
+}
+
+/**
+ * The mirror image of `isRenderedSpaceBefore`. The nodes after `tree[index]`
+ * haven't been collapsed yet: when the next one is a text node that starts with
+ * a whitespace, it keeps that separator itself, so this one doesn't have to.
+ */
+function isRenderedSpaceAfter(tree: ArrayLike<PostHTMLNodeLike>, index: number, parent: ParentInfo | undefined) {
+    for (let i = index + 1; i < tree.length; i++) {
+        const sibling = tree[i];
+
+        if (typeof sibling === 'string') {
+            if (sibling === NONE || isComment(sibling)) continue;
+            return !startsWithWhitespacePattern.test(sibling);
+        }
+
+        return isInlineNode(sibling);
+    }
+
+    return parent?.spaceAfter ?? false;
+}
+
+/*
+ * A node another plugin left without a tag (posthtml-include builds those)
+ * renders as its content only, whatever that content is, so it is treated as
+ * inline content — keeping a space that isn't needed is the harmless mistake.
+ */
+function isInlineNode(node: PostHTML.Node) {
+    if (typeof node.tag !== 'string') return true;
+    return noTrimWhitespacesArroundElements.has(node.tag);
 }
 
 /*

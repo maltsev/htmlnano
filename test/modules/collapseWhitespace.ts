@@ -58,7 +58,7 @@ describe('collapseWhitespace', () => {
         it('should collapse redundant whitespaces', () => {
             return init(
                 html,
-                '<div><p>Hello world</p><pre>   <code>	posthtml    htmlnano     </code>	</pre><code>posthtml htmlnano</code><b>hello world!</b><a>other link</a>Example</div>',
+                '<div><p>Hello world</p><pre>   <code>	posthtml    htmlnano     </code>	</pre><code>posthtml htmlnano</code> <b>hello world!</b> <a>other link</a> Example</div>',
                 options
             );
         });
@@ -83,7 +83,47 @@ describe('collapseWhitespace', () => {
         it('should collapse whitespaces inside text node', () => {
             return init(
                 spaceInsideTextNodeHtml,
-                '<div><span>lorem<span>iorem</span></span></div><div>lorem<span>opren</span></div>',
+                '<div><span>lorem <span>iorem</span></span></div><div>lorem <span>opren</span></div>',
+                options
+            );
+        });
+
+        it('keeps the space between text and an inline element', () => {
+            return init(
+                '<p>landed at\n  <a href="#">Nadzab</a>\n  as part of the <a href="#">New Guinea campaign</a>\n  against Japan</p>',
+                '<p>landed at <a href="#">Nadzab</a> as part of the <a href="#">New Guinea campaign</a> against Japan</p>',
+                options
+            );
+        });
+
+        it('keeps a single space between two inline elements', () => {
+            return init(
+                '<i>hello</i>\n<i>world</i><span>!</span>  <img src="x">  <b>?</b>',
+                '<i>hello</i> <i>world</i><span>!</span> <img src="x"> <b>?</b>',
+                options
+            );
+        });
+
+        it('keeps the space at the edge of a nested inline element', () => {
+            return init(
+                '<p>text<em><i> x</i></em> <em>y </em>z</p>',
+                '<p>text<em><i> x</i></em> <em>y </em>z</p>',
+                options
+            );
+        });
+
+        it('keeps the space across a comment', () => {
+            return init(
+                '<p>x <!--c--> y</p>',
+                '<p>x<!--c--> y</p>',
+                options
+            );
+        });
+
+        it('trims inline content whose neighbours do not need a space', () => {
+            return init(
+                '<div>  <span> a </span>  </div><p><span>b </span><span>c</span></p>',
+                '<div><span>a</span></div><p><span>b </span><span>c</span></p>',
                 options
             );
         });
@@ -99,7 +139,7 @@ describe('collapseWhitespace', () => {
         it('renders the documentation example correctly', () => {
             return init(
                 documentationHtml,
-                '<div>hello world!<a href="#">answer</a><style>div  { color: red; }  </style><main></main></div>',
+                '<div>hello world! <a href="#">answer</a><style>div  { color: red; }  </style><main></main></div>',
                 options
             );
         });
