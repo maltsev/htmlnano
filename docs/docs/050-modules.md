@@ -703,7 +703,16 @@ Removes elements that have no meaningful content.
 - `{ removeWithAttributes: true }` — removes empty elements no matter what they carry.
 
 Empty elements are defined as elements with no child elements and only whitespace/comments as content.
-Void elements (like `<img>` or `<br>`) are never removed.
+Void elements (like `<img>` or `<br>`) are never removed, and neither are elements that
+keep doing their job while empty, whatever `removeWithAttributes` says:
+
+- `td`, `th`, `tr`, `caption`, `colgroup` — they hold a position in the table grid.
+  Dropping an empty cell shifts every following cell of the row into the wrong column.
+- `textarea`, `select`, `option` — form controls that are submitted and scripted while
+  empty; an empty `<textarea>` is simply one the user hasn't typed into yet.
+- `canvas`, `iframe`, `audio`, `video`, `slot` — they are painted or filled by something
+  other than their own markup: scripts, a nested document, the resource of their `src`,
+  or the light DOM projected into them.
 
 ##### The `'presentational'` mode
 
@@ -715,13 +724,11 @@ shapes (`<path d="…">` is empty markup-wise, but it is the drawing).
 `aria-hidden` is in the list because an element that is hidden from the accessibility
 tree contributes nothing to it once it's empty.
 
-Elements that keep doing their job while empty are never removed by this mode, even
-when they only have presentational attributes: `<canvas>` (painted by scripts),
-`<slot>` (projects light DOM into a shadow tree), `<iframe>` (renders a nested
-document) and custom elements — any tag with a dash in it, like
-`<my-widget class="widget"></my-widget>`, which builds its own content once the
-element definition is upgraded. Note that `removeWithAttributes: true` doesn't make
-those exceptions: it removes everything empty.
+On top of the elements that are never removed, this mode also keeps custom elements —
+any tag with a dash in it, like `<my-widget class="widget"></my-widget>`, which builds
+its own content once the element definition is upgraded. Note that
+`removeWithAttributes: true` doesn't make that exception: it removes every empty
+element except the ones listed above.
 
 #### Side effects
 This module removes elements that are used for styling or scripting, so it's disabled

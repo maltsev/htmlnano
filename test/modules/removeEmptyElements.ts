@@ -89,6 +89,26 @@ describe('removeEmptyElements', () => {
         );
     });
 
+    it('should keep empty table cells, rows and captions', () => {
+        const html = '<table><caption></caption><colgroup></colgroup>'
+            + '<tr><td>1</td><td></td><td>3</td></tr><tr></tr></table>';
+        return init(
+            html,
+            html,
+            { removeEmptyElements: { removeWithAttributes: true } }
+        );
+    });
+
+    it('should keep empty form controls and media elements', () => {
+        const html = '<div><textarea></textarea><select><option></option></select>'
+            + '<canvas></canvas><iframe></iframe><audio></audio><video></video><slot></slot></div>';
+        return init(
+            html,
+            html,
+            { removeEmptyElements: { removeWithAttributes: true } }
+        );
+    });
+
     it('should treat whitespace-only content as empty', () => {
         return init(
             '<div>text<span>   </span></div>',

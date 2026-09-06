@@ -47,16 +47,33 @@ const voidElements = new Set([
 const presentationalAttributes = ['class', 'style', 'aria-hidden'];
 
 /**
- * Elements that keep doing their job while empty, so they must survive even
- * when all they carry are presentational attributes: `<canvas>` is painted by
- * scripts, `<slot>` projects light DOM into a shadow tree, `<iframe>` renders a
- * nested document. Custom elements (any tag with a dash) are excluded as well —
- * they build their own content once the element definition is upgraded.
+ * Elements that keep doing their job while empty, so they are never removed no
+ * matter what `removeWithAttributes` says.
+ *
+ * `<td>`, `<th>` and `<tr>` hold a position in the table grid: dropping an empty
+ * cell shifts every following cell of the row into the wrong column, and dropping
+ * an empty row shifts the rows below it. `<caption>` and `<colgroup>` are part of
+ * the same structure. `<textarea>`, `<option>` and `<select>` are form controls
+ * that are submitted and scripted while empty — an empty `<textarea>` is simply
+ * one the user hasn't typed into yet. The rest render or are painted by something
+ * other than their markup: `<canvas>` by scripts, `<iframe>` by a nested document,
+ * `<audio>`/`<video>` by the resource of their `src`, `<slot>` by the light DOM
+ * projected into it.
  */
-const nonEmptyWhenEmptyElements = new Set([
+const meaningfulWhenEmptyElements = new Set([
+    'audio',
     'canvas',
+    'caption',
+    'colgroup',
     'iframe',
-    'slot'
+    'option',
+    'select',
+    'slot',
+    'td',
+    'textarea',
+    'th',
+    'tr',
+    'video'
 ]);
 
 function normalizeOptions(moduleOptions: Partial<RemoveEmptyElementsConfig>): NormalizedOptions {
@@ -116,13 +133,13 @@ function shouldRemoveNode(node: PostHTML.Node, options: NormalizedOptions) {
     }
 
     const tag = node.tag.toLowerCase();
-    if (voidElements.has(tag)) {
+    if (voidElements.has(tag) || meaningfulWhenEmptyElements.has(tag)) {
         return false;
     }
 
     const { removeWithAttributes } = options;
     if (Array.isArray(removeWithAttributes)) {
-        if (nonEmptyWhenEmptyElements.has(tag) || isCustomElement(tag)) {
+        if (isCustomElement(tag)) {
             return false;
         }
 
