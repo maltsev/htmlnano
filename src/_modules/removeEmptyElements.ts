@@ -38,11 +38,13 @@ const voidElements = new Set([
 ]);
 
 /**
- * Attributes that only affect how an element looks, never what it means:
- * an element carrying nothing but those is safe to drop as far as scripts,
- * assistive technologies and forms are concerned — it can only be missed
- * visually. `aria-hidden` belongs here because an element hidden from the
- * accessibility tree contributes nothing to it once it's empty.
+ * Attributes that only affect how an element looks, never what it means: an
+ * element carrying nothing but those is safe to drop as far as meaning, forms
+ * and assistive technologies are concerned. `aria-hidden` belongs here because
+ * an element hidden from the accessibility tree contributes nothing to it once
+ * it's empty. `class` is the exception that isn't purely visual — it doubles as
+ * a script and behaviour hook — which is why `interactiveElements` below is
+ * held back from this mode.
  */
 const presentationalAttributes = ['class', 'style', 'aria-hidden'];
 
@@ -74,6 +76,22 @@ const meaningfulWhenEmptyElements = new Set([
     'th',
     'tr',
     'video'
+]);
+
+/**
+ * Elements the user can interact with, kept whenever the caller opted into
+ * removing elements that still carry attributes. Their content is often drawn
+ * by CSS alone — an icon `<button class="hamburger-menu"></button>`, an
+ * `<a class="icon-link"></a>` — while a script binds behaviour through that
+ * very class, so removing them breaks function rather than just looks. A truly
+ * bare `<a></a>` is still removable under `removeWithAttributes: true`.
+ */
+const interactiveElements = new Set([
+    'a',
+    'button',
+    'details',
+    'label',
+    'summary'
 ]);
 
 function normalizeOptions(moduleOptions: Partial<RemoveEmptyElementsConfig>): NormalizedOptions {
@@ -139,7 +157,7 @@ function shouldRemoveNode(node: PostHTML.Node, options: NormalizedOptions) {
 
     const { removeWithAttributes } = options;
     if (Array.isArray(removeWithAttributes)) {
-        if (isCustomElement(tag)) {
+        if (isCustomElement(tag) || interactiveElements.has(tag)) {
             return false;
         }
 

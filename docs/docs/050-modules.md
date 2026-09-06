@@ -745,9 +745,12 @@ tree contributes nothing to it once it's empty.
 
 On top of the elements that are never removed, this mode also keeps custom elements —
 any tag with a dash in it, like `<my-widget class="widget"></my-widget>`, which builds
-its own content once the element definition is upgraded. Note that
-`removeWithAttributes: true` doesn't make that exception: it removes every empty
-element except the ones listed above.
+its own content once the element definition is upgraded — and the interactive elements
+`a`, `button`, `details`, `label` and `summary`, whose icon is often drawn by CSS while
+a script binds the behaviour through the very class that would allow the removal
+(`<button class="hamburger-menu"></button>`). Note that `removeWithAttributes: true`
+doesn't make either exception: it removes every empty element except the ones listed
+above.
 
 #### Side effects
 This module removes elements that are used for styling or scripting, so it's disabled
@@ -755,11 +758,13 @@ in the `safe` preset.
 
 `removeWithAttributes: 'presentational'` is **lossy on purpose**: it drops empty
 elements that are only there to be *seen* — carousel dots, skeleton loaders, spinner
-bars, gradient overlays, hamburger-menu bars, spacers. If your page relies on those,
-the rendering will change. Use `removeEmptyElements: true` (or a narrower
-`removeWithAttributes` list) if you want to keep them, and note that a script that
-looks an element up by class (`document.querySelector('.spinner')`) will no longer
-find it.
+bars, gradient overlays, spacers. If your page relies on those, the rendering will
+change. The removal is safe for the meaning and the accessibility of the page, but
+`class` is a behaviour hook as much as a styling one: a script that looks an element
+up by class (`document.querySelector('.spinner')`) will no longer find it. Interactive
+elements are kept for exactly that reason, and you can use `removeEmptyElements: true`
+(or a narrower `removeWithAttributes` list) if you want the rest of the decorations
+back.
 
 #### Example
 Source:

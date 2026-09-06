@@ -13,7 +13,10 @@ Currently the following presets are available:
 presentational (`class`, `style`, `aria-hidden`) are dropped, which removes
 purely decorative markup such as carousel dots, skeleton loaders and spacers.
 Elements with an `id`, a `role`, `data-*`, event handlers and the like are kept,
-as are `<canvas>`, `<slot>`, `<iframe>` and custom elements. If you want those
+as are `<canvas>`, `<slot>`, `<iframe>`, custom elements and interactive elements
+such as `<button>` and `<a>`. Removal keeps the meaning and accessibility of the
+page intact, but `class` is also a scripting hook, so a decorative element that
+some script looks up by class will no longer be found. If you want those
 decorations back, override the module:
 
 ```js

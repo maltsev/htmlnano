@@ -56,6 +56,41 @@ describe('removeEmptyElements', () => {
         );
     });
 
+    it('should keep empty interactive elements in the presentational mode', () => {
+        const html = '<div><button class="hamburger-menu"></button><a class="icon-link"></a>'
+            + '<label class="toggle"></label><details class="more"><summary class="head"></summary></details></div>';
+        return init(
+            html,
+            html,
+            { removeEmptyElements: { removeWithAttributes: 'presentational' } }
+        );
+    });
+
+    it('should keep empty interactive elements with a custom attribute list', () => {
+        const html = '<div><button class="hamburger-menu"></button><span class="icon"></span></div>';
+        return init(
+            html,
+            '<div><button class="hamburger-menu"></button></div>',
+            { removeEmptyElements: { removeWithAttributes: ['class'] } }
+        );
+    });
+
+    it('should still remove interactive elements without attributes', () => {
+        return init(
+            '<div>hello<a></a><button></button></div>',
+            '<div>hello</div>',
+            { removeEmptyElements: true }
+        );
+    });
+
+    it('should remove interactive elements with attributes when removeWithAttributes is true', () => {
+        return init(
+            '<div>hello<button class="hamburger-menu"></button></div>',
+            '<div>hello</div>',
+            { removeEmptyElements: { removeWithAttributes: true } }
+        );
+    });
+
     it('should keep svg shapes in the presentational mode', () => {
         const html = '<svg viewBox="0 0 8 8"><path class="icon" d="M0 0h8v8H0z"></path></svg>';
         return init(
