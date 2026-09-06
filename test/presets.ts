@@ -22,21 +22,6 @@ const presets: Array<{ name: string; preset: HtmlnanoPreset }> = [
     { name: 'max', preset: maxPreset }
 ];
 
-/**
- * KNOWN BUG (surfaced by the "never grows already-minified markup" tests below).
- *
- * At the end of a table cell `max` omits `</p>`, `</td>` and `</tr>` at once,
- * which is valid HTML: the `<tr>` that follows closes the cell, and closing a
- * cell generates the implied `</p>`. htmlparser2 — the parser posthtml, and so
- * htmlnano itself, runs on — doesn't generate those implied end tags, and nests
- * the following `<tr>` inside the still open `<p>` instead. Re-minifying
- * htmlnano's own output then sees a `<tr>` whose parent is a `<p>` rather than a
- * `<table>`, can't omit its `</tr>` anymore, and the second pass ends up 5 bytes
- * bigger. Browsers parse both passes the same; only re-parsing with htmlparser2
- * differs.
- */
-const knownGrowingReminifications = new Set(['max:email-template.html']);
-
 function fixtureNames(): string[] {
     return fs
         .readdirSync(pagesDir)
@@ -152,9 +137,7 @@ describe('[fixture corpus]', () => {
 
         for (const { name: presetName, preset } of presets) {
             for (const fixture of names) {
-                const registerTest = knownGrowingReminifications.has(`${presetName}:${fixture}`) ? it.skip : it;
-
-                registerTest(`${presetName} does not grow its own output for ${fixture}`, () => {
+                it(`${presetName} does not grow its own output for ${fixture}`, () => {
                     return minify(readFixture(fixture), preset).then((once) => {
                         return minify(once, preset).then((twice) => {
                             expect(twice.length).toBeLessThanOrEqual(once.length);

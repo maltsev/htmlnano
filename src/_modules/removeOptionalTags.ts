@@ -62,6 +62,15 @@ const pEndTagForbiddenParentTags = new Set([
      */
     'html', 'head', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'colgroup',
     'select', 'optgroup', 'datalist', 'frameset',
+    /*
+     * The specification allows it and browsers parse "</p></td></tr>" correctly,
+     * but htmlparser2 — the parser htmlnano itself runs on — keeps the "p" open
+     * and nests the following "tr" inside it. Omitting the end tag here would
+     * make any downstream htmlparser2 based tool, including a second htmlnano
+     * pass, see a different tree. This is a parser compatibility restriction,
+     * not a specification one, and it costs about four bytes per affected cell.
+     */
+    'td', 'th',
     // Raw text elements, whose content is text rather than markup
     'iframe', 'noembed', 'noframes', 'plaintext', 'script', 'style', 'textarea', 'title', 'xmp'
 ]);

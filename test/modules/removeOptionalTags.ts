@@ -514,6 +514,15 @@ describe('removeOptionalTags', () => {
             return init(input, input, options);
         });
 
+        it('keeps </p> when it is the last child of a table cell', () => {
+            const input = '<table><tr><td><p>one</p></td><th><p>two</p></th></tr>'
+                + '<tr><td>three</td></tr></table>';
+            const expected = '<table><tr><td><p>one</p><th><p>two</p>'
+                + '<tr><td>three</table>';
+
+            return init(input, expected, options);
+        });
+
         it('keeps </p> before a <table> in a document without a doctype', () => {
             const input = '<div><p>one</p><table><tr><td>x</td></tr></table></div>';
             const expected = '<div><p>one</p><table><tr><td>x</table></div>';
