@@ -238,10 +238,45 @@ function isRenderedSpaceBefore(tree: ArrayLike<PostHTMLNodeLike>, index: number,
             return !endsWithWhitespacePattern.test(sibling);
         }
 
-        return isInlineNode(sibling);
+        return isInlineNode(sibling) && !endsWithRenderedWhitespace(sibling);
     }
 
     return parent?.spaceBefore ?? false;
+}
+
+/**
+ * Whether the last thing `node` renders is a whitespace, which then already
+ * separates it from whatever follows: CSS collapses whitespace across an inline
+ * boundary, so `<b>a </b><i> b</i>` renders like `<b>a </b><i>b</i>`.
+ *
+ * Only safe to ask about a node that has already been collapsed, which is why
+ * `isRenderedSpaceAfter` has no mirror of this: the siblings after the current
+ * index still carry their original whitespace. Elements whose content is not
+ * collapsed at all (`<pre>`, `<textarea>`, an inline `white-space: pre`) answer
+ * `false`, since a trailing space of theirs is their own text rather than a
+ * separator.
+ */
+function endsWithRenderedWhitespace(node: PostHTML.Node): boolean {
+    if (typeof node.tag === 'string' && noWhitespaceCollapseElements.has(node.tag)) {
+        return false;
+    }
+
+    if (hasWhitespacePreservingStyle(node) || !node.content) {
+        return false;
+    }
+
+    for (let i = node.content.length - 1; i >= 0; i--) {
+        const child = node.content[i];
+
+        if (typeof child === 'string') {
+            if (child === NONE || isComment(child)) continue;
+            return endsWithWhitespacePattern.test(child);
+        }
+
+        return endsWithRenderedWhitespace(child);
+    }
+
+    return false;
 }
 
 /**

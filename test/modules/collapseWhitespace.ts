@@ -144,6 +144,38 @@ describe('collapseWhitespace', () => {
             );
         });
 
+        it('drops the second of two spaces at an inline boundary', () => {
+            return init(
+                '<div><b>a </b><i> b</i></div>',
+                '<div><b>a </b><i>b</i></div>',
+                options
+            );
+        });
+
+        it('keeps the space when the previous inline element does not end with one', () => {
+            return init(
+                '<div><b>a</b><i> b</i></div>',
+                '<div><b>a</b><i> b</i></div>',
+                options
+            );
+        });
+
+        it('looks through nesting for the trailing space of the previous element', () => {
+            return init(
+                '<div><b><span>a </span></b><i> b</i></div>',
+                '<div><b><span>a </span></b><i>b</i></div>',
+                options
+            );
+        });
+
+        it('keeps the space after an element whose trailing space is its own text', () => {
+            return init(
+                '<div><textarea>a </textarea><i> b</i></div>',
+                '<div><textarea>a </textarea><i> b</i></div>',
+                options
+            );
+        });
+
         it('preserves whitespace inside white-space:pre elements byte-for-byte', () => {
             return init(
                 '<div style="white-space:pre">  a\n  b  </div>',
