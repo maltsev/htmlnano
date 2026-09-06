@@ -71,6 +71,11 @@ directory), turn the lookup off:
 `-c`/`--config <file>` still loads exactly the file you named, so the two can be
 combined to load a trusted config while ignoring anything planted nearby.
 
+The values inside a config file are treated as trusted developer input as well, not
+just the file that carries them: options such as
+[`removeComments`](./modules#removecomments) accept regexp strings and functions that
+htmlnano compiles and runs.
+
 ### Optional dependency warnings
 
 Some modules depend on optional peer dependencies (for example, `minifyCss` or `minifyJs`).

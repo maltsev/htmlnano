@@ -620,6 +620,16 @@ Minified:
 - A string — treated as a regexp pattern. Supports `/pattern/flags` or a plain pattern string (useful in JSON config files)
 - A `Function` that returns boolean — removes HTML comments for which the callback returns a truthy value
 
+**Security warning: the `removeComments` option must come from a source you trust.**
+A string option is compiled into a `RegExp` and then tested against every comment, so a
+pattern crafted to backtrack catastrophically turns comment-heavy input into a hang
+(ReDoS). A function option is called for every comment, so it runs arbitrary code by
+definition. Both are fine for options you write yourself — that is what the API is for —
+but don't build the option out of user input, and keep in mind that a
+[config file discovered on the filesystem](./config#security-note-config-auto-discovery-runs-code)
+counts as developer input too. The HTML being minified never influences which pattern is
+compiled, only how often it is run.
+
 #### Example
 
 Source:
