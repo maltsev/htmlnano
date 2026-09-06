@@ -10,6 +10,8 @@ describe('[cli]', () => {
     const inputHtml = ' <div><!-- foo --><i>Hello</i> <i>world!</i></div> \n';
     const minifiedHtml = '<div><i>Hello</i> <i>world!</i></div>';
     const minifiedHtmlMax = '<div><i>Hello</i> <i>world!</i></div>';
+    // Same as minifiedHtml, but with `removeComments` turned off by a config file.
+    const unminifiedComments = '<div><!-- foo --><i>Hello</i> <i>world!</i></div>';
 
     it('reads from STDIN and prints to STDOUT', () => {
         const stdout = execFileSync(process.execPath, [bin], {
@@ -69,6 +71,56 @@ describe('[cli]', () => {
                 encoding: 'utf8'
             });
             expect(stdout.trim()).toBe(minifiedHtmlMax);
+        } finally {
+            if (fs.existsSync(configFile)) fs.unlinkSync(configFile);
+        }
+    });
+
+    // Cosmiconfig searches upwards from the working directory, so a config file
+    // planted in an untrusted directory would otherwise be picked up silently.
+    it('--no-config-search ignores a config file found in the working directory', () => {
+        const workDir = fs.mkdtempSync(path.join(distDir, 'cli-search-'));
+        try {
+            fs.writeFileSync(
+                path.join(workDir, '.htmlnanorc.json'),
+                JSON.stringify({ removeComments: false }),
+                'utf8'
+            );
+
+            const withSearch = execFileSync(process.execPath, [bin], {
+                input: inputHtml,
+                encoding: 'utf8',
+                cwd: workDir
+            });
+            expect(withSearch.trim()).toBe(unminifiedComments);
+
+            const withoutSearch = execFileSync(process.execPath, [bin, '--no-config-search'], {
+                input: inputHtml,
+                encoding: 'utf8',
+                cwd: workDir
+            });
+            expect(withoutSearch.trim()).toBe(minifiedHtml);
+        } finally {
+            fs.rmSync(workDir, { recursive: true, force: true });
+        }
+    });
+
+    // --no-config-search only disables the implicit lookup: an explicitly
+    // requested config file is still loaded.
+    it('--no-config-search still loads an explicit -c config', () => {
+        const configFile = path.resolve(distDir, 'cli-config-explicit.tmp.json');
+        try {
+            fs.writeFileSync(
+                configFile,
+                JSON.stringify({ removeComments: false }),
+                'utf8'
+            );
+
+            const stdout = execFileSync(process.execPath, [bin, '-c', configFile, '--no-config-search'], {
+                input: inputHtml,
+                encoding: 'utf8'
+            });
+            expect(stdout.trim()).toBe(unminifiedComments);
         } finally {
             if (fs.existsSync(configFile)) fs.unlinkSync(configFile);
         }

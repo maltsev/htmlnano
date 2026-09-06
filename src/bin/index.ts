@@ -14,6 +14,7 @@ interface CliOptions {
     inPlace?: boolean;
     preset?: string;
     config?: string;
+    configSearch?: boolean;
 }
 
 function fail(message: string): never {
@@ -84,7 +85,12 @@ function commonBaseDir(files: string[]): string {
 async function minify(html: string, options: CliOptions, chosenPreset: HtmlnanoPreset): Promise<string> {
     const htmlnanoOptions: HtmlnanoOptions = {};
     if (options.config) {
+        // An explicit --config wins: the file the user pointed at is always
+        // loaded, even together with --no-config-search. That flag only turns
+        // off the implicit lookup, which is what makes it safe to combine both.
         htmlnanoOptions.configPath = options.config;
+    } else if (options.configSearch === false) {
+        htmlnanoOptions.skipConfigLoading = true;
     }
     const result = await processHtml(html, htmlnanoOptions, chosenPreset);
     return result.html;
@@ -108,6 +114,7 @@ program
     .option('--in-place', 'rewrite each input file in place')
     .option('-p, --preset <preset>', 'preset to use', 'safe')
     .option('-c, --config <file>', 'path to config file')
+    .option('--no-config-search', 'do not look for a config file in the working directory and its parents')
     .action(async (inputs: string[], options: CliOptions) => {
         const { preset } = options;
 

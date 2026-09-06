@@ -44,6 +44,33 @@ htmlnano.process(html, {
 })
 ```
 
+From the CLI, pass `--no-config-search`:
+
+```bash
+npx htmlnano test.html --no-config-search
+```
+
+### Security note: config auto-discovery runs code
+
+Unless `skipConfigLoading` is set, every `htmlnano()` / `htmlnano.process()` call
+searches for a config file, walking up from `process.cwd()` until one is found.
+The search accepts executable config forms as well as static ones: `.htmlnanorc.js`,
+`.htmlnanorc.cjs`, `htmlnano.config.js`, and a `htmlnano` key in `package.json` are
+`require()`d, so their top-level code runs inside your build process with your
+privileges.
+
+This means a directory you did not write can influence — or take over — a run that
+passed no config at all. If htmlnano may run with the working directory inside an
+untrusted tree (a checked-out repository, an unpacked upload, a per-tenant build
+directory), turn the lookup off:
+
+* library: `htmlnano.process(html, { skipConfigLoading: true })`
+* CLI: `npx htmlnano --no-config-search`
+
+`--no-config-search` disables only the implicit lookup. An explicit
+`-c`/`--config <file>` still loads exactly the file you named, so the two can be
+combined to load a trusted config while ignoring anything planted nearby.
+
 ### Optional dependency warnings
 
 Some modules depend on optional peer dependencies (for example, `minifyCss` or `minifyJs`).

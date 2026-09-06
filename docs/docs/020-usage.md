@@ -128,6 +128,21 @@ npx htmlnano "dist/**/*.html" --in-place
 Per-file progress is reported on STDERR. When more than one input is given,
 `--output-dir` or `--in-place` is required.
 
+### Config discovery
+
+Without `-c`/`--config`, `htmlnano` looks for a config file in the working
+directory and its parents. Use `--no-config-search` to turn that lookup off:
+
+```bash
+npx htmlnano test.html --no-config-search
+```
+
+Executable config files are `require()`d, so their top-level code runs — pass
+`--no-config-search` whenever the working directory may sit inside an untrusted
+tree. See [Config](./config) for details. An explicit `-c`/`--config
+<file>` is still loaded even with `--no-config-search`, since only the implicit
+lookup is disabled.
+
 
 ## Webpack
 
