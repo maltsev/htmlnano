@@ -1,4 +1,54 @@
+import { expect } from 'expect';
 import { init } from '../htmlnano.ts';
+
+// The warning is printed only once per process, so these tests have to run before
+// any other test that uses `tool: 'uncss'`.
+describe('removeUnusedCss (uncss security warning)', function () {
+    this.timeout(3000);
+
+    const html = '<div class="b"><style>.b{color:red}</style></div>';
+    const minifiedHtml = '<div class="b"><style>.b{color:red}</style></div>';
+
+    async function countWarnings(options: Parameters<typeof init>[2]) {
+        const originalConsoleWarn = console.warn;
+        let warnCalls = 0;
+        console.warn = () => {
+            warnCalls += 1;
+        };
+
+        try {
+            await init(html, minifiedHtml, options);
+        } finally {
+            console.warn = originalConsoleWarn;
+        }
+
+        return warnCalls;
+    }
+
+    it('should not warn when skipInternalWarnings is true', async () => {
+        expect(await countWarnings({
+            skipInternalWarnings: true,
+            removeUnusedCss: { tool: 'uncss' }
+        })).toBe(0);
+    });
+
+    it('should not warn when purgeCSS is used', async () => {
+        expect(await countWarnings({
+            removeUnusedCss: { tool: 'purgeCSS' }
+        })).toBe(0);
+    });
+
+    it('should warn about script execution once per process when uncss is used', async () => {
+        expect(await countWarnings({
+            removeUnusedCss: { tool: 'uncss' }
+        })).toBe(1);
+
+        // The second run doesn't warn again.
+        expect(await countWarnings({
+            removeUnusedCss: { tool: 'uncss' }
+        })).toBe(0);
+    });
+});
 
 describe('removeUnusedCss (uncss)', function () {
     this.timeout(3000);

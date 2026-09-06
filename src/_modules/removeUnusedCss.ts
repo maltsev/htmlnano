@@ -1,6 +1,6 @@
 import type PostHTML from 'posthtml';
 import { extractCssFromStyleNode, isCssStyleType, isStyleNode, optionalImport, stripCssCdata, wrapCssCdata } from '../helpers';
-import type { HtmlnanoModule, PostHTMLTreeLike } from '../types';
+import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLTreeLike } from '../types';
 import type { Options as PurgeCSSOptions } from 'purgecss';
 
 // These options must be set and shouldn't be overriden to ensure uncss doesn't look at linked stylesheets.
@@ -8,6 +8,20 @@ const uncssOptions = {
     ignoreSheets: [/\s*/],
     stylesheets: []
 };
+
+// uncss renders the HTML in jsdom with `runScripts: 'dangerously'` and offers no way to turn that off,
+// so the scripts of the minified HTML are executed inside the build process.
+let hasWarnedAboutUncss = false;
+
+function warnAboutUncss(options: Partial<HtmlnanoOptions>) {
+    // Warn only once per process, otherwise a document with many <style> tags would flood the output.
+    if (hasWarnedAboutUncss || options.skipInternalWarnings) {
+        return;
+    }
+
+    hasWarnedAboutUncss = true;
+    console.warn('htmlnano\'s "removeUnusedCss" module with `tool: "uncss"` renders the HTML in jsdom with script execution enabled: every <script> of the minified HTML runs inside your build process, and it may read local files and send network requests. Use `tool: "purgeCSS"` for HTML you don\'t fully trust.');
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- uncss has no types
 function processStyleNodeUnCSS(html: string, styleNode: PostHTML.Node, uncssOptions: object, uncss: any) {
@@ -139,6 +153,7 @@ const mod: HtmlnanoModule<RemoveUnusedCssOptions> = {
                     }
                 } else if (tool === 'uncss') {
                     if (uncss) {
+                        warnAboutUncss(options);
                         html ??= tree.render(tree);
                         promises.push(processStyleNodeUnCSS(html, node, toolOptions, uncss));
                     }
