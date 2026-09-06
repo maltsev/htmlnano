@@ -494,6 +494,18 @@ function removeOptionalTags(tree: PostHTMLTreeLike) {
     removeOptionalTagsFrom(tree, null, context);
 
     if (context.usedCloseAs) {
+        /*
+         * This has to mutate rather than replace `tree.options`, even though the
+         * object is the one the caller passed to `posthtml().process()`: posthtml
+         * rebuilds the tree after every plugin (`[].concat(tree)`) and then copies
+         * its own `options` back onto it, so a replacement is dropped before the
+         * renderer ever sees it.
+         *
+         * The setting therefore stays on a reused options object, which is
+         * harmless: `closeAs` renders exactly like the default for every node
+         * without a `closeAs` property, so only the nodes marked below are
+         * affected.
+         */
         tree.options.closingSingleTag = 'closeAs';
     }
 

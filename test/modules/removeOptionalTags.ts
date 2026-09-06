@@ -1,5 +1,8 @@
 // this file has trailing whitespaces that should be kept
 
+import { expect } from 'expect';
+import posthtml from 'posthtml';
+import htmlnano from '../../dist/index.mjs';
 import { init, initWithPostHtmlOptions } from '../htmlnano.ts';
 import type { PostHTMLTreeLike } from '../../src/types.js';
 
@@ -701,5 +704,26 @@ describe('removeOptionalTags', () => {
 </table>`;
 
         return init(input, expected, options);
+    });
+    it('renders a reused options object correctly after setting closingSingleTag', () => {
+        const postHtmlOptions: Record<string, unknown> = {};
+        const process = (html: string) => posthtml([htmlnano(options, {})])
+            .process(html, postHtmlOptions)
+            .then(result => String(result.html));
+
+        // The first run omits an end tag on its own, which needs
+        // `closingSingleTag: 'closeAs'` at render time. posthtml copies its own
+        // options back onto the tree after every plugin, so the module can only
+        // set that by mutating the object the caller owns.
+        return process('<ul><li>one</li><li>two</li></ul>').then((first) => {
+            expect(first).toBe('<ul><li>one<li>two</ul>');
+            expect(postHtmlOptions.closingSingleTag).toBe('closeAs');
+
+            // The setting that stays behind must not change how a later run
+            // reusing the same object renders void and paired tags.
+            return process('<div><p>hi</p><img src="x.png"><br></div>').then((second) => {
+                expect(second).toBe('<div><p>hi</p><img src="x.png"><br></div>');
+            });
+        });
     });
 });
