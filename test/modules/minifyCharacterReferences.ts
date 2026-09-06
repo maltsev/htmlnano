@@ -239,4 +239,35 @@ describe('minifyCharacterReferences', () => {
             maxOptions
         );
     });
+    it('should not decode references inside comments', () => {
+        return init(
+            '<div><!-- keep x --&gt; y -->text</div>',
+            '<div><!-- keep x --&gt; y -->text</div>',
+            options
+        );
+    });
+
+    it('should not decode references inside comments with decodeAll', () => {
+        return init(
+            '<div><!-- keep x --&gt; y -->text</div>',
+            '<div><!-- keep x --&gt; y -->text</div>',
+            maxOptions
+        );
+    });
+
+    it('should keep escaped ampersands inside comments', () => {
+        return init(
+            '<div><!-- a &amp;b --></div>',
+            '<div><!-- a &amp;b --></div>',
+            options
+        );
+    });
+
+    it('should not break conditional comments with the safe preset', () => {
+        return init(
+            '<div><!--[if IE]>x --&gt; y<![endif]-->text</div>',
+            '<div><!--[if IE]>x --&gt; y<![endif]-->text</div>',
+            safePreset
+        );
+    });
 });

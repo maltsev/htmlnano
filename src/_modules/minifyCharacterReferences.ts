@@ -1,4 +1,5 @@
 import { decodeHTML, decodeHTMLAttribute, decodeHTMLStrict } from 'entities';
+import { isComment } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 
 export interface MinifyCharacterReferencesOptions {
@@ -399,6 +400,11 @@ const mod: HtmlnanoModule<MinifyCharacterReferencesOptions> = {
 
             return content.map((child: PostHTMLNodeLike) => {
                 if (typeof child === 'string') {
+                    // Browsers do not entity-decode comment data, and decoding
+                    // `--&gt;` there would terminate the comment early.
+                    if (isComment(child)) {
+                        return child;
+                    }
                     return decodeReferences(child, context);
                 }
                 return child;
