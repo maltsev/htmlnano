@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import process from 'process';
 import { globSync } from 'tinyglobby';
+import { hasOwn } from '../helpers.js';
 import { process as processHtml, presets } from '../index.js';
 import type { HtmlnanoPreset, HtmlnanoOptions } from '../types.js';
 
@@ -110,7 +111,7 @@ program
     .action(async (inputs: string[], options: CliOptions) => {
         const { preset } = options;
 
-        if (!preset || !(preset in presets)) {
+        if (!preset || !hasOwn(presets, preset)) {
             const available = Object.keys(presets).join(', ');
             fail(`Unknown preset: ${preset}. Available presets: ${available}`);
         }

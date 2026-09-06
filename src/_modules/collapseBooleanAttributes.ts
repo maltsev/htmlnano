@@ -1,6 +1,7 @@
 // Source: https://github.com/kangax/html-minifier/issues/63
 // https://html.spec.whatwg.org/#boolean-attribute
 
+import { hasOwn } from '../helpers';
 import type { HtmlnanoModule } from '../types';
 
 // https://html.spec.whatwg.org/#attributes-1
@@ -141,7 +142,7 @@ const mod: HtmlnanoModule<CollapseBooleanAttributesOptions> = {
 
                 for (const attributeName of Object.keys(tagAttributesCanBeReplacedWithEmptyString)) {
                     if (
-                        attributeName in attrs
+                        hasOwn(attrs, attributeName)
                         && typeof attrs[attributeName] === 'string'
                         && attrs[attributeName].toLowerCase() === tagAttributesCanBeReplacedWithEmptyString[attributeName]
                     ) {

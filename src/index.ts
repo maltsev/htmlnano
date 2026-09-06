@@ -1,5 +1,6 @@
 import posthtml from 'posthtml';
 import { cosmiconfigSync } from 'cosmiconfig';
+import { hasOwn } from './helpers.js';
 import safePreset from './presets/safe.js';
 import ampSafePreset from './presets/ampSafe.js';
 import maxPreset from './presets/max.js';
@@ -36,7 +37,7 @@ export function loadConfig(
         if (rc) {
             const { preset: presetName } = rc.config as HtmlnanoOptionsConfigFile;
             if (presetName) {
-                if (!preset && presetName in presets) {
+                if (!preset && hasOwn(presets, presetName)) {
                     preset = presets[presetName];
                 }
 
@@ -190,11 +191,11 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
                 continue;
             }
 
-            if (!(moduleName in safePreset)) {
+            if (!hasOwn(safePreset, moduleName)) {
                 throw new Error('Module "' + moduleName + '" is not defined');
             }
 
-            if (moduleName in optionalDependencies) {
+            if (hasOwn(optionalDependencies, moduleName)) {
                 const modules = optionalDependencies[moduleName as keyof typeof optionalDependencies];
                 await Promise.all(modules.map(async (dependency) => {
                     try {
@@ -214,7 +215,7 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
                 }));
             }
 
-            const mod: HtmlnanoModule = moduleName in modules
+            const mod: HtmlnanoModule = hasOwn(modules, moduleName)
                 ? (await (modules[moduleName as keyof typeof modules]())) as HtmlnanoModule
                 : (await import(`./_modules/${moduleName}.mjs`)) as HtmlnanoModule;
 
@@ -306,7 +307,7 @@ export function getRequiredOptionalDependencies(optionsRun: HtmlnanoOptions, pre
     const [options] = loadConfig(optionsRun, presetRun);
 
     const dependencies = Object.keys(options).flatMap((moduleName) => {
-        if (moduleName in optionalDependencies) {
+        if (hasOwn(optionalDependencies, moduleName)) {
             return optionalDependencies[moduleName as keyof typeof optionalDependencies];
         }
 

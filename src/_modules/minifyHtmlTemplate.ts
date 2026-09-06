@@ -1,5 +1,5 @@
 import type PostHTML from 'posthtml';
-import { normalizeMimeType } from '../helpers';
+import { hasOwn, normalizeMimeType } from '../helpers';
 import type { HtmlnanoModule, HtmlnanoOptions, HtmlnanoTemplateRule, MinifyHtmlTemplateOptions, PostHTMLTreeLike } from '../types';
 
 type NormalizedRule = {
@@ -149,7 +149,7 @@ function matchesTemplateRule(node: PostHTML.Node, rules: NormalizedRule[]): bool
         let match = true;
 
         for (const [attrName, ruleValue] of Object.entries(rule.attrs)) {
-            if (!(attrName in attrs)) {
+            if (!hasOwn(attrs, attrName)) {
                 match = false;
                 break;
             }

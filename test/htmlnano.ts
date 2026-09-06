@@ -25,6 +25,19 @@ describe('[htmlnano]', () => {
         });
     });
 
+    // `key in object` walks the prototype chain, so these option names used to
+    // pass the "is this a known module" check and crash inside the module loader.
+    for (const prototypeKey of ['__proto__', 'constructor', 'toString', 'hasOwnProperty', 'valueOf']) {
+        it(`should throw an error if the module name is the inherited property "${prototypeKey}"`, () => {
+            // A `{ __proto__: true }` literal would set the prototype instead of
+            // creating an own property, hence the computed key.
+            const options = { [prototypeKey]: true } as HtmlnanoOptions;
+
+            return expect(init('<div></div>', '<div></div>', options))
+                .rejects.toThrow(`Module "${prototypeKey}" is not defined`);
+        });
+    }
+
     it('getRequiredOptionalDependencies', () => {
         expect(htmlnano.getRequiredOptionalDependencies({
             minifyUrls: true,

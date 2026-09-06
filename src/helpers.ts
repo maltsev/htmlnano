@@ -10,12 +10,23 @@ const ampBoilerplateAttributes = [
 const cssCdataStart = '<![CDATA[';
 const cssCdataEnd = ']]>';
 
+/**
+ * `key in object` walks the prototype chain, so names like `__proto__`,
+ * `constructor` or `toString` pass a naive "is this a known name" test against
+ * any lookup object. Membership tests must therefore check own properties only.
+ *
+ * `Object.hasOwn` isn't used because the compilation target is ES2019.
+ */
+export function hasOwn(object: object, key: PropertyKey): boolean {
+    return Object.prototype.hasOwnProperty.call(object, key);
+}
+
 export function isAmpBoilerplate(node: PostHTML.Node) {
     if (!node.attrs) {
         return false;
     }
     for (const attr of ampBoilerplateAttributes) {
-        if (attr in node.attrs) {
+        if (hasOwn(node.attrs, attr)) {
             return true;
         }
     }

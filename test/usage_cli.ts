@@ -39,6 +39,20 @@ describe('[cli]', () => {
         expect((res.stderr || '').trim()).toBe('Unknown preset: invalid. Available presets: safe, ampSafe, max');
     });
 
+    // "toString" is inherited from Object.prototype, so a naive `preset in presets`
+    // check used to accept it as a valid preset name.
+    it('--preset toString', () => {
+        const res = spawnSync(process.execPath, [bin, '-p', 'toString'], {
+            input: inputHtml,
+            encoding: 'utf8'
+        });
+
+        expect(res.error).toBeUndefined();
+        expect(res.status).toBe(1);
+        expect((res.stdout || '').trim()).toBe('');
+        expect((res.stderr || '').trim()).toBe('Unknown preset: toString. Available presets: safe, ampSafe, max');
+    });
+
     it('specify config file', () => {
         const configFile = path.resolve(distDir, 'cli-config.tmp.json');
         try {
