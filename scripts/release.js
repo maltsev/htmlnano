@@ -404,7 +404,18 @@ function updateChangelog(newVersion, previousVersion, summary, repositoryUrl) {
     fs.writeFileSync(paths.changelog, nextChangelog);
 }
 
-function snapshotVersionedDocs(previousVersion, newVersion) {
+function pruneOtherVersions(directory, keptEntry) {
+    for (const entry of fs.readdirSync(directory)) {
+        if (entry !== keptEntry) {
+            fs.rmSync(path.join(directory, entry), {
+                force: true,
+                recursive: true
+            });
+        }
+    }
+}
+
+function snapshotVersionedDocs(newVersion) {
     if (!fs.existsSync(paths.docsDir)) {
         throw new Error(`Docs directory does not exist: ${paths.docsDir}`);
     }
@@ -416,13 +427,8 @@ function snapshotVersionedDocs(previousVersion, newVersion) {
     writeJson(path.join(paths.versionedSidebarsDir, `version-${newVersion}-sidebars.json`), VERSIONED_SIDEBAR);
     writeJson(paths.docsVersions, [newVersion]);
 
-    fs.rmSync(path.join(paths.versionedDocsDir, `version-${previousVersion}`), {
-        force: true,
-        recursive: true
-    });
-    fs.rmSync(path.join(paths.versionedSidebarsDir, `version-${previousVersion}-sidebars.json`), {
-        force: true
-    });
+    pruneOtherVersions(paths.versionedDocsDir, `version-${newVersion}`);
+    pruneOtherVersions(paths.versionedSidebarsDir, `version-${newVersion}-sidebars.json`);
 }
 
 function bumpPackageVersion(releaseType, expectedVersion) {
@@ -493,8 +499,8 @@ async function main() {
     console.log('Updating CHANGELOG.md...');
     updateChangelog(newVersion, previousVersion, summary, GITHUB_FALLBACK_REPOSITORY_URL);
 
-    console.log(`Snapshotting docs into versioned docs ${newVersion} (replacing ${packageVersion})...`);
-    snapshotVersionedDocs(packageVersion, newVersion);
+    console.log(`Snapshotting docs into versioned docs ${newVersion}...`);
+    snapshotVersionedDocs(newVersion);
 
     console.log(`Bumping package version to ${newVersion}...`);
     bumpPackageVersion(releaseType, newVersion);
