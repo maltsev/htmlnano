@@ -55,7 +55,8 @@ module.exports = {
                 docs: {
                     sidebarPath: require.resolve('./sidebars.js'),
                     routeBasePath: '/',
-                    editUrl: 'https://github.com/maltsev/htmlnano/edit/master/docs/'
+                    editUrl: 'https://github.com/maltsev/htmlnano/edit/master/docs/',
+                    editCurrentVersion: true
                 }
             }
         ]
