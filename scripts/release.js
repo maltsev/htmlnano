@@ -66,6 +66,31 @@ function ensureCleanWorktree() {
     }
 }
 
+function ensureNpmAuthentication() {
+    const whoami = run('npm', ['whoami'], {
+        allowFailure: true
+    });
+
+    if (whoami.status === 0) {
+        return;
+    }
+
+    console.log('Not logged in to npm. Starting `npm login`...');
+    run('npm', ['login'], {
+        stdio: 'inherit'
+    });
+
+    const verified = run('npm', ['whoami'], {
+        allowFailure: true
+    });
+
+    if (verified.status !== 0) {
+        throw new Error('npm login did not complete. Run `npm login` manually and retry the release.');
+    }
+
+    console.log(`Logged in to npm as ${verified.stdout.trim()}.`);
+}
+
 function getLatestTag() {
     const result = run('git', ['tag', '--list', '--sort=-v:refname'], {
         allowFailure: true
@@ -442,6 +467,7 @@ async function main() {
 
     assertReleaseType(releaseType);
     ensureCleanWorktree();
+    ensureNpmAuthentication();
 
     const packageVersion = readJson(paths.packageJson).version;
     const latestTag = getLatestTag();
