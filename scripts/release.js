@@ -224,6 +224,7 @@ async function summarizeCommitLog(previousVersion, newVersion, commitLog) {
         '- When a relevant change references an issue or PR from the commit log, include it inline as [#123].',
         '- Keep the wording concise and factual.',
         '- Do not include the release header, date, intro paragraph, code fences, or any explanation outside the changelog body.',
+        '- Don\'t use the word "now" (as in "XXX now does YYY"). It\'s clear from the context that this is a new feature or change.',
         '',
         'Commit log:',
         commitLog
