@@ -7,6 +7,31 @@ Currently the following presets are available:
 - [ampSafe](https://github.com/maltsev/htmlnano/blob/master/src/presets/ampSafe.ts) — same as `safe` but tailored for [AMP pages](https://www.ampproject.org/).
 - [max](https://github.com/maltsev/htmlnano/blob/master/src/presets/max.ts) — maximal minification (might break some pages).
 
+`max` enables lossy modules on purpose. The most visible one is
+[`removeEmptyElements`](./modules#removeemptyelements) with
+`removeWithAttributes: 'presentational'`: empty elements whose attributes are all
+presentational (`class`, `style`, `aria-hidden`) are dropped, which removes
+purely decorative markup such as carousel dots, skeleton loaders and spacers.
+Elements with an `id`, a `role`, `data-*`, event handlers and the like are kept,
+as are `<canvas>`, `<slot>`, `<iframe>`, custom elements and interactive elements
+such as `<button>` and `<a>`. Removal keeps the meaning and accessibility of the
+page intact, but `class` is also a scripting hook, so a decorative element that
+some script looks up by class will no longer be found. If you want those
+decorations back, override the module:
+
+```js
+htmlnano.process(html, { removeEmptyElements: true }, htmlnano.presets.max);
+```
+
+`max` also configures [`minifyJs`](./modules#minifyjs) with `format: { comments: false }`, which drops the
+`@license`/`@preserve`/`/*!` comments Terser keeps by default. That is a legal trade-off — most JS licenses
+require the notice to be distributed with the code — so only use it when the notices are shipped elsewhere.
+To keep them:
+
+```js
+htmlnano.process(html, { minifyJs: { format: { comments: 'some' } } }, htmlnano.presets.max);
+```
+
 
 You can use them the following way:
 ```js

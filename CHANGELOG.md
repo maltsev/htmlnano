@@ -2,11 +2,37 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.5.0] - 2026-09-08
+
+### Added
+
+* Add `--no-config-search` to disable CLI configuration discovery.
+* Support omitting optional end tags in `removeOptionalTags` [#29].
+* Allow `removeEmptyElements.removeWithAttributes` to accept `presentational` or a custom attribute allow-list. The lossy `presentational` mode is enabled in the `max` preset.
+
+### Changed
+
+* Decode additional safe character references in `minifyCharacterReferences`; `decodeAll` supports the full HTML named-reference table.
+* Remove JavaScript legal comments in the `max` preset. Configure `minifyJs` to retain them if required.
+* Collapse whitespace in `srcset` and `imagesrcset` attributes using spec-compliant parsing.
+* Remove redundant `dir="ltr"` from the root `<html>` element.
+* Document security risks from script execution in `removeUnusedCss` with uncss and executable patterns in `removeComments`.
+
+### Fixed
+
+* Continue `removeOptionalTags` traversal through tagless nodes created by other PostHTML plugins.
+* Preserve `</p>` when required at the end of a table cell.
+* Prevent `collapseWhitespace: "all"` from joining words across inline-element boundaries while still removing redundant spaces.
+* Apply safe inline-style `cssnano` exclusions to every preset, preventing isolated `style` attributes from corrupting z-index, grid, and animation identifiers.
+* Preserve empty structural, form, media, interactive, slot, iframe, canvas, and table elements whose presence remains meaningful.
+* Avoid decoding character references inside comments.
+* Restrict module and preset lookups to own properties.
+
 ## [3.4.1] - 2026-08-31
 
 ### Changed
 
-* Upgraded to cssnano 9 [#457].
+* Upgraded to `cssnano` 9 [#457].
 
 ### Fixed
 
@@ -444,6 +470,7 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 ### Changed
 - Remove attributes that contains only white spaces.
 
+[3.5.0]: https://github.com/maltsev/htmlnano/compare/3.4.1...3.5.0
 [3.4.1]: https://github.com/maltsev/htmlnano/compare/3.4.0...3.4.1
 [3.4.0]: https://github.com/maltsev/htmlnano/compare/3.3.2...3.4.0
 [3.3.2]: https://github.com/maltsev/htmlnano/compare/3.3.1...3.3.2
@@ -572,6 +599,7 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 [#36]: https://github.com/maltsev/htmlnano/issues/36
 [#31]: https://github.com/maltsev/htmlnano/issues/31
 [#30]: https://github.com/maltsev/htmlnano/issues/30
+[#29]: https://github.com/maltsev/htmlnano/issues/29
 [#28]: https://github.com/maltsev/htmlnano/issues/28
 [#25]: https://github.com/maltsev/htmlnano/issues/25
 [#24]: https://github.com/maltsev/htmlnano/issues/24

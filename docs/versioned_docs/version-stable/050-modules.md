@@ -74,6 +74,7 @@ Collapse redundant whitespace in attribute values where it is safe:
 - List-like attributes are normalized by collapsing internal whitespace and trimming ends (`class`, `rel`, `ping`, `sandbox`, `headers`, `dropzone`, `sizes` on `<link>`).
 - Single-value attributes are trimmed (for example `href`, `style`, `src`, `width`, `height`) when they are on the correct elements.
 - Event handler attributes (like `onclick`) are trimmed only at the ends; inner whitespace is preserved.
+- `srcset` (on `<img>` and `<source>`) and `imagesrcset` (on `<link>`) are re-serialized with a single whitespace between an URL and its descriptors, and without any whitespace after the commas separating the image candidates. A whitespace is kept after the comma when the preceding candidate has no descriptor, since the parser would otherwise read the comma and the next URL as a part of the URL. Values that can't be parsed as a srcset are left untouched.
 
 `sizes` on `<img>` is not modified.
 
@@ -81,11 +82,13 @@ Collapse redundant whitespace in attribute values where it is safe:
 Source:
 ```html
 <a class=" content  page  " style="  display: block;    " href="   https://example.com"></a>
+<img srcset="image.png   480w ,  image2.png 2x">
 ```
 
 Minified:
 ```html
 <a class="content page" style="display: block;" href="https://example.com"></a>
+<img srcset="image.png 480w,image2.png 2x">
 ```
 
 ### removeRedundantAttributes
@@ -104,8 +107,10 @@ Removes redundant attributes from tags when they match HTML defaults:
 - `kind="subtitles"` from `<track>`
 - `wrap="soft"` from `<textarea>`
 - `shape="rect"` from `<area>`
+- `dir="ltr"` from `<html>`
 
 Attribute values are matched case-insensitively with surrounding whitespace ignored.
+`dir="ltr"` is only removed from `<html>`: an element without a `dir` attribute inherits the direction of its parent, and the direction of an element without a parent is `ltr` — so the attribute is redundant on the root element, but not anywhere else.
 Script `type="module"` is preserved, and `link[rel]` is treated as a space-separated token list when checking for `rel="stylesheet"`.
 
 #### Options
@@ -490,18 +495,37 @@ It doesn’t affect white spaces in the elements `<style>`, `<textarea>`, `<scri
 #### Options
 - `conservative` — collapses all redundant whitespace to 1 space (default). Whitespace around inline elements (like `<a>`, `<span>`, `<code>`) is preserved when possible.
 - `aggressive` — collapses redundant whitespace and trims around nodes when it is safe. This may remove indentation and drop whitespace-only text nodes between comments and non-inline elements.
-- `all` — collapses all redundant whitespace and trims text nodes. This is the most aggressive behavior and can remove meaningful spacing between inline elements.
+- `all` — collapses all redundant whitespace and trims every text node, except where the
+  whitespace is rendered: between two pieces of inline content exactly one space is kept,
+  so the text still reads the same. This is the most aggressive behavior.
 
 #### Notes
 - Comments are preserved, but whitespace around them can be collapsed depending on the option.
 - Template content is left untouched.
 - Elements carrying an inline `white-space` style that preserves whitespace (`white-space: pre`, `pre-wrap`, `pre-line`, or `break-spaces`) are treated like `<pre>`: their content and their whole subtree are left untouched, so layout is not broken. The check is a simple regexp on the `style` attribute value (no full CSS parsing), and `pre-line` (which technically collapses spaces but keeps newlines) is treated as fully protected as the conservative choice.
 
-#### Side effects
+#### Notes on `all`
 
-*all*
-`<i>hello</i> <i>world</i>` or `<i>hello</i><br><i>world</i>` after minification will be rendered as `helloworld`.
-To prevent that use either the default `conservative` option, or the `aggressive` option.
+`all` trims every text node, but keeps exactly one space wherever the trimmed
+whitespace is what separates two pieces of inline content — that is what makes it
+lossless for text. Compared to `aggressive` it looks through those boundaries
+instead of leaving whitespace alone as soon as an inline element is involved,
+so it can trim *inside* inline elements too:
+
+```html
+<!-- source -->
+<p>Read the <a href="#"> docs </a> first</p>
+
+<!-- all -->
+<p>Read the <a href="#">docs</a> first</p>
+
+<!-- aggressive -->
+<p>Read the <a href="#">docs </a>first</p>
+```
+
+The whitespace of an inline element that another module removes afterwards
+(`removeEmptyElements`) is not reconsidered, so such a removal can leave a space
+behind where nothing needs one anymore.
 
 #### Example
 Source:
@@ -516,7 +540,7 @@ Source:
 
 Minified (with `all`):
 ```html
-<div>hello world!<a href="#">answer</a><style>div  { color: red; }  </style><main></main></div>
+<div>hello world! <a href="#">answer</a><style>div  { color: red; }  </style><main></main></div>
 ```
 
 Minified (with `aggressive`):
@@ -540,31 +564,45 @@ and hexadecimal (`&#x2014;`) numeric references are decoded as well.
 #### Options
 - `true` — decode a conservative allowlist of common typographic/symbol named
   references plus safe numeric references (default in the `safe` preset).
-- `{ decodeAll: true }` — decode every named reference the module knows about
-  (default in the `max` preset). The module never adds a runtime dependency,
-  so unknown named references are always left untouched.
+- `{ decodeAll: true }` — additionally decode every named reference of the
+  HTML standard, such as `&hearts;` or `&Longleftrightarrow;`
+  (default in the `max` preset).
 
 #### Notes
-- The syntactically required references are **never** decoded, because
-  posthtml-render does not re-escape text: `&amp;`, `&lt;`, `&gt;` in text
-  nodes, and `&amp;`, `&quot;`, `&apos;`/`&#39;` in attribute values.
-- Any reference (named or numeric) whose decoded form would be `&`, `<`, `>`
-  (or a quote inside an attribute value) is left as-is. This also prevents
-  double-encoded input like `&amp;mdash;` from collapsing into `&mdash;`.
+- The decoding is lossless: a reference is only decoded when the literal
+  character is parsed back into exactly the same character in that context.
+- `&amp;` becomes a bare `&` unless that would create an [ambiguous
+  ampersand](https://html.spec.whatwg.org/multipage/syntax.html#syntax-ambiguous-ampersand),
+  i.e. unless the following text would turn it back into a character
+  reference. `&amp;copy;`, `&amp;copy` and `&amp;#169;` are therefore kept,
+  while `?a=1&amp;b=2` becomes `?a=1&b=2`. At the very end of a text node the
+  following context is not known yet, so `&amp;` is kept there as well.
+- `&lt;` is never decoded in text nodes, since posthtml-render does not
+  re-escape text and a literal `<` would open a tag. `&gt;` is decoded, and
+  both are decoded in attribute values — values containing `<` or `>` are
+  always rendered quoted.
+- `&quot;` and `&#34;` are kept in attribute values (posthtml-render would
+  re-encode or break on a literal `"`), but decoded in text nodes.
+  `&apos;`/`&#39;`/`&#x27;` are decoded in attribute values, except in the
+  ones posthtml-render renders single-quoted (JSON-ish values, or every value
+  when the `quoteStyle` render option asks for single quotes).
 - Content of `<script>`, `<style>`, and `<textarea>` is left untouched, since
   browsers do not entity-decode raw-text element content.
 - Invalid, unknown, or non-terminated references (for example `&fake;` or
-  `&mdash` without a semicolon) are left untouched.
+  `&mdash` without a semicolon) are left untouched, and double-encoded input
+  like `&amp;mdash;` never collapses into `&mdash;`.
 
 #### Example
 Source:
 ```html
 <p title="a &mdash; b">Copyright &copy; 2024 &#8212; the end&hellip;</p>
+<a href="/search?q=1&amp;page=2">R &amp; D</a>
 ```
 
 Minified:
 ```html
 <p title="a — b">Copyright © 2024 — the end…</p>
+<a href="/search?q=1&page=2">R & D</a>
 ```
 
 
@@ -581,6 +619,16 @@ Minified:
 - A `RegExp` — removes HTML comments that match the regexp (non-matching comments are kept)
 - A string — treated as a regexp pattern. Supports `/pattern/flags` or a plain pattern string (useful in JSON config files)
 - A `Function` that returns boolean — removes HTML comments for which the callback returns a truthy value
+
+**Security warning: the `removeComments` option must come from a source you trust.**
+A string option is compiled into a `RegExp` and then tested against every comment, so a
+pattern crafted to backtrack catastrophically turns comment-heavy input into a hang
+(ReDoS). A function option is called for every comment, so it runs arbitrary code by
+definition. Both are fine for options you write yourself — that is what the API is for —
+but don't build the option out of user input, and keep in mind that a
+[config file discovered on the filesystem](./config#security-note-config-auto-discovery-runs-code)
+counts as developer input too. The HTML being minified never influences which pattern is
+compiled, only how often it is run.
 
 #### Example
 
@@ -676,32 +724,85 @@ Removes elements that have no meaningful content.
 
 #### Options
 - `true` — removes empty elements without attributes.
-- `{ removeWithAttributes: true }` — removes empty elements even if they have attributes.
+- `{ removeWithAttributes: 'presentational' }` — also removes empty elements whose
+  attributes are all *presentational*: `class`, `style` and `aria-hidden`.
+  Used by the `max` preset.
+- `{ removeWithAttributes: ['data-decoration', 'class'] }` — same as `'presentational'`,
+  but with your own list of attributes that don't prevent the removal.
+- `{ removeWithAttributes: true }` — removes empty elements no matter what they carry.
 
 Empty elements are defined as elements with no child elements and only whitespace/comments as content.
-Void elements (like `<img>` or `<br>`) are never removed.
+Void elements (like `<img>` or `<br>`) are never removed, and neither are elements that
+keep doing their job while empty, whatever `removeWithAttributes` says:
+
+- `td`, `th`, `tr`, `caption`, `colgroup` — they hold a position in the table grid.
+  Dropping an empty cell shifts every following cell of the row into the wrong column.
+- `textarea`, `select`, `option` — form controls that are submitted and scripted while
+  empty; an empty `<textarea>` is simply one the user hasn't typed into yet.
+- `canvas`, `iframe`, `audio`, `video`, `slot` — they are painted or filled by something
+  other than their own markup: scripts, a nested document, the resource of their `src`,
+  or the light DOM projected into them.
+
+##### The `'presentational'` mode
+
+An element is removed only when every attribute it has is in the list, so anything
+that gives the element a meaning beyond its looks keeps it: `id`, `name`, `role`,
+`aria-*` (except `aria-hidden`), `data-*`, event handlers, `href`, `src`, `title`,
+framework attributes like `x-data` or `hx-get`, and the geometry attributes of SVG
+shapes (`<path d="…">` is empty markup-wise, but it is the drawing).
+`aria-hidden` is in the list because an element that is hidden from the accessibility
+tree contributes nothing to it once it's empty.
+
+On top of the elements that are never removed, this mode also keeps custom elements —
+any tag with a dash in it, like `<my-widget class="widget"></my-widget>`, which builds
+its own content once the element definition is upgraded — and the interactive elements
+`a`, `button`, `details`, `label` and `summary`, whose icon is often drawn by CSS while
+a script binds the behaviour through the very class that would allow the removal
+(`<button class="hamburger-menu"></button>`). Note that `removeWithAttributes: true`
+doesn't make either exception: it removes every empty element except the ones listed
+above.
 
 #### Side effects
-This module can remove elements that are used for styling or scripting (for example `<span class="icon"></span>`).
-It is disabled by default.
+This module removes elements that are used for styling or scripting, so it's disabled
+in the `safe` preset.
+
+`removeWithAttributes: 'presentational'` is **lossy on purpose**: it drops empty
+elements that are only there to be *seen* — carousel dots, skeleton loaders, spinner
+bars, gradient overlays, spacers. If your page relies on those, the rendering will
+change. The removal is safe for the meaning and the accessibility of the page, but
+`class` is a behaviour hook as much as a styling one: a script that looks an element
+up by class (`document.querySelector('.spinner')`) will no longer find it. Interactive
+elements are kept for exactly that reason, and you can use `removeEmptyElements: true`
+(or a narrower `removeWithAttributes` list) if you want the rest of the decorations
+back.
 
 #### Example
 Source:
 ```html
 <div>hello<span><b></b></span></div>
-<div><span class="icon"></span></div>
+<div><span class="icon"></span>Download</div>
+<div><span id="anchor"></span><my-widget class="widget"></my-widget>Widget</div>
 ```
 
 Minified (`removeEmptyElements: true`):
 ```html
 <div>hello</div>
-<div><span class="icon"></span></div>
+<div><span class="icon"></span>Download</div>
+<div><span id="anchor"></span><my-widget class="widget"></my-widget>Widget</div>
+```
+
+Minified (`removeEmptyElements: { removeWithAttributes: 'presentational' }`):
+```html
+<div>hello</div>
+<div>Download</div>
+<div><span id="anchor"></span><my-widget class="widget"></my-widget>Widget</div>
 ```
 
 Minified (`removeEmptyElements: { removeWithAttributes: true }`):
 ```html
 <div>hello</div>
-<div></div>
+<div>Download</div>
+<div>Widget</div>
 ```
 
 ### minifyConditionalComments
@@ -736,45 +837,81 @@ Minified:
 ### removeOptionalTags
 Remove certain tags that can be omitted, see [HTML Standard - 13.1.2.4 Optional tags](https://html.spec.whatwg.org/multipage/syntax.html#optional-tags).
 
-Only tags without attributes are eligible.
-If the element has any attributes, the tag is preserved.
-
 #### Notes
-- htmlnano can only remove a tag when both its start and end tags can be omitted.
-- Due to [the limitation of PostHTML](https://github.com/maltsev/htmlnano/issues/99), htmlnano can’t remove only the start tag or only the end tag of an element.
-- Supported optional tags are limited to the ones that can be removed as a pair.
+- Attributes only block the start tag of the element that carries them:
+  `<li class="x">…</li>` keeps its start tag but still loses `</li>`, and a
+  `<html class="no-js">` still gets its `</html>` and the optional tags of
+  everything inside it removed. An element whose start tag can be omitted must
+  have no attributes at all.
+- htmlnano can omit an end tag on its own, and it can omit a start and an end
+  tag together, but it can’t omit *only* a start tag — posthtml-render has no way
+  to express that, see [issue #99](https://github.com/maltsev/htmlnano/issues/99).
+  When only the start tag is omissible, both tags are kept.
+- Whitespace and comments between two elements count as content, so they block
+  the omissions that require one element to *immediately* follow another. Run
+  this module together with `collapseWhitespace: 'all'` (as the `max` preset
+  does) to get the most out of it.
+- The module runs after every other module, on the final tree.
+- Nodes that another posthtml plugin left without a tag (posthtml-include builds
+  those to splice a file in) render as their content only, and the elements
+  inside them are minified as well.
 
-Supported tags and key rules:
+##### Optional start tags
 
-- `html`
-  - Start tag can be omitted when the first child is not a comment.
-  - End tag can be omitted when the `html` element is not immediately followed by a comment.
-- `head`
-  - Start tag can be omitted when the element is empty or the first child is an element.
-  - End tag can be omitted when `head` is not immediately followed by ASCII whitespace or a comment.
-- `body`
-  - Start tag can be omitted when the element is empty or the first child is not ASCII whitespace or a comment.
-  - Start tag can’t be omitted if the first child element is `meta`, `link`, `script`, `style`, or `template`.
-  - End tag can be omitted when `body` is not immediately followed by a comment.
-- `colgroup`
-  - Start tag can be omitted when the first child element is `col`, and the element is not immediately preceded by another `colgroup`.
-  - End tag can be omitted when `colgroup` is not immediately followed by ASCII whitespace or a comment.
-- `tbody`
-  - Start tag can be omitted when the first child element is `tr`, and the element is not immediately preceded by `tbody`, `thead`, or `tfoot`.
-  - End tag can be omitted when the element is not immediately followed by `tbody` or `tfoot`.
+- `html` — Can be omitted when the first child is not a comment.
+- `head` — Can be omitted when the element is empty or the first child is an element.
+- `body` — Can be omitted when the element is empty or the first child is not ASCII whitespace or a comment. Can’t be omitted if the first child element is `meta`, `link`, `script`, `style`, or `template`.
+- `colgroup` — Can be omitted when the first child element is `col`, and the element is not immediately preceded by another `colgroup` whose end tag was omitted.
+- `tbody` — Can be omitted when the first child element is `tr`, and the element is not immediately preceded by a `tbody`, `thead`, or `tfoot` whose end tag was omitted.
+
+##### Optional end tags
+
+- `html`, `body` — when not immediately followed by a comment.
+- `head`, `caption`, `colgroup` — when not immediately followed by ASCII whitespace or a comment.
+- `li` — when immediately followed by another `li`, or last in its list.
+- `dt` — when immediately followed by a `dt` or `dd`.
+- `dd` — when immediately followed by a `dd` or `dt`, or last in its list.
+- `p` — when immediately followed by one of `address`, `article`, `aside`,
+  `blockquote`, `details`, `div`, `dl`, `fieldset`, `figcaption`, `figure`,
+  `footer`, `form`, `h1`–`h6`, `header`, `hgroup`, `hr`, `main`, `menu`, `nav`,
+  `ol`, `p`, `pre`, `section`, `ul`, or when it is the last child of a parent
+  that closes it.
+- `rt`, `rp` — when immediately followed by an `rt` or `rp`, or last in the `ruby`.
+- `optgroup` — when immediately followed by another `optgroup`, or last in the `select`.
+- `option` — when immediately followed by an `option` or `optgroup`, or last in its parent.
+- `thead` — when immediately followed by a `tbody` or `tfoot`.
+- `tbody` — when immediately followed by a `tbody` or `tfoot`, or last in the `table`.
+- `tfoot` — when last in the `table`.
+- `tr` — when immediately followed by another `tr`, or last in its table section.
+- `td`, `th` — when immediately followed by a `td` or `th`, or last in the `tr`.
+
+#### Notes on correctness
+
+htmlnano is stricter than the specification in a few places, because the
+specification’s wording assumes markup that already follows the content model:
+
+- The “no more content in the parent element” rules are only applied when the
+  parent is one the element is actually allowed to live in (`li` in a `ul`, `td`
+  in a `tr`, …). In `<span><p>x</p></span>` the parser does not close the `p` on
+  `</span>`, so `</p>` is kept.
+- `</p>` before a `<table>` is only omitted in a document with an
+  `<!doctype html>`: in quirks mode a `<table>` start tag does not close an open
+  `p`.
+- End tags are never omitted inside `<svg>` and `<math>`, where the parser
+  requires every element to be closed explicitly.
 
 #### Example
 
 Source:
 
 ```html
-<html><head><title>Title</title></head><body><p>Hi</p></body></html>
+<html><head><title>Title</title></head><body><ul><li>One</li><li>Two</li></ul></body></html>
 ```
 
 Minified:
 
 ```html
-<title>Title</title><p>Hi</p>
+<title>Title</title><ul><li>One<li>Two</ul>
 ```
 
 ### normalizeDoctype
@@ -894,6 +1031,32 @@ Non-stylesheet content between styles (plain elements, text, comments, AMP
 boilerplate, preload links) does not break a group. When a group is closed a new
 one starts, so a document can produce several independent merged groups.
 
+#### `<noscript>` and `<template>` are separate scopes
+
+Styles inside `<noscript>` only apply when scripting is disabled, and styles
+inside `<template>` are inert until the template is cloned. Their styles are
+merged among themselves, but never with the styles of the surrounding document
+in either direction. A `<noscript>` also closes an open group, because with
+scripting disabled its styles do apply at that exact position:
+
+```html
+<style>h1 { color: red }</style>
+<style>div { color: blue }</style>
+<noscript>
+    <style>h1 { color: green }</style>
+    <style>div { color: black }</style>
+</noscript>
+```
+
+becomes:
+
+```html
+<style>h1 { color: red } div { color: blue }</style>
+<noscript>
+    <style>h1 { color: green } div { color: black }</style>
+</noscript>
+```
+
 #### Example
 Source:
 ```html
@@ -925,6 +1088,7 @@ The merged content is appended into the last script in the group and the earlier
 #### Notes
 - Only inline scripts with mergeable types are considered: `text/javascript` and `application/javascript` (default is `text/javascript`). Other types (including `type="module"`) are left untouched.
 - Scripts with `src` or `integrity` are never merged and they break a merge group, so code on each side stays separate.
+- Scripts inside `<noscript>` or `<template>` are left untouched: they don't run alongside the surrounding scripts (a `<script>` in `<noscript>` never executes, and one in `<template>` only executes once the template is cloned), so they neither merge nor break a group.
 - Boolean attributes (`async`, `defer`, `nomodule`) are normalized and treated as present, so `defer` and `defer="defer"` match.
 - Scripts are separated by `nonce` value, by `nomodule`, and by `async`/`defer` differences.
 - A missing trailing semicolon is added when concatenating. If a script ends with a line comment, the merger inserts `\n;` before the next script to avoid comment swallowing.
@@ -966,8 +1130,12 @@ Skipped nodes:
 
 Notes:
 - `style` attributes are wrapped in a temporary selector (`a{...}`) before minification so cssnano can parse them, then the wrapper is removed.
-- When htmlnano uses cssnano's `default` preset for `style` attributes, it disables inline-irrelevant optimizations such as `mergeRules`, `minifySelectors`, `minifyParams`, `normalizeCharset`, `uniqueSelectors`, and `normalizeUnicode`.
-- If you explicitly configure any of those plugins in `preset: ['default', ...]`, or pass a custom cssnano `plugins` list, htmlnano keeps your settings instead of overwriting them.
+- For `style` attributes htmlnano disables the optimizations that a single declaration list can't give
+  enough context for: `mergeRules`, `minifySelectors`, `minifyParams`, `normalizeCharset`,
+  `uniqueSelectors`, `normalizeUnicode`, and (for the `advanced` preset) `reduceIdents` and `zindex`.
+  This happens for every preset, including custom preset factories.
+- If you explicitly configure any of those plugins in `preset: [..., { ... }]`, or pass a custom cssnano
+  `plugins` list, htmlnano keeps your settings instead of overwriting them.
 
 You have to install `cssnano` and `postcss` in order to use this feature:
 
@@ -995,6 +1163,35 @@ htmlnano.process(html, {
     }
 });
 ```
+
+##### The `advanced` preset
+
+cssnano also ships an [`advanced` preset](https://cssnano.github.io/cssnano/docs/what-are-optimisations/).
+htmlnano does not use it in any preset, including `max`, and does not depend on it — install
+`cssnano-preset-advanced` yourself if you want it:
+
+```js
+htmlnano.process(html, {
+    minifyCss: {
+        preset: 'advanced'
+    }
+});
+```
+
+Be aware of what you are opting into. htmlnano minifies every `<style>` tag and every `style`
+attribute on its own, and it never sees the page's external stylesheets or its scripts, so the
+`advanced` plugins that reason about a whole document are unsound here:
+
+- `discardUnused` drops `@font-face`, `@keyframes` and `@counter-style` rules that nothing in the same `<style>` tag references — including fonts and animations used by an external stylesheet or added at runtime. On a real page this silently changes the rendering.
+- `reduceIdents` and `mergeIdents` rename those identifiers, which breaks the same cross-stylesheet
+  and JavaScript references (`element.style.animationName`, `grid-template-areas`, …).
+- `zindex` rebases `z-index` values, which is only safe for a self-contained stylesheet.
+- `autoprefixer` (in `add: false` mode) removes vendor prefixes according to the Browserslist
+  configuration and caniuse-lite version found on the *build* machine, so the output is no longer a
+  function of the input alone.
+
+htmlnano does disable `reduceIdents` and `zindex` for `style` attributes, where they are always
+wrong (see the notes above), but it cannot make the `<style>`-tag transformations safe for you.
 
 #### Example
 Source:
@@ -1043,6 +1240,28 @@ htmlnano.process(html, {
 
 The module treats script types with parameters (for example `text/javascript; charset=utf-8`) as JavaScript.
 For `type="module"` scripts, it enables Terser's `module` option unless you explicitly set `module` yourself.
+
+#### Legal comments (`@license`, `@preserve`, `/*!`)
+By default Terser keeps "legal" comments — those matching `@license`, `@preserve`, `@cc_on` or starting with `/*!`
+(this covers `@licstart`/`@licend` blocks as well). The `safe` and `ampSafe` presets keep that default,
+so license notices stay in the output.
+
+The [`max` preset](./presets) turns them off with Terser's own option:
+```js
+minifyJs: {
+    format: { comments: false }
+}
+```
+
+**This is a legal decision, not a technical one.** Many JS licenses (MIT, Apache-2.0, GPL, …) require the
+copyright notice to be distributed with the code, and dropping the comment can put you in breach of them.
+Only use it when you ship the notices elsewhere (a `LICENSE`/`NOTICE` file, a separate license page, a preserved
+bundle header), or when the inlined scripts are your own.
+
+To keep legal comments while still using the `max` preset, override the module:
+```js
+htmlnano.process(html, { minifyJs: { format: { comments: 'some' } } }, htmlnano.presets.max);
+```
 
 #### Notes
 - Only JavaScript script types are processed: the default type, `text/javascript`, `application/javascript`, and legacy `text/ecmascript`. Other types (for example `application/json`) are left untouched.
@@ -1221,6 +1440,11 @@ Minified:
 ### removeUnusedCss
 
 Removes unused CSS inside `<style>` tags with either [uncss](https://github.com/uncss/uncss) or [PurgeCSS](https://github.com/FullHuman/purgecss).
+PurgeCSS is the default and only extracts selectors from the HTML as strings.
+
+**Security warning:** the `tool: 'uncss'` option renders the HTML you are minifying in a real DOM ([jsdom](https://github.com/jsdom/jsdom)) **with script execution enabled**, which means any `<script>` in that HTML runs inside your build process.
+uncss is also abandoned, and installing it pulls a chain of known-vulnerable dependencies into your project.
+Never use `tool: 'uncss'` on HTML you don't fully trust — see [With uncss](#with-uncss) below.
 
 #### With PurgeCSS (recommended)
 
@@ -1258,8 +1482,32 @@ The following PurgeCSS options are ignored if passed to the module:
 
 #### With uncss
 
-`uncss` isn't maintained anymore, so I don't recommend using it.
-You have to install `uncss` in order to use this feature:
+**Security warning: uncss executes the scripts of the HTML you are minifying.**
+
+To find out which selectors are used, uncss loads the HTML into [jsdom](https://github.com/jsdom/jsdom) with `runScripts: 'dangerously'` and script fetching enabled.
+uncss offers no option to turn that off, so with `tool: 'uncss'` the HTML passed to htmlnano is not just parsed, it is *executed*:
+
+-   **Arbitrary code execution:** every inline `<script>` in the HTML runs in the build process, with the privileges of whoever runs the build.
+-   **Local file read:** `<script src="/absolute/path">` is read from your filesystem (relative to the `htmlroot` option) and executed, so the script can read local files and leak them.
+-   **Outbound network requests:** other `<script src="...">` URLs and other external resources are fetched over the network (SSRF).
+
+Only use `tool: 'uncss'` on HTML that you fully control and trust, in an environment where running that HTML's scripts is acceptable.
+For anything else — user-supplied HTML, templates rendering untrusted content, HTML from third-party packages — use `tool: 'purgeCSS'` (the default), which only extracts selectors from the HTML as strings and never builds a DOM or runs JavaScript.
+
+htmlnano prints this warning once per process when `tool: 'uncss'` is used; set [`skipInternalWarnings: true`](./config#optional-dependency-warnings) to silence it.
+
+**Security warning: uncss is abandoned and depends on packages with known vulnerabilities.**
+
+The last uncss release, 0.17.3, is from February 2020, and the project isn't maintained anymore.
+Its dependencies are therefore pinned to versions with published advisories that will never be fixed upstream:
+
+-   [jsdom](https://github.com/jsdom/jsdom) 14 depends on `request`, which is itself deprecated and unmaintained, and drags in `form-data` (**critical**: unsafe random function for the multipart boundary, CRLF injection via unescaped field names), `tough-cookie` < 4.1.3 (prototype pollution), `qs` (denial of service) and `uuid` (missing buffer bounds check).
+-   `postcss` 7 (**high**: XSS via an unescaped `</style>` in the stringifier, and arbitrary `.map` file read through an attacker-controlled `sourceMappingURL`).
+
+So installing `uncss` adds all of those to your dependency tree, and `npm audit` will report them.
+`tool: 'purgeCSS'` (the default) depends on none of this; uncss is still supported only for backwards compatibility.
+
+You have to install `uncss` in order to use this feature (please read the warnings above first):
 
 ```bash
 npm install --save-dev uncss
@@ -1277,6 +1525,7 @@ uncss options can be passed directly to the `removeUnusedCss` module:
 ```js
 htmlnano.process(html, {
     removeUnusedCss: {
+        tool: 'uncss',
         ignore: ['.do-not-remove']
     }
 });
