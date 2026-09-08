@@ -1,4 +1,5 @@
 const { themes: prismThemes } = require('prism-react-renderer');
+const { version } = require('../package.json');
 const lightCodeTheme = prismThemes.github;
 const darkCodeTheme = prismThemes.dracula;
 
@@ -56,7 +57,12 @@ module.exports = {
                     sidebarPath: require.resolve('./sidebars.js'),
                     routeBasePath: '/',
                     editUrl: 'https://github.com/maltsev/htmlnano/edit/master/docs/',
-                    editCurrentVersion: true
+                    editCurrentVersion: true,
+                    versions: {
+                        stable: {
+                            label: version
+                        }
+                    }
                 }
             }
         ]
