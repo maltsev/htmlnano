@@ -344,5 +344,8 @@ export function htmlMinimizerWebpackPluginMinify(
 export default htmlnano;
 
 if (typeof module !== 'undefined') {
-    module.exports = htmlnano;
+    // exporting the callable replaces the exports object, dropping the bundler's
+    // exports.default, so re-attach it for interop consumers and for internal
+    // modules that import htmlnano itself
+    module.exports = Object.assign(htmlnano, { default: htmlnano });
 }
