@@ -29,7 +29,7 @@ const mod: HtmlnanoModule<MinifyHtmlTemplateOptions> = {
             return tree;
         }
 
-        const { default: htmlnano } = await import('../index.js');
+        const { process: processHtml } = await import('../index.js');
 
         const innerOptions: HtmlnanoOptions = {
             ...options,
@@ -61,8 +61,7 @@ const mod: HtmlnanoModule<MinifyHtmlTemplateOptions> = {
                 return node;
             }
 
-            const promise = htmlnano
-                .process(rawContent, innerOptions, {}, {})
+            const promise = processHtml(rawContent, innerOptions, {}, {})
                 .then((result) => {
                     node.content = [result.html];
                 });

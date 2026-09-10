@@ -1,4 +1,4 @@
-import htmlnano from '../';
+import { process as processHtml } from '../index.js';
 import { isConditionalComment } from '../helpers';
 import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLNodeLike, PostHTMLTreeLike } from '../types';
 
@@ -78,7 +78,7 @@ async function minifyContentInsideConditionalComments(text: string, htmlnanoOpti
     for (const match of matches) {
         result += text.slice(lastIndex, match.start);
 
-        const processed = await htmlnano.process(match.content, htmlnanoOptions, {}, {});
+        const processed = await processHtml(match.content, htmlnanoOptions, {}, {});
         let minified = processed.html;
 
         if (hasHtmlOpeningWithoutClosing(match.content) && /<\/html>/i.test(minified)) {
