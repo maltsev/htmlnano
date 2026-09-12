@@ -91,7 +91,7 @@
     "@types/relateurl": "^0.2.33",
     "commander": "^15.0.0",
     "cosmiconfig": "^10.0.0",
-    "entities": "^4.5.0",
+    "entities": "^8.0.0",
     "posthtml": "^0.16.5",
     "tinyglobby": "^0.2.17"
   },
@@ -114,7 +114,7 @@
     "globals": "^17.0.0",
     "jscpd": "^5.0.5",
     "knip": "^6.0.2",
-    "mocha": "^11.0.1",
+    "mocha": "^12.0.0",
     "postcss": "^8.3.11",
     "posthtml-parser": "^0.12.1",
     "posthtml-render": "^3.0.0",
