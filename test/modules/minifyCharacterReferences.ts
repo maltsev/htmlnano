@@ -183,6 +183,14 @@ describe('minifyCharacterReferences', () => {
         );
     });
 
+    it('should leave attribute values without references untouched', () => {
+        return init(
+            '<div title="it\'s" data-list="[ 1, 2 ]" data-config="{ \'a\': \'b\' }">x</div>',
+            '<div title="it\'s" data-list="[ 1, 2 ]" data-config="{ \'a\': \'b\' }">x</div>',
+            options
+        );
+    });
+
     it('should keep apostrophe references when attributes are single-quoted', () => {
         return initWithPostHtmlOptions(
             '<a title="it&#39;s &mdash; here">x</a>',
