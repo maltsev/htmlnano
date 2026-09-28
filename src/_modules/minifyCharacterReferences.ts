@@ -364,6 +364,12 @@ function decodeAttributeValue(
     withApostrophe: DecodeContext,
     withoutApostrophe: DecodeContext
 ): string {
+    // Nothing to decode, so skip the quoting checks below, which compact the
+    // whole value with a regex.
+    if (value.indexOf('&') === -1) {
+        return value;
+    }
+
     if (!canRenderApostrophe(value, quoting)) {
         return decodeReferences(value, withoutApostrophe);
     }
