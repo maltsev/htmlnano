@@ -17,6 +17,12 @@ It does not guarantee preservation of `outerHTML`, attribute presence or order,
 comments removed by `removeComments: 'safe'`, or XHTML/XML serialization.
 `ampSafe` follows the same contract while keeping the output valid AMP HTML.
 
+For optional tags, `safe` uses
+`removeOptionalTags: { removeStartTags: false }`: it retains every explicit
+start tag while omitting eligible end tags. `ampSafe` inherits this conservative
+setting. `max` uses `removeOptionalTags: true`, so it may omit eligible start
+tags as well as end tags.
+
 `max` enables lossy modules on purpose. The most visible one is
 [`removeEmptyElements`](./modules#removeemptyelements) with
 `removeWithAttributes: 'presentational'`: empty elements whose attributes are all

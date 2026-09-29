@@ -48,9 +48,10 @@ export default {
     removeComments: 'safe',
     removeEmptyElements: false,
     minifyConditionalComments: false,
-    // The contract permits these syntax reductions when the parsed HTML result stays equivalent.
-    // Optional tags remain disabled until separately validated and enabled.
-    removeOptionalTags: false,
+    // Omit eligible end tags, but retain every explicit start tag.
+    removeOptionalTags: {
+        removeStartTags: false
+    },
     normalizeDoctype: false,
     removeAttributeQuotes: true,
     /* ----------------------------------------

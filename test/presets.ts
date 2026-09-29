@@ -22,6 +22,56 @@ const presets: Array<{ name: string; preset: HtmlnanoPreset }> = [
     { name: 'max', preset: maxPreset }
 ];
 
+describe('optional-tag preset settings', () => {
+    const conservativeSetting = { removeStartTags: false };
+
+    it('uses end-tags-only removal in safe and ampSafe, and full removal in max', () => {
+        expect(safePreset.removeOptionalTags).toStrictEqual(conservativeSetting);
+        expect(ampSafePreset.removeOptionalTags).toStrictEqual(conservativeSetting);
+        expect(maxPreset.removeOptionalTags).toBe(true);
+    });
+
+    it('retains structural start tags in safe and ampSafe', async () => {
+        const input = '<!doctype html><html><head><title>x</title></head><body><ul><li>one</li><li>two</li></ul></body></html>';
+        const expected = '<!doctype html><html><head><title>x</title><body><ul><li>one<li>two</ul>';
+
+        expect(await minify(input, safePreset)).toBe(expected);
+        expect(await minify(input, ampSafePreset)).toBe(expected);
+    });
+
+    it('keeps full optional-tag removal in max', async () => {
+        const input = '<!doctype html><html><head><title>x</title></head><body><ul><li>one</li><li>two</li></ul></body></html>';
+
+        expect(await minify(input, maxPreset)).toBe('<!doctype html><title>x</title><ul><li>one<li>two</ul>');
+    });
+
+    it('minifies representative AMP markup without removing explicit start tags', async () => {
+        const input = readFixture('amp.html')
+            .replace(
+                '<title>AMP Example Page</title>',
+                '<title>AMP Example Page</title><script async custom-element="amp-carousel" src="https://cdn.ampproject.org/v0/amp-carousel-0.2.js"></script><script async custom-template="amp-mustache" src="https://cdn.ampproject.org/v0/amp-mustache-0.2.js"></script>'
+            )
+            .replace(
+                '</div>\n</body>',
+                '<ul><li>One</li><li>Two</li></ul><table><thead><tr><th>Label</th></tr></thead> <tbody><tr><td>Value</td></tr></tbody></table><template type="amp-mustache"><ul><li>{{item}}</li></ul></template></div>\n</body>'
+            );
+
+        const once = await minify(input, ampSafePreset);
+        const twice = await minify(once, ampSafePreset);
+
+        expect(once).toContain('<html amp');
+        expect(once).toContain('<head>');
+        expect(once).toContain('<body>');
+        expect(once).toContain('<table><thead><tr><th>Label</thead> <tbody><tr><td>Value</table>');
+        expect(once).toContain('<ul><li>One<li>Two</ul>');
+        expect(once).toContain('<template type=amp-mustache><ul><li>{{item}}</ul></template>');
+        expect(once).not.toContain('</head>');
+        expect(once).not.toContain('</body>');
+        expect(once).not.toContain('</html>');
+        expect(twice).toBe(once);
+    });
+});
+
 function fixtureNames(): string[] {
     return fs
         .readdirSync(pagesDir)
@@ -125,8 +175,8 @@ describe('[fixture corpus]', () => {
     // the classic case, see removeOptionalTags) is re-added unless a module
     // knows how to leave it out. `preminified.html` is such an input — an
     // already-minified page htmlnano never produced — and `max` is the preset
-    // that claims to handle it (`safe` deliberately keeps optional tags, so it
-    // may legitimately grow such a page).
+    // that claims to handle it (`safe` retains optional start tags, so it may
+    // legitimately grow such a page).
     describe('never grows already-minified markup', () => {
         it('max does not grow preminified.html', () => {
             const source = readFixture('preminified.html');
@@ -162,7 +212,7 @@ describe('[fixture corpus]', () => {
                 '<p>Alpha   Beta</p>',
                 '</form>'
             ].join('');
-            const expected = '<form><input disabled title="Tom Sawyer"><p>Alpha Beta</p></form>';
+            const expected = '<form><input disabled title="Tom Sawyer"><p>Alpha Beta</form>';
 
             return minify(input, safePreset).then((output) => {
                 expect(output).toBe(expected);

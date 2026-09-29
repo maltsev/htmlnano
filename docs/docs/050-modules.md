@@ -838,10 +838,16 @@ Minified:
 ### removeOptionalTags
 Remove certain tags that can be omitted, see [HTML Standard - 13.1.2.4 Optional tags](https://html.spec.whatwg.org/multipage/syntax.html#optional-tags).
 
+The `safe` preset enables this module as `{ removeStartTags: false }`, and
+`ampSafe` inherits that setting: both retain explicit start tags and remove only
+eligible end tags. The `max` preset enables the module as `true` and removes
+eligible start tags too.
+
 Set the module to `true` (or `{ removeStartTags: true }`) to remove eligible
 start-and-end-tag pairs as well as eligible end tags. Use
 `{ removeStartTags: false }` to retain every explicit start tag while still
-removing end tags that can be omitted safely.
+removing end tags that can be omitted safely. Set it to `false` to disable all
+optional-tag removal.
 
 #### Notes
 - Attributes only block the start tag of the element that carries them:
