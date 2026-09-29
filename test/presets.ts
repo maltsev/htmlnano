@@ -22,6 +22,30 @@ const presets: Array<{ name: string; preset: HtmlnanoPreset }> = [
     { name: 'max', preset: maxPreset }
 ];
 
+describe('safe preset exclusions', () => {
+    it('keeps lossy and context-dependent modules disabled by default', () => {
+        expect({
+            sortAttributes: safePreset.sortAttributes,
+            removeRedundantAttributes: safePreset.removeRedundantAttributes,
+            removeXmlLeftovers: safePreset.removeXmlLeftovers,
+            mergeScripts: safePreset.mergeScripts,
+            mergeStyles: safePreset.mergeStyles,
+            removeEmptyElements: safePreset.removeEmptyElements,
+            removeUnusedCss: safePreset.removeUnusedCss,
+            minifyUrls: safePreset.minifyUrls
+        }).toStrictEqual({
+            sortAttributes: false,
+            removeRedundantAttributes: false,
+            removeXmlLeftovers: false,
+            mergeScripts: false,
+            mergeStyles: false,
+            removeEmptyElements: false,
+            removeUnusedCss: false,
+            minifyUrls: false
+        });
+    });
+});
+
 describe('doctype preset settings', () => {
     it('uses conservative normalization in safe and ampSafe, and broad normalization in max', () => {
         expect(safePreset.normalizeDoctype).toBe('html5');

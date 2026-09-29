@@ -15,11 +15,11 @@ export default {
     // Attribute presence and source spelling are not guaranteed when browser behavior is unchanged.
     removeEmptyAttributes: true,
     collapseAttributeWhitespace: true,
-    // removeRedundantAttributes will remove attributes when missing value default matches the attribute's value
-    // See https://html.spec.whatwg.org/#missing-value-default
+    // Opt-in: removing a redundant attribute changes selectors and hasAttribute(),
+    // while the cached corpus showed only about 0.03% raw savings.
     removeRedundantAttributes: false,
-    // removeXmlLeftovers removes XHTML-era leftovers meaningless in HTML documents.
-    // It remains disabled here, but the safe contract does not guarantee XHTML/XML compatibility.
+    // Opt-in: XML leftovers do not affect browser HTML behavior, but removing them
+    // erases source compatibility metadata.
     removeXmlLeftovers: false,
     // Equivalent HTML syntax changes, including collapsed boolean attributes, are allowed.
     // collapseBooleanAttributes will also collapse those default state can be omitted.
@@ -32,8 +32,11 @@ export default {
         metaContent: true,
         redundantWhitespaces: 'safe'
     },
+    // URL rewriting is context-dependent and requires a caller-supplied base URL.
     minifyUrls: false,
 
+    // Attribute sorting left raw size unchanged but hurt cached-corpus compression:
+    // alphabetical was about +0.94% gzip/+0.65% Brotli; frequency also regressed both.
     sortAttributes: false,
     sortAttributesWithLists: 'alphabetical',
 
@@ -46,6 +49,7 @@ export default {
     minifyCharacterReferences: true,
     // Comments covered by the safe mode are an explicit exception to DOM/source preservation.
     removeComments: 'safe',
+    // Whether an empty element is unused depends on application behavior.
     removeEmptyElements: false,
     minifyConditionalComments: false,
     // Omit eligible end tags, but retain every explicit start tag.
@@ -58,6 +62,8 @@ export default {
     /* ----------------------------------------
      * Minify inline <style>, <script> and <svg> tag
      * ---------------------------------------- */
+    // Merging changes DOM node boundaries and observable CSSOM/script execution;
+    // special at-rules and script-boundary behavior can also prevent safe merging.
     mergeStyles: false,
     mergeScripts: false,
     minifyCss: {
@@ -79,6 +85,7 @@ export default {
             }
         ]
     },
+    // Determining whether CSS is unused requires application-level knowledge.
     removeUnusedCss: false,
 
     /* ----------------------------------------
