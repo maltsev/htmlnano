@@ -35,7 +35,7 @@ describe('[commonjs usage]', () => {
             collapseWhitespace: 'conservative',
             minifyHtmlTemplate: true
         }).then((result) => {
-            expect(result.html).toBe('<script type="text/html"><div> <b>Hi</b> </div></script>');
+            expect(result.html).toBe('<script type=text/html><div> <b>Hi</b> </div></script>');
         });
     });
 
