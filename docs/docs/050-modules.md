@@ -927,35 +927,36 @@ Minified:
 ```
 
 ### normalizeDoctype
-Normalize a legacy doctype to the short HTML5 form `<!doctype html>`.
+Normalize doctypes to the short HTML5 form `<!doctype html>`.
 
-Legacy XHTML 1.0 / HTML 4.01 doctypes carry a `PUBLIC`/`SYSTEM` identifier and
-are typically 90–120 bytes; the short form is only 15 bytes.
+The option has two enabled modes:
 
-This module is **enabled only in the `max` preset** (or by explicitly setting
-`normalizeDoctype: true`). It is not part of the `safe` preset.
+- `'html5'` canonicalizes casing and redundant ASCII whitespace only when the
+  complete input is already the short HTML5 doctype. This conservative mode is
+  used by the `safe` preset and inherited by `ampSafe`.
+- `true` also rewrites recognized legacy `PUBLIC`/`SYSTEM` doctypes. This
+  backward-compatible mode is used by the `max` preset.
 
 #### Notes
 - Only the top-level doctype string node is inspected; posthtml-parser emits the
   doctype as a raw string, so no DOM node is created for it.
-- **Quirks-mode caveat:** rewriting an HTML 4.01 / XHTML 1.0 `PUBLIC` doctype to
-  the short form can subtly change how a browser renders the page. Different
-  legacy doctypes can trigger *standards*, *almost-standards*, or *quirks* mode,
-  and the short form always selects full standards mode. This may alter, for
-  example, inline image spacing inside table cells. Because that change is not
-  guaranteed to be visually neutral, this module is `max`-only.
-- The XML declaration (`<?xml ...?>`) is never treated as a doctype.
-- An already-short doctype is normalized to lowercase (`<!DOCTYPE html>` becomes
-  `<!doctype html>`); a document without a doctype is left unchanged.
+- The `'html5'` mode cannot change standards/quirks mode because it leaves
+  `about:legacy-compat`, legacy HTML/XHTML, malformed, and quirks-triggering
+  doctypes unchanged.
+- **Quirks-mode caveat for `true`:** rewriting a legacy doctype can change a
+  document from *almost-standards* or *quirks* mode to full standards mode. This
+  can subtly alter rendering, such as inline image spacing inside table cells.
+- XML declarations and non-doctype strings are never treated as doctypes. A
+  document without a doctype is left unchanged.
 
 #### Example
 Source:
 ```html
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!DOCTYPE   HTML >
 <html></html>
 ```
 
-Minified:
+Minified with either `'html5'` or `true`:
 ```html
 <!doctype html>
 <html></html>

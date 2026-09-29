@@ -22,6 +22,23 @@ const presets: Array<{ name: string; preset: HtmlnanoPreset }> = [
     { name: 'max', preset: maxPreset }
 ];
 
+describe('doctype preset settings', () => {
+    it('uses conservative normalization in safe and ampSafe, and broad normalization in max', () => {
+        expect(safePreset.normalizeDoctype).toBe('html5');
+        expect(ampSafePreset.normalizeDoctype).toBe('html5');
+        expect(maxPreset.normalizeDoctype).toBe(true);
+    });
+
+    it('preserves legacy doctypes in safe and ampSafe', async () => {
+        const legacy = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html></html>';
+        const legacyDoctype = legacy.slice(0, legacy.indexOf('<html>'));
+
+        expect((await minify(legacy, safePreset)).startsWith(legacyDoctype)).toBe(true);
+        expect((await minify(legacy, ampSafePreset)).startsWith(legacyDoctype)).toBe(true);
+        expect((await minify(legacy, maxPreset)).startsWith('<!doctype html>')).toBe(true);
+    });
+});
+
 describe('optional-tag preset settings', () => {
     const conservativeSetting = { removeStartTags: false };
 

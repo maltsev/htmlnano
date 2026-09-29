@@ -52,7 +52,8 @@ export default {
     removeOptionalTags: {
         removeStartTags: false
     },
-    normalizeDoctype: false,
+    // Canonicalize only an already-short HTML5 doctype, preserving document mode.
+    normalizeDoctype: 'html5',
     removeAttributeQuotes: true,
     /* ----------------------------------------
      * Minify inline <style>, <script> and <svg> tag
