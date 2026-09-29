@@ -51,6 +51,8 @@ export default {
     removeComments: 'safe',
     // Whether an empty element is unused depends on application behavior.
     removeEmptyElements: false,
+    // Opt-in: 8 targeted fixtures saved 26/671 raw bytes but roughly doubled their
+    // warm median processing time; the cached corpus changed only 2/20 pages (~9 bytes).
     minifyConditionalComments: false,
     // Omit eligible end tags, but retain every explicit start tag.
     removeOptionalTags: {

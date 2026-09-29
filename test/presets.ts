@@ -32,7 +32,8 @@ describe('safe preset exclusions', () => {
             mergeStyles: safePreset.mergeStyles,
             removeEmptyElements: safePreset.removeEmptyElements,
             removeUnusedCss: safePreset.removeUnusedCss,
-            minifyUrls: safePreset.minifyUrls
+            minifyUrls: safePreset.minifyUrls,
+            minifyConditionalComments: safePreset.minifyConditionalComments
         }).toStrictEqual({
             sortAttributes: false,
             removeRedundantAttributes: false,
@@ -41,8 +42,11 @@ describe('safe preset exclusions', () => {
             mergeStyles: false,
             removeEmptyElements: false,
             removeUnusedCss: false,
-            minifyUrls: false
+            minifyUrls: false,
+            minifyConditionalComments: false
         });
+
+        expect(ampSafePreset.minifyConditionalComments).toBe(false);
     });
 });
 

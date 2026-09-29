@@ -5,6 +5,7 @@ import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLNodeLike, PostHTMLTreeLik
 // Spec: https://docs.microsoft.com/en-us/previous-versions/windows/internet-explorer/ie-developer/compatibility/ms537512(v=vs.85)
 const CONDITIONAL_COMMENT_HIDDEN_REGEXP = /(<!--\[if\s+?[^<>[\]]+?]>)([\s\S]*?)(<!\[endif\]-->)/gm;
 const CONDITIONAL_COMMENT_REVEALED_REGEXP = /(<!--\[if\s+?[^<>[\]]+?\]><!-->)([\s\S]*?)(<!--<!\[endif\]-->)/gm;
+const CONDITIONAL_COMMENT_START_REGEXP = /<!--\[if\s/i;
 
 async function minifyConditionalComments(tree: PostHTMLTreeLike, htmlnanoOptions: Partial<HtmlnanoOptions>): Promise<PostHTMLTreeLike>;
 async function minifyConditionalComments(tree: PostHTMLNodeLike[], htmlnanoOptions: Partial<HtmlnanoOptions>): Promise<PostHTMLNodeLike[]>;
@@ -62,6 +63,44 @@ function hasHtmlOpeningWithoutClosing(content: string) {
     return /<html\b/i.test(content) && !/<\/html>/i.test(content);
 }
 
+function hasUnclosedQuotedAttribute(content: string) {
+    let isInsideTag = false;
+    let quote: '"' | '\'' | null = null;
+
+    for (let i = 0; i < content.length; i++) {
+        const character = content[i];
+
+        if (!isInsideTag) {
+            if (character === '<' && /[A-Za-z!?/]/.test(content[i + 1] ?? '')) {
+                isInsideTag = true;
+            }
+            continue;
+        }
+
+        if (quote) {
+            if (character === quote) {
+                quote = null;
+            }
+            continue;
+        }
+
+        if (character === '"' || character === '\'') {
+            quote = character;
+        } else if (character === '>') {
+            isInsideTag = false;
+        }
+    }
+
+    return quote !== null;
+}
+
+function shouldPreserveContent(content: string) {
+    // The regular expressions deliberately handle only flat wrappers. Passing a
+    // partial nested match back through htmlnano can move an inner closing marker.
+    // Likewise, PostHTML may discard a tag whose quoted attribute never closes.
+    return CONDITIONAL_COMMENT_START_REGEXP.test(content) || hasUnclosedQuotedAttribute(content);
+}
+
 async function minifyContentInsideConditionalComments(text: string, htmlnanoOptions: Partial<HtmlnanoOptions>) {
     const matches = [
         ...collectConditionalCommentMatches(text, CONDITIONAL_COMMENT_HIDDEN_REGEXP),
@@ -77,6 +116,12 @@ async function minifyContentInsideConditionalComments(text: string, htmlnanoOpti
 
     for (const match of matches) {
         result += text.slice(lastIndex, match.start);
+
+        if (shouldPreserveContent(match.content)) {
+            result += text.slice(match.start, match.end);
+            lastIndex = match.end;
+            continue;
+        }
 
         const processed = await processHtml(match.content, htmlnanoOptions, {}, {});
         let minified = processed.html;

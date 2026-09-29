@@ -1,9 +1,16 @@
+import { expect } from 'expect';
+import { performance } from 'node:perf_hooks';
 import { init } from '../htmlnano.ts';
+import { process as processHtml } from '../../dist/index.mjs';
 import safePreset from '../../dist/presets/safe.mjs';
 import type { HtmlnanoOptions } from '../../src/types.js';
 
 describe('minifyConditionalComments', () => {
     const safePresetOptions = safePreset as HtmlnanoOptions;
+    const safeOptionsWithConditionalComments = {
+        ...safePresetOptions,
+        minifyConditionalComments: true
+    } satisfies HtmlnanoOptions;
     const fixture = {
         fullHtml: `
 <!DOCTYPE html>
@@ -67,6 +74,71 @@ describe('minifyConditionalComments', () => {
         emptyConditionalComment: '<!--[if IE 7]><![endif]-->',
         endConditionalComment: '<!--<![endif]-->'
     };
+
+    const evaluationFixtures = [
+        {
+            name: 'downlevel-hidden nested markup',
+            input: '<!--[if IE]><div class="legacy">  <span> Old IE </span> </div><![endif]-->',
+            expected: '<!--[if IE]><div class=legacy> <span> Old IE </span> </div><![endif]-->'
+        },
+        {
+            name: 'downlevel-revealed nested markup',
+            input: '<!--[if !IE]><!--><section class="modern">  <strong> Modern </strong> </section><!--<![endif]-->',
+            expected: '<!--[if !IE]><!--><section class=modern> <strong> Modern </strong> </section><!--<![endif]-->'
+        },
+        {
+            name: 'styles and scripts',
+            input: '<!--[if IE]><style type="text/css"> .legacy { color: red; } </style><script type="text/javascript"> var total = 1 + 2; </script><![endif]-->',
+            expected: '<!--[if IE]><style type=text/css>.legacy{color:red}</style><script type=text/javascript>var total=3;</script><![endif]-->'
+        },
+        {
+            name: 'malformed partial wrapper',
+            input: '<!--[if IE]><div class="legacy"> partial </div>-->',
+            expected: '<!--[if IE]><div class="legacy"> partial </div>-->'
+        },
+        {
+            name: 'opening html without a closing tag',
+            input: '<!--[if IE]><html class="no-js ie"><body><p> Old IE </p><![endif]-->',
+            expected: '<!--[if IE]><html class="ie no-js"><body><p> Old IE <![endif]-->'
+        },
+        {
+            name: 'multiple comments in one text node',
+            input: 'A<!--[if IE 7]><div> seven </div><![endif]-->B<!--[if IE 8]><div> eight </div><![endif]-->C',
+            expected: 'A<!--[if IE 7]><div> seven </div><![endif]-->B<!--[if IE 8]><div> eight </div><![endif]-->C'
+        },
+        {
+            name: 'nested conditional comments',
+            input: '<!--[if IE]><div> outer </div><!--[if IE 8]><span> inner </span><![endif]--><p> end </p><![endif]-->',
+            // PostHTML treats the inner close as the outer comment's close. The
+            // module must not recursively parse and further alter that result.
+            expected: '<!--[if IE]><div> outer </div><!--[if IE 8]><span> inner </span><![endif]--><p> end </p>'
+        },
+        {
+            name: 'invalid inner html',
+            input: '<!--[if IE]><div data-label="unterminated>content</div><![endif]-->',
+            expected: '<!--[if IE]><div data-label="unterminated>content</div><![endif]-->'
+        }
+    ];
+
+    async function processWithSafeOptions(input: string, minifyConditionalComments: boolean) {
+        const options = minifyConditionalComments ? safeOptionsWithConditionalComments : safePresetOptions;
+        const result = await processHtml(input, options, {}, {});
+        return String(result.html);
+    }
+
+    async function measureFixtures(minifyConditionalComments: boolean) {
+        const start = performance.now();
+        let outputBytes = 0;
+
+        for (const { input } of evaluationFixtures) {
+            outputBytes += Buffer.byteLength(await processWithSafeOptions(input, minifyConditionalComments));
+        }
+
+        return {
+            outputBytes,
+            processingTimeMs: performance.now() - start
+        };
+    }
 
     it('common html', () => {
         return init(
@@ -150,5 +222,30 @@ describe('minifyConditionalComments', () => {
                 minifyConditionalComments: true
             }
         );
+    });
+
+    describe('safe preset evaluation', () => {
+        for (const { name, input, expected } of evaluationFixtures) {
+            it(name, async () => {
+                expect(await processWithSafeOptions(input, true)).toBe(expected);
+            });
+        }
+
+        it('measures aggregate size and processing time with the actual safe options', async () => {
+            const disabled = await measureFixtures(false);
+            const enabled = await measureFixtures(true);
+
+            expect({
+                disabledBytes: disabled.outputBytes,
+                enabledBytes: enabled.outputBytes,
+                rawBytesSaved: disabled.outputBytes - enabled.outputBytes
+            }).toStrictEqual({
+                disabledBytes: 671,
+                enabledBytes: 645,
+                rawBytesSaved: 26
+            });
+            expect(disabled.processingTimeMs).toBeGreaterThan(0);
+            expect(enabled.processingTimeMs).toBeGreaterThan(0);
+        });
     });
 });
