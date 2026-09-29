@@ -731,7 +731,8 @@ Removes elements that have no meaningful content.
   but with your own list of attributes that don't prevent the removal.
 - `{ removeWithAttributes: true }` — removes empty elements no matter what they carry.
 
-Empty elements are defined as elements with no child elements and only whitespace/comments as content.
+Empty elements are defined as elements with no child elements and no text content; comments do not count as content.
+Whitespace is text content and is preserved because it can separate inline content or be significant in preformatted text.
 Void elements (like `<img>` or `<br>`) are never removed, and neither are elements that
 keep doing their job while empty, whatever `removeWithAttributes` says:
 

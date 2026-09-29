@@ -129,7 +129,7 @@ function isCustomElement(tag: string) {
 }
 
 function isIgnorableText(text: string) {
-    return isComment(text) || text.trim() === '';
+    return text === '' || isComment(text);
 }
 
 function isEmptyContent(content?: PostHTML.Node['content']) {

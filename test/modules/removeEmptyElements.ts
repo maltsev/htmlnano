@@ -144,9 +144,32 @@ describe('removeEmptyElements', () => {
         );
     });
 
-    it('should treat whitespace-only content as empty', () => {
+    it('should keep elements with whitespace-only content', () => {
         return init(
-            '<div>text<span>   </span></div>',
+            '<p>a<span> </span>b</p>',
+            '<p>a<span> </span>b</p>',
+            { removeEmptyElements: true }
+        );
+    });
+
+    it('should keep whitespace-only content in preformatted text with the max preset', () => {
+        const html = '<pre><code>a<span>    </span>b</code><span>\n</span>x</pre>';
+        return htmlnano.process(html, {}, htmlnano.presets.max)
+            .then(result => expect(result.html).toBe(html));
+    });
+
+    it('should keep whitespace alongside comments', () => {
+        const html = '<p>a<span><!-- separator --> </span>b</p>';
+        return init(
+            html,
+            html,
+            { removeEmptyElements: true }
+        );
+    });
+
+    it('should still treat comment-only content as empty', () => {
+        return init(
+            '<div>text<span><!-- comment --></span></div>',
             '<div>text</div>',
             { removeEmptyElements: true }
         );
