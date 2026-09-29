@@ -7,6 +7,16 @@ Currently the following presets are available:
 - [ampSafe](https://github.com/maltsev/htmlnano/blob/master/src/presets/ampSafe.ts) — same as `safe` but tailored for [AMP pages](https://www.ampproject.org/).
 - [max](https://github.com/maltsev/htmlnano/blob/master/src/presets/max.ts) — maximal minification (might break some pages).
 
+## `safe` compatibility contract
+
+`safe` preserves browser-parsed HTML behavior, not the original source. It may
+simplify syntax and remove empty or redundant whitespace when the result parses
+as an equivalent HTML document or fragment.
+
+It does not guarantee preservation of `outerHTML`, attribute presence or order,
+comments removed by `removeComments: 'safe'`, or XHTML/XML serialization.
+`ampSafe` follows the same contract while keeping the output valid AMP HTML.
+
 `max` enables lossy modules on purpose. The most visible one is
 [`removeEmptyElements`](./modules#removeemptyelements) with
 `removeWithAttributes: 'presentational'`: empty elements whose attributes are all

@@ -1,7 +1,8 @@
 import type { HtmlnanoPreset } from '../types';
 
 /**
- * Minify HTML in a safe way without breaking anything.
+ * Preserve browser-parsed HTML behavior under standards-compliant HTML parsing.
+ * Source serialization and XHTML/XML compatibility are not guaranteed.
  */
 export default {
     /* ----------------------------------------
@@ -11,15 +12,17 @@ export default {
     // normalizeAttributeValues will also normalize property value with invalid value default
     // See https://html.spec.whatwg.org/#invalid-value-default
     normalizeAttributeValues: true,
+    // Attribute presence and source spelling are not guaranteed when browser behavior is unchanged.
     removeEmptyAttributes: true,
     collapseAttributeWhitespace: true,
     // removeRedundantAttributes will remove attributes when missing value default matches the attribute's value
     // See https://html.spec.whatwg.org/#missing-value-default
     removeRedundantAttributes: false,
     // removeXmlLeftovers removes XHTML-era leftovers meaningless in HTML documents.
-    // Max preset only, since it changes documents that are re-served as XHTML/XML.
+    // It remains disabled here, but the safe contract does not guarantee XHTML/XML compatibility.
     removeXmlLeftovers: false,
-    // collapseBooleanAttributes will also collapse those default state can be omitted
+    // Equivalent HTML syntax changes, including collapsed boolean attributes, are allowed.
+    // collapseBooleanAttributes will also collapse those default state can be omitted.
     collapseBooleanAttributes: {
         amphtml: false
     },
@@ -37,11 +40,16 @@ export default {
     /* ----------------------------------------
      * Minify HTML content
      * ---------------------------------------- */
+    // Empty/redundant whitespace may be removed when browser-parsed behavior is preserved.
     collapseWhitespace: 'conservative',
+    // Character-reference spelling is source serialization, not part of the compatibility promise.
     minifyCharacterReferences: true,
+    // Comments covered by the safe mode are an explicit exception to DOM/source preservation.
     removeComments: 'safe',
     removeEmptyElements: false,
     minifyConditionalComments: false,
+    // The contract permits these syntax reductions when the parsed HTML result stays equivalent.
+    // They remain disabled until separately validated and enabled.
     removeOptionalTags: false,
     normalizeDoctype: false,
     removeAttributeQuotes: false,

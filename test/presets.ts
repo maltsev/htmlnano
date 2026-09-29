@@ -148,19 +148,40 @@ describe('[fixture corpus]', () => {
         }
     });
 
-    // Safe-preset output must survive a parse/render round-trip.
-    //
-    // We cannot compare a bare `posthtml([])` re-render directly against
-    // htmlnano's output, because htmlnano renders with different options than
-    // posthtml's defaults (e.g. collapsed boolean attributes, and inline SVG
-    // subtrees pre-rendered with quoteAllAttributes + slash-closed void tags).
-    // Those are renderer-config differences, not parser round-trip failures.
-    //
-    // The meaningful invariant is that `render(parse(x))` reaches a fixed point:
-    // once the output has passed through one parse/render cycle, a second cycle
-    // must not change it. That guards against emitting markup the parser cannot
-    // faithfully reproduce.
-    describe('round-trip parse validity (safe)', () => {
+    // The safe preset preserves browser-parsed HTML behavior, not source
+    // serialization. This representative case pins that boundary without
+    // attempting the comprehensive equivalence harness: equivalent boolean and
+    // character-reference syntax may change, as may empty attributes, safe
+    // comments and redundant whitespace.
+    describe('browser-parsed HTML compatibility contract (safe)', () => {
+        it('allows serialization differences while preserving browser-parsed behavior', () => {
+            const input = [
+                '<form class="">',
+                '<input disabled="disabled" title="Tom&#x20;Sawyer">',
+                '<!-- removable -->',
+                '<p>Alpha   Beta</p>',
+                '</form>'
+            ].join('');
+            const expected = '<form><input disabled title="Tom Sawyer"><p>Alpha Beta</p></form>';
+
+            return minify(input, safePreset).then((output) => {
+                expect(output).toBe(expected);
+                expect(output).not.toBe(input);
+            });
+        });
+
+        // Safe-preset output must also survive a parse/render round-trip.
+        //
+        // We cannot compare a bare `posthtml([])` re-render directly against
+        // htmlnano's output, because htmlnano renders with different options than
+        // posthtml's defaults (e.g. collapsed boolean attributes, and inline SVG
+        // subtrees pre-rendered with quoteAllAttributes + slash-closed void tags).
+        // Those are renderer-config differences, not parser round-trip failures.
+        //
+        // The meaningful invariant is that `render(parse(x))` reaches a fixed point:
+        // once the output has passed through one parse/render cycle, a second cycle
+        // must not change it. That guards against emitting markup the parser cannot
+        // faithfully reproduce.
         for (const fixture of names) {
             it(`round-trips ${fixture}`, () => {
                 return minify(readFixture(fixture), safePreset).then((output) => {
