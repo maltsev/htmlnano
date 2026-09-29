@@ -125,8 +125,8 @@ describe('[fixture corpus]', () => {
     // the classic case, see removeOptionalTags) is re-added unless a module
     // knows how to leave it out. `preminified.html` is such an input — an
     // already-minified page htmlnano never produced — and `max` is the preset
-    // that claims to handle it (`safe` deliberately keeps optional tags and
-    // attribute quotes, so it may legitimately grow such a page).
+    // that claims to handle it (`safe` deliberately keeps optional tags, so it
+    // may legitimately grow such a page).
     describe('never grows already-minified markup', () => {
         it('max does not grow preminified.html', () => {
             const source = readFixture('preminified.html');

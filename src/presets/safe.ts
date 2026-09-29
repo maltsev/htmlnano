@@ -49,10 +49,10 @@ export default {
     removeEmptyElements: false,
     minifyConditionalComments: false,
     // The contract permits these syntax reductions when the parsed HTML result stays equivalent.
-    // They remain disabled until separately validated and enabled.
+    // Optional tags remain disabled until separately validated and enabled.
     removeOptionalTags: false,
     normalizeDoctype: false,
-    removeAttributeQuotes: false,
+    removeAttributeQuotes: true,
     /* ----------------------------------------
      * Minify inline <style>, <script> and <svg> tag
      * ---------------------------------------- */

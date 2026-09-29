@@ -7,8 +7,12 @@ import htmlnano from '../../dist/index.mjs';
 import { expect } from 'expect';
 
 describe('removeAttributeQuotes', () => {
-    const options = { ...safePreset, removeAttributeQuotes: true } as HtmlnanoOptions;
+    const options = safePreset as HtmlnanoOptions;
     const html = '<div class="foo" title="hello world"></div>';
+
+    it('should be enabled in the safe preset', () => {
+        expect(safePreset.removeAttributeQuotes).toBe(true);
+    });
 
     it('default behavior', () => {
         return init(
@@ -52,6 +56,14 @@ describe('removeAttributeQuotes', () => {
         );
     });
 
+    it('should keep quotes around values containing quotes', () => {
+        return init(
+            '<div data-x="it\'s"></div>',
+            '<div data-x="it\'s"></div>',
+            options
+        );
+    });
+
     it('should keep quotes around values containing ">"', () => {
         return init(
             '<div data-x="a>b"></div>',
@@ -73,7 +85,7 @@ describe('removeAttributeQuotes', () => {
         return init(
             '<div data-x=""></div>',
             '<div data-x></div>',
-            { removeAttributeQuotes: true }
+            options
         );
     });
 
@@ -124,6 +136,38 @@ describe('removeAttributeQuotes', () => {
         return init(
             '<input disabled="disabled" name="foo">',
             '<input disabled name=foo>',
+            options
+        );
+    });
+
+    it('should handle event-handler output', () => {
+        return init(
+            '<button onclick="alert(1); return false"></button>',
+            '<button onclick="return alert(1),!1"></button>',
+            options
+        );
+    });
+
+    it('should keep JSON-like attribute values quoted', () => {
+        return init(
+            '<div data-config=\'{"enabled":true}\'></div>',
+            '<div data-config=\'{"enabled":true}\'></div>',
+            options
+        );
+    });
+
+    it('should preserve quotes added by SVG minification', () => {
+        return init(
+            '<svg viewBox="0 0 10 10"><path d="M0 0h10v10z" fill="red"/></svg>',
+            '<svg viewBox="0 0 10 10"><path fill="red" d="M0 0h10v10z"/></svg>',
+            options
+        );
+    });
+
+    it('should remove optional quotes from custom and data attributes', () => {
+        return init(
+            '<x-card custom-attribute="enabled" data-state="ready"></x-card>',
+            '<x-card custom-attribute=enabled data-state=ready></x-card>',
             options
         );
     });
