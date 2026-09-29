@@ -20,7 +20,7 @@ describe('minifyConditionalComments', () => {
         <![endif]-->
     </head>
 </html>`,
-        fullHtmlMinified: '<!DOCTYPE html><html class=no-js><head><meta content="IE=edge,chrome=1" http-equiv=X-UA-Compatible><meta charset=utf-8><!--[if lte IE 7]><style type=text/css>.title{color:red}</style><![endif]-->',
+        fullHtmlMinified: '<!doctype html><html class=no-js><head><meta content="IE=edge,chrome=1" http-equiv=X-UA-Compatible><meta charset=utf-8><!--[if lte IE 7]><style type=text/css>.title{color:red}</style><![endif]-->',
         multipleConditionalComment: `
 <!--[if lt IE 7 ]>
     <div class="ie6">
