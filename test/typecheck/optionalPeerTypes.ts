@@ -8,7 +8,8 @@ import type {
     HtmlnanoMinifyJsOptions,
     HtmlnanoMinifySvgOptions,
     HtmlnanoOptions,
-    HtmlnanoPurgeCssOptions
+    HtmlnanoPurgeCssOptions,
+    RemoveOptionalTagsOptions
 } from '../../src/types.js';
 
 type AssertTrue<T extends true> = T;
@@ -65,4 +66,12 @@ export type PurgeCssCompatibleFieldCompatibility = AssertAllTrue<{
 
 export type HtmlnanoAcceptsPurgeCssOptions = AssertTrue<IsAssignable<{
     removeUnusedCss: HtmlnanoPurgeCssOptions;
+}, HtmlnanoOptions>>;
+
+export type RemoveOptionalTagsOptionShape = AssertTrue<IsEqual<
+    NonNullable<HtmlnanoOptions['removeOptionalTags']>,
+    boolean | RemoveOptionalTagsOptions
+>>;
+export type HtmlnanoAcceptsConservativeOptionalTags = AssertTrue<IsAssignable<{
+    removeOptionalTags: { removeStartTags: false };
 }, HtmlnanoOptions>>;

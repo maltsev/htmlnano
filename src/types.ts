@@ -22,6 +22,10 @@ export type HtmlnanoTemplateRule = {
     attrs?: Record<string, string | boolean | void>;
 };
 export type MinifyHtmlTemplateOptions = boolean | HtmlnanoTemplateRule[];
+export interface RemoveOptionalTagsOptions {
+    /** Retain optional structural start tags while still removing eligible end tags when `false`. */
+    removeStartTags?: boolean;
+}
 export type HtmlnanoMinifyCssOptions = object;
 export type HtmlnanoMinifyJsOptions = object;
 export type HtmlnanoMinifySvgOptions = object;
@@ -115,7 +119,7 @@ export interface HtmlnanoOptions {
     };
     removeRedundantAttributes?: boolean;
     removeXmlLeftovers?: boolean;
-    removeOptionalTags?: boolean;
+    removeOptionalTags?: boolean | RemoveOptionalTagsOptions;
     removeUnusedCss?: boolean
         | HtmlnanoPurgeCssOptions
         | {

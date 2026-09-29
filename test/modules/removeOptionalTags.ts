@@ -25,11 +25,75 @@ describe('removeOptionalTags', () => {
         return init(input, expected, options);
     });
 
-    it('document example', () => {
+    it('true produces the existing output', () => {
         const input = '<html><head><title>Title</title></head><body><p>Hi</p></body></html>';
         const expected = '<title>Title</title><p>Hi';
 
         return init(input, expected, options);
+    });
+
+    it('{ removeStartTags: true } produces the existing output', () => {
+        const input = '<html><head><title>Title</title></head><body><p>Hi</p></body></html>';
+        const expected = '<title>Title</title><p>Hi';
+
+        return init(input, expected, { removeOptionalTags: { removeStartTags: true } });
+    });
+
+    it('attributes still prevent only start-tag omission', () => {
+        const input = '<html lang="en"><head class="head"><title>Title</title></head><body class="body"><p>Hi</p></body></html>';
+        const expected = '<html lang="en"><head class="head"><title>Title</title><body class="body"><p>Hi';
+
+        return init(input, expected, { removeOptionalTags: { removeStartTags: true } });
+    });
+
+    context('{ removeStartTags: false }', () => {
+        const conservativeOptions = {
+            removeOptionalTags: { removeStartTags: false }
+        };
+
+        it('retains structural start tags while omitting eligible end tags', () => {
+            const input = '<html><head><title>Title</title></head><body><table><colgroup><col></colgroup><tbody><tr><td>Cell</td></tr></tbody></table></body></html>';
+            const expected = '<html><head><title>Title</title><body><table><colgroup><col><tbody><tr><td>Cell</table>';
+
+            return init(input, expected, conservativeOptions);
+        });
+
+        it('keeps end tags whose omission is blocked by whitespace', () => {
+            const input = '<html><head><title>Title</title></head> <body><p>Hi</p></body></html>';
+            const expected = '<html><head><title>Title</title></head> <body><p>Hi';
+
+            return init(input, expected, conservativeOptions);
+        });
+
+        it('keeps end tags whose omission is blocked by comments', () => {
+            const input = '<html><head><title>Title</title></head><body><p>Hi</p></body><!-- inside --></html><!-- after -->';
+            const expected = '<html><head><title>Title</title><body><p>Hi</body><!-- inside --></html><!-- after -->';
+
+            return init(input, expected, conservativeOptions);
+        });
+
+        it('keeps SVG and MathML end tags explicit', () => {
+            const input = '<svg><foreignObject><p>one</p></foreignObject></svg><math><mtext><p>two</p></mtext></math>';
+
+            return init(input, input, conservativeOptions);
+        });
+
+        it('respects a non-default closingSingleTag renderer option', () => {
+            const input = '<html><head><title>Title</title></head><body><p>Hi</p></body></html>';
+
+            return initWithPostHtmlOptions(input, input, conservativeOptions, { closingSingleTag: 'slash' });
+        });
+
+        it('is idempotent', () => {
+            const input = '<html><head><title>Title</title></head><body><table><tbody><tr><td>Cell</td></tr></tbody></table></body></html>';
+            const process = (html: string) => posthtml([htmlnano(conservativeOptions, {})])
+                .process(html)
+                .then(result => String(result.html));
+
+            return process(input).then(async (first) => {
+                expect(await process(first)).toBe(first);
+            });
+        });
     });
 
     context('attributes only block the start tag of their own element', () => {

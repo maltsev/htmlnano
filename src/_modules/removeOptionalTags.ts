@@ -1,6 +1,12 @@
 import type PostHTML from 'posthtml';
 import { isComment } from '../helpers';
-import type { HtmlnanoModule, PostHTMLNodeLike, PostHTMLTreeLike } from '../types';
+import type { HtmlnanoModule, PostHTMLNodeLike, PostHTMLTreeLike, RemoveOptionalTagsOptions } from '../types';
+
+type RemoveOptionalTagsConfig = boolean | RemoveOptionalTagsOptions;
+
+interface NormalizedOptions {
+    removeStartTags: boolean;
+}
 
 const startWithWhitespacePattern = /^\s/;
 
@@ -131,8 +137,17 @@ interface OmissionContext {
     canOmitEndTagAlone: boolean;
     /** Whether the document is parsed in no-quirks mode. */
     isNoQuirksMode: boolean;
+    /** Whether eligible structural start tags may be omitted. */
+    removeStartTags: boolean;
     /** Set once an end tag has actually been omitted on its own. */
     usedCloseAs: boolean;
+}
+
+function normalizeOptions(moduleOptions: Partial<RemoveOptionalTagsConfig>): NormalizedOptions {
+    return {
+        removeStartTags: typeof moduleOptions !== 'object' || moduleOptions === null
+            || moduleOptions.removeStartTags !== false
+    };
 }
 
 function isEmptyTextNode(node: PostHTMLNodeLike) {
@@ -442,7 +457,8 @@ function removeOptionalTagsFrom(nodes: PostHTMLNodeLike[], parent: PostHTML.Node
             && context.endTagOmittedNodes.has(prevNode);
 
         const isEndTagOmittable = optionalEndTags.has(tagName) && canOmitEndTag(tagName, nextNode, parent, context);
-        const isStartTagOmittable = optionalStartTags.has(tagName)
+        const isStartTagOmittable = context.removeStartTags
+            && optionalStartTags.has(tagName)
             && canOmitStartTag(node, tagName, prevNode, isPrevEndTagOmitted);
 
         if (isStartTagOmittable && isEndTagOmittable) {
@@ -474,8 +490,13 @@ function isNoQuirksDocument(tree: PostHTMLTreeLike) {
     return false;
 }
 
-function removeOptionalTags(tree: PostHTMLTreeLike) {
+function removeOptionalTags(
+    tree: PostHTMLTreeLike,
+    _options: unknown,
+    moduleOptions: Partial<RemoveOptionalTagsConfig>
+) {
     tree.options ??= {};
+    const normalizedOptions = normalizeOptions(moduleOptions);
 
     /*
      * posthtml-render can only skip a single end tag when it renders with
@@ -488,6 +509,7 @@ function removeOptionalTags(tree: PostHTMLTreeLike) {
         endTagOmittedNodes: new WeakSet(),
         canOmitEndTagAlone: closingSingleTag === undefined || closingSingleTag === 'closeAs',
         isNoQuirksMode: isNoQuirksDocument(tree),
+        removeStartTags: normalizedOptions.removeStartTags,
         usedCloseAs: false
     };
 
@@ -514,7 +536,7 @@ function removeOptionalTags(tree: PostHTMLTreeLike) {
 
 // Specification https://html.spec.whatwg.org/multipage/syntax.html#optional-tags
 /** Remove optional tag in the DOM */
-const mod: HtmlnanoModule = {
+const mod: HtmlnanoModule<RemoveOptionalTagsConfig> = {
     default: removeOptionalTags
 };
 
