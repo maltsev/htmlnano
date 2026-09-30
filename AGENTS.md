@@ -87,5 +87,5 @@ You can only omit `npm run build` if you haven't changed the main code, only the
 - Modules live in `src/_modules/` and export a default `HtmlnanoModule`.
 - Presets live in `src/presets/` and list enabled module keys.
 - Add tests in `test/modules/` for new modules.
-- Update docs for new modules or preset changes.
+- Update docs for new modules or preset changes. `docs/versioned_docs/` contains the docs for the released version, so don't update them unless it also applies for the currently released version.
 - Each module should handle only its own related minifications. For example, `mergeScripts` shouldn't care about white spaces between `<script>` tags as they'll be handled by `collapseWhitespaces`.
