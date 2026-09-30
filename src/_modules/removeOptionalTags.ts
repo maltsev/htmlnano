@@ -331,7 +331,12 @@ function canOmitEndTag(
         /** An "rt" or "rp" element's end tag may be omitted if it is IMMEDIATELY followed by an "rt" or "rp" element, or if there is no more content in the parent element. */
         case 'rt':
         case 'rp':
-            return (typeof nextTagName === 'string' && rubyEndTagFollowedByTags.has(nextTagName))
+            // At the top level this may be a fragment parsed in a <ruby>
+            // context. Unlike a literal wrapping <ruby>, that context element
+            // is not on the fragment parser's open-elements stack, so omitted
+            // end tags make the following rt/rp elements nest instead of close
+            // their predecessors.
+            return (parent !== null && typeof nextTagName === 'string' && rubyEndTagFollowedByTags.has(nextTagName))
                 || (isLastInParent && canOmitLastChildEndTag(tagName, parent));
 
         /** An "optgroup" element's end tag may be omitted if it is IMMEDIATELY followed by another "optgroup" element, or if there is no more content in the parent element. */

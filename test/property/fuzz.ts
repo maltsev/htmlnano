@@ -4,8 +4,11 @@ import { parser } from 'posthtml-parser';
 import { render } from 'posthtml-render';
 import htmlnano from '../../dist/index.mjs';
 import safePreset from '../../dist/presets/safe.mjs';
+import ampSafePreset from '../../dist/presets/ampSafe.mjs';
 import maxPreset from '../../dist/presets/max.mjs';
 import type { HtmlnanoPreset } from '../../src';
+import { assertSafeDomEquivalent } from '../dom-equivalence.ts';
+import type { DomParseOptions, SafePresetName } from '../dom-equivalence.ts';
 
 /*
  * Property-based fuzz tests
@@ -97,6 +100,91 @@ function documentArb(): fc.Arbitrary<string> {
     return fc.array(nodeArb(), { minLength: 1, maxLength: 5 }).map(nodes => render(nodes as never));
 }
 
+interface DomFuzzCase {
+    html: string;
+    parse: DomParseOptions;
+}
+
+const wordArb = fc.constantFrom('alpha', 'beta', 'gamma', 'delta', 'café', '日本語');
+const unquotedValueArb = fc.stringMatching(/^[a-z][a-z0-9-]{0,10}$/);
+
+/**
+ * Browser-tree-sensitive markup, generated as source rather than a PostHTML
+ * tree so the HTML parser gets to exercise insertion modes and namespaces.
+ */
+function domFuzzCaseArb(): fc.Arbitrary<DomFuzzCase> {
+    const list = fc.tuple(wordArb, wordArb, wordArb).map(items => ({
+        html: `<ul><li>${items[0]}</li><li>${items[1]}</li><li>${items[2]}</li></ul>`,
+        parse: { kind: 'fragment' } as const
+    }));
+
+    const table = fc.tuple(wordArb, wordArb).map(([first, second]) => ({
+        html: `<table>before<tbody><tr><th>label</th><td>${first}</td></tr><tr><td colspan=2>${second}</td></tr></tbody>after</table>`,
+        parse: { kind: 'fragment' } as const
+    }));
+
+    const tableContext = fc.tuple(wordArb, wordArb).map(([first, second]) => ({
+        html: `<tr><td>${first}</td><td>${second}</td></tr>`,
+        parse: { kind: 'fragment', context: { tagName: 'tbody' } } as const
+    }));
+
+    const ruby = fc.tuple(wordArb, wordArb).map(([base, annotation]) => ({
+        html: `<ruby><rb>${base}</rb><rp>(</rp><rt>${annotation}</rt><rp>)</rp></ruby>`,
+        parse: { kind: 'fragment' } as const
+    }));
+
+    const options = fc.tuple(wordArb, wordArb).map(([first, second]) => ({
+        html: `<option value=${first} selected=selected>${first}</option><option value=${second}>${second}</option>`,
+        parse: { kind: 'fragment', context: { tagName: 'select' } } as const
+    }));
+
+    const foreignContent = wordArb.map(label => ({
+        html: `<svg viewBox="0 0 10 10"><title>${label}</title><path d="M0 0L10 10"></path><foreignObject><p>${label}</p></foreignObject></svg><math><mi>x</mi><mo>+</mo><mn>1</mn></math>`,
+        parse: { kind: 'fragment' } as const
+    }));
+
+    const customElement = fc.tuple(unquotedValueArb, wordArb).map(([kind, label]) => ({
+        html: `<x-card data-kind=${kind} hidden=hidden><input disabled=disabled required>${label}</x-card>`,
+        parse: { kind: 'fragment' } as const
+    }));
+
+    const template = fc.tuple(wordArb, wordArb).map(([first, second]) => ({
+        html: `<template><table><tr><td>${first}</td></tr></table><ol><li>${second}</li></ol></template>`,
+        parse: { kind: 'fragment' } as const
+    }));
+
+    const fullDocument = fc.record({
+        doctype: fc.constantFrom(
+            '<!doctype html>',
+            '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">',
+            ''
+        ),
+        language: unquotedValueArb,
+        title: wordArb,
+        body: fc.constantFrom(
+            '<ol><li>one</li><li>two</li></ol>',
+            '<table><tr><td>cell</td></tr></table>',
+            '<my-widget enabled=enabled>custom</my-widget>',
+            '<ruby>base<rt>note</rt></ruby>'
+        )
+    }).map(({ doctype, language, title, body }) => ({
+        html: `${doctype}<html lang=${language}><head><title>${title}</title></head><body>${body}</body></html>`,
+        parse: { kind: 'document' } as const
+    }));
+
+    return fc.oneof(
+        list,
+        table,
+        tableContext,
+        ruby,
+        options,
+        foreignContent,
+        customElement,
+        template,
+        fullDocument
+    );
+}
+
 // Extract the text inside <pre>/<textarea> from an HTML string, as the parser
 // sees it. Comparing input-parsed vs output-parsed protected text sidesteps
 // insignificant serialization differences while still catching any mutation of
@@ -128,6 +216,11 @@ function minify(html: string, preset: HtmlnanoPreset): Promise<string> {
 const PRESETS: Array<[string, HtmlnanoPreset]> = [
     ['safe', safePreset],
     ['max', maxPreset]
+];
+
+const DOM_PRESETS: Array<[SafePresetName, HtmlnanoPreset]> = [
+    ['safe', safePreset],
+    ['ampSafe', ampSafePreset]
 ];
 
 describe('[property] htmlnano fuzz', () => {
@@ -202,4 +295,16 @@ describe('[property] htmlnano fuzz', () => {
             })
         );
     });
+
+    for (const [name, preset] of DOM_PRESETS) {
+        it(`[${name}] preserves the browser-parsed DOM`, function () {
+            this.timeout(20000);
+            return fc.assert(
+                fc.asyncProperty(domFuzzCaseArb(), async (testCase) => {
+                    const output = await minify(testCase.html, preset);
+                    assertSafeDomEquivalent(testCase.html, output, name, testCase.parse);
+                })
+            );
+        });
+    }
 });

@@ -8,6 +8,8 @@ import safePreset from '../dist/presets/safe.mjs';
 import ampSafePreset from '../dist/presets/ampSafe.mjs';
 import maxPreset from '../dist/presets/max.mjs';
 import type { HtmlnanoOptions, HtmlnanoPreset } from '../src';
+import { assertSafeDomEquivalent } from './dom-equivalence.ts';
+import type { DomParseOptions, SafePresetName } from './dom-equivalence.ts';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const pagesDir = path.join(dirname, 'fixtures', 'pages');
@@ -107,6 +109,11 @@ describe('optional-tag preset settings', () => {
         expect(once).toContain('<html amp');
         expect(once).toContain('<head>');
         expect(once).toContain('<body>');
+        expect(once).toContain('<script async src=https://cdn.ampproject.org/v0.js></script>');
+        expect(once).toContain('<link rel=canonical href=https://example.com/amp-page.html>');
+        expect(once).toContain('<style amp-boilerplate>');
+        expect(once).toContain('<noscript><style amp-boilerplate>');
+        expect(once).toContain('<style amp-custom>');
         expect(once).toContain('<table><thead><tr><th>Label</thead> <tbody><tr><td>Value</table>');
         expect(once).toContain('<ul><li>One<li>Two</ul>');
         expect(once).toContain('<template type=amp-mustache><ul><li>{{item}}</ul></template>');
@@ -170,6 +177,15 @@ describe('[fixture corpus]', () => {
                         assertSnapshot(snapshotName, output);
                     });
                 });
+
+                if (presetName === 'safe' || presetName === 'ampSafe') {
+                    it(`browser DOM equivalent ${fixture}`, () => {
+                        const source = readFixture(fixture);
+                        return minify(source, preset).then((output) => {
+                            assertSafeDomEquivalent(source, output, presetName, { kind: 'document' });
+                        });
+                    });
+                }
 
                 // Minification must reach a fixed point.
                 //
@@ -288,6 +304,93 @@ describe('[fixture corpus]', () => {
                     });
                 });
             });
+        }
+    });
+
+    describe('browser DOM edge cases (safe and ampSafe)', () => {
+        const documentCases: Array<{ name: string; html: string }> = [
+            {
+                name: 'no-quirks document with implied wrappers and tbody',
+                html: '<!doctype html><title>Standards</title><table><tr><td>A</td></tr></table>'
+            },
+            {
+                name: 'quirks document with explicit wrappers',
+                html: '<html><head><title>Quirks</title></head><body><p>One</p></body></html>'
+            },
+            {
+                name: 'foster-parented table content',
+                html: '<!doctype html><table><tbody>before<tr><td>A</td></tr>after</tbody></table>'
+            },
+            {
+                name: 'preserved comments adjacent to optional tags',
+                html: '<!doctype html><ul><li>one</li><!--!keep--><li>two</li></ul><p>three</p><!--!tail-->'
+            },
+            {
+                name: 'SVG and MathML namespaces',
+                html: '<!doctype html><svg viewBox="0 0 10 10"><title>Icon</title><foreignObject><p>HTML</p></foreignObject></svg><math><mi>x</mi><mo>+</mo><mn>1</mn></math>'
+            },
+            {
+                name: 'template content',
+                html: '<!doctype html><template id="row"><table><tr><td>A</td></tr></table></template>'
+            },
+            {
+                name: 'malformed but tolerated omitted end tags',
+                html: '<!doctype html><main><p>one<div>two</div><p>three<ul><li>four<li>five</ul></main>'
+            }
+        ];
+
+        const fragmentCases: Array<{ name: string; html: string; parse: DomParseOptions }> = [
+            {
+                name: 'table rows',
+                html: '<tr><td>A</td><td>B</td></tr>',
+                parse: { kind: 'fragment', context: { tagName: 'tbody' } }
+            },
+            {
+                name: 'table cells',
+                html: '<td>A</td><td>B</td>',
+                parse: { kind: 'fragment', context: { tagName: 'tr' } }
+            },
+            {
+                name: 'select options',
+                html: '<option selected="selected">One</option><option>Two</option>',
+                parse: { kind: 'fragment', context: { tagName: 'select' } }
+            },
+            {
+                name: 'ruby annotations',
+                html: '<rb>base</rb><rt>annotation</rt><rp>(</rp><rt>fallback</rt><rp>)</rp>',
+                parse: { kind: 'fragment', context: { tagName: 'ruby' } }
+            },
+            {
+                name: 'SVG context',
+                html: '<circle cx="5" cy="5" r="4"></circle>',
+                parse: { kind: 'fragment', context: { tagName: 'svg', namespace: 'svg' } }
+            },
+            {
+                name: 'template context with implied tbody',
+                html: '<table><tr><td>A</td></tr></table>',
+                parse: { kind: 'fragment', context: { tagName: 'template' } }
+            }
+        ];
+
+        const safePresets: Array<{ name: SafePresetName; preset: HtmlnanoPreset }> = [
+            { name: 'safe', preset: safePreset },
+            { name: 'ampSafe', preset: ampSafePreset }
+        ];
+
+        for (const { name: presetName, preset } of safePresets) {
+            for (const testCase of documentCases) {
+                it(`${presetName}: ${testCase.name}`, async () => {
+                    const output = await minify(testCase.html, preset);
+                    assertSafeDomEquivalent(testCase.html, output, presetName, { kind: 'document' });
+                });
+            }
+
+            for (const testCase of fragmentCases) {
+                it(`${presetName}: fragment ${testCase.name}`, async () => {
+                    const output = await minify(testCase.html, preset);
+                    assertSafeDomEquivalent(testCase.html, output, presetName, testCase.parse);
+                });
+            }
         }
     });
 

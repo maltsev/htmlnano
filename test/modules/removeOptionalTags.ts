@@ -675,6 +675,12 @@ describe('removeOptionalTags', () => {
             return init(input, input, options);
         });
 
+        it('keeps top-level ruby end tags for fragment-context parsing', () => {
+            const input = '<rb>base</rb><rt>note</rt><rp>(</rp><rt>fallback</rt><rp>)</rp>';
+
+            return init(input, input, options);
+        });
+
         it('does not omit end tags when the renderer closes void elements itself', () => {
             const input = '<ul><li>one</li><li>two</li></ul>';
 
