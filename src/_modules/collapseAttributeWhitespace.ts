@@ -80,7 +80,6 @@ export const attributesWithSingleValue = new Map<string, Set<string>>([
     ['step', new Set(['input'])],
     ['style', new Set()],
     ['tabindex', new Set()],
-    ['usemap', new Set(['img', 'object'])],
     ['value', new Set(['li', 'meter', 'progress'])],
     ['width', new Set(['canvas', 'embed', 'iframe', 'img', 'input', 'object', 'video'])]
 ]);
@@ -256,7 +255,24 @@ export function collapseAttributeWhitespace(attrName: string, attrValue: string,
     }
 
     if (isSingleValueAttribute(attrName, tagName)) {
-        return attrValue.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '');
+        const trimmed = attrValue.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '');
+        // Empty URLs can have special behavior before URL parsing, e.g. a form
+        // action uses the document URL, whereas a space resolves against <base>.
+        if (!trimmed) return attrValue;
+
+        const attrNameLower = attrName.toLowerCase();
+        if (attrNameLower === 'step' && decodeHTMLAttribute(trimmed).toLowerCase() === 'any') {
+            // Unlike numbers, the keyword is matched without trimming.
+            return attrValue;
+        }
+
+        if (attrNameLower === 'style' && /[\\'"]/.test(decodeHTMLAttribute(attrValue))) {
+            // Trailing whitespace may belong to an escape or an unclosed string.
+            // Keep this check conservative rather than introducing a CSS parser.
+            return attrValue.replace(/^[\t\n\f\r ]+/, '');
+        }
+
+        return trimmed;
     }
 
     return attrValue;

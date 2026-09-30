@@ -75,6 +75,42 @@ describe('collapseAttributeWhitespace', () => {
         );
     });
 
+    for (const whitespaceOptions of [options, { minifyAttributes: { redundantWhitespaces: 'safe' as const } }, {
+        ...options,
+        minifyAttributes: { redundantWhitespaces: 'safe' as const }
+    }]) {
+        context(`syntax-sensitive trimming with ${Object.keys(whitespaceOptions).join(' and ')}`, () => {
+            for (const usemap of [' #map', '#map ', '\t#map\n']) {
+                it(`should preserve exact usemap references: ${JSON.stringify(usemap)}`, () => {
+                    const input = `<img usemap="${usemap}"><map name="map"><area href="/page"></map>`;
+                    return init(input, input, whitespaceOptions);
+                });
+            }
+
+            for (const step of [' any ', '\tANY\n', 'any ', ' &#97;ny ']) {
+                it(`should not turn padded step keywords into valid keywords: ${JSON.stringify(step)}`, () => {
+                    const input = `<input type="number" step="${step}">`;
+                    return init(input, input, whitespaceOptions);
+                });
+            }
+
+            it('should still trim padded numeric step values', () => {
+                return init('<input type="number" step="  0.5  ">', '<input type="number" step="0.5">', whitespaceOptions);
+            });
+
+            it('should preserve whitespace-only URL values', () => {
+                const input = '<base href="https://example.com/other/"><form action=" "><button formaction="\t ">go</button></form><iframe src=" "></iframe><img src=" "><object data=" "></object>';
+                return init(input, input, whitespaceOptions);
+            });
+
+            for (const style of ['--x:foo\\ ', '--x:\'foo  ', '--x:foo&#92; ', '--x:&apos;foo  ']) {
+                it(`should preserve CSS whitespace in escapes and strings: ${style}`, () => {
+                    return init(`<div style="  ${style}"></div>`, `<div style="${style}"></div>`, whitespaceOptions);
+                });
+            }
+        });
+    }
+
     it('should not alter non-list-like nor single value attributes', () => {
         return init(
             '<a id=" foo  bar " href=" baz  bar ">click</a>',
