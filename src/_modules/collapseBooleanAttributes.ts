@@ -56,6 +56,8 @@ const htmlBooleanAttributes = new Set([
     'visible'
 ]);
 
+const globalBooleanAttributes = new Set(['autofocus', 'hidden', 'inert', 'itemscope']);
+
 const amphtmlBooleanAttributes = new Set([
     '⚡',
     'amp',
@@ -154,7 +156,15 @@ const mod: HtmlnanoModule<CollapseBooleanAttributesOptions> = {
             for (const attrName of Object.keys(attrs)) {
                 const attrNameLower = attrName.toLowerCase();
 
-                if (attrNameLower === 'visible' && tagName.startsWith('a-')) {
+                // Custom elements define their own attribute values. Native
+                // element booleans and enums must not erase those strings;
+                // only global HTML states and explicitly enabled AMP flags apply.
+                if (
+                    tagName.includes('-')
+                    && !globalBooleanAttributes.has(attrNameLower)
+                    && attrNameLower !== 'popover'
+                    && !(moduleOptions.amphtml && amphtmlBooleanAttributes.has(attrNameLower))
+                ) {
                     continue;
                 }
 

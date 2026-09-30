@@ -1,4 +1,4 @@
-import { init } from '../htmlnano.ts';
+import { init, initIdempotent } from '../htmlnano.ts';
 import safePreset from '../../dist/presets/safe.mjs';
 import ampSafePreset from '../../dist/presets/ampSafe.mjs';
 
@@ -74,6 +74,22 @@ describe('collapseBooleanAttributes', () => {
             '<a-entity visible=""></a-entity>',
             '<a-entity visible=""></a-entity>',
             options
+        );
+    });
+
+    for (const [name, preset] of [['safe', safePreset], ['ampSafe', ampSafePreset]] as const) {
+        it(`${name} preserves custom element attribute values`, () => {
+            const input = '<my-widget enabled="enabled" disabled="false" checked="checked" crossorigin="anonymous" visible="false"></my-widget>';
+            const expected = '<my-widget enabled=enabled disabled=false checked=checked crossorigin=anonymous visible=false></my-widget>';
+            return initIdempotent(input, expected, preset);
+        });
+    }
+
+    it('still collapses global HTML states on custom elements', () => {
+        return initIdempotent(
+            '<my-widget hidden="hidden" inert="inert" itemscope="itemscope" autofocus="autofocus" popover="auto"></my-widget>',
+            '<my-widget hidden inert itemscope autofocus popover></my-widget>',
+            safePreset
         );
     });
 

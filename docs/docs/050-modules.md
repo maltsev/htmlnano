@@ -178,7 +178,10 @@ Minified:
 - Collapses `popover="auto"` (case-insensitive) to `popover`, since the empty string maps to the same state. `popover="manual"` and `popover="hint"` are left untouched.
 - Collapses the declarative shadow DOM template booleans `shadowrootclonable`, `shadowrootdelegatesfocus`, and `shadowrootserializable` (but not the enumerated `shadowrootmode`).
 - Leaves `hidden="until-found"` untouched, since it is a distinct state from the collapsed `hidden`.
-- Leaves `visible` untouched on A-Frame elements (`<a-*>`) to avoid breaking `visible="false"`.
+- Preserves attribute values on custom elements, including A-Frame's
+  `visible="false"` and attributes such as `enabled` or `disabled`. Global HTML
+  states (`autofocus`, `hidden`, `inert`, `itemscope`, and `popover`) still
+  collapse, as do AMP flags when `amphtml` is enabled.
 
 #### Options
 If your document uses [AMP](https://www.ampproject.org/), set the `amphtml` flag
