@@ -99,6 +99,34 @@ describe('collapseAttributeWhitespace', () => {
         );
     });
 
+    for (const tagName of ['div', 'my-widget']) {
+        it(`should preserve nonglobal list attributes on <${tagName}>`, () => {
+            const input = `<${tagName} rel=" foo  bar " ping=" foo  bar " sandbox=" foo  bar " headers=" foo  bar " sizes=" foo  bar "></${tagName}>`;
+            return init(input, input, {
+                ...options,
+                minifyAttributes: { redundantWhitespaces: 'safe' },
+                deduplicateAttributeValues: true,
+                sortAttributesWithLists: 'alphabetical'
+            });
+        });
+    }
+
+    it('should preserve custom dropzone values while collapsing global class values', () => {
+        return init(
+            '<my-widget dropzone=" foo  bar " class=" foo  bar "></my-widget>',
+            '<my-widget dropzone=" foo  bar " class="foo bar"></my-widget>',
+            { ...options, minifyAttributes: { redundantWhitespaces: 'safe' } }
+        );
+    });
+
+    it('should still collapse scoped token lists on native elements', () => {
+        return init(
+            '<a rel=" foo  bar " ping=" /foo  /bar "></a><form rel=" foo  bar "></form><iframe sandbox=" allow-scripts  allow-forms "></iframe><table><tr><td headers=" foo  bar "></td><th headers=" foo  bar "></th></tr></table>',
+            '<a rel="foo bar" ping="/foo /bar"></a><form rel="foo bar"></form><iframe sandbox="allow-scripts allow-forms"></iframe><table><tr><td headers="foo bar"></td><th headers="foo bar"></th></tr></table>',
+            options
+        );
+    });
+
     it('should collapse whitespaces inside srcset', () => {
         return init(
             '<img srcset="  image.png   480w ,\n  image2.png 2x  " src="image.png">',

@@ -71,7 +71,7 @@ Minified:
 
 ### collapseAttributeWhitespace
 Collapse redundant whitespace in attribute values where it is safe:
-- List-like attributes are normalized by collapsing internal ASCII whitespace and trimming ends (`class`, `rel`, `ping`, `sandbox`, `headers`, `dropzone`, `sizes` on `<link>`).
+- List-like attributes are normalized by collapsing internal ASCII whitespace and trimming ends: `class` globally, `rel` on `<a>`, `<area>`, `<form>` and `<link>`, `ping` on `<a>` and `<area>`, `sandbox` on `<iframe>`, `headers` on `<td>` and `<th>`, and `sizes` on `<link>`. Legacy `dropzone` values are normalized except on custom elements.
 - Single-value attributes have leading and trailing ASCII whitespace removed (for example `href`, `style`, `src`, `width`, `height`) when they are on the correct elements. Nonbreaking spaces and other significant characters are preserved.
 - Event handler attributes (like `onclick`) are trimmed only at the ends; inner whitespace is preserved.
 - `srcset` (on `<img>` and `<source>`) and `imagesrcset` (on `<link>`) are re-serialized with a single whitespace between an URL and its descriptors, and without any whitespace after the commas separating the image candidates. A whitespace is kept after the comma when the preceding candidate has no descriptor, since the parser would otherwise read the comma and the next URL as a part of the URL. Malformed descriptors are retained so rejected candidates stay rejected. Values containing encoded character references, or with no candidates to tokenize, are left untouched.

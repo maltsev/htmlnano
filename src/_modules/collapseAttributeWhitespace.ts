@@ -5,9 +5,9 @@ import type { HtmlnanoModule } from '../types';
 export const attributesWithLists = new Map<string, Set<string>>([
     ['class', new Set()],
     ['dropzone', new Set()],
-    ['rel', new Set()], // a, area, link
-    ['ping', new Set()], // a, area
-    ['sandbox', new Set()], // iframe
+    ['rel', new Set(['a', 'area', 'form', 'link'])],
+    ['ping', new Set(['a', 'area'])],
+    ['sandbox', new Set(['iframe'])],
     /**
      * https://github.com/maltsev/htmlnano/issues/180
      * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/link#attr-sizes
@@ -15,7 +15,7 @@ export const attributesWithLists = new Map<string, Set<string>>([
      * "sizes" of <img> should not be modified, while "sizes" of <link> is a list of tokens.
      */
     ['sizes', new Set(['link'])],
-    ['headers', new Set()] // td, th
+    ['headers', new Set(['td', 'th'])]
 ]);
 
 export function isListAttribute(attrName: string, tagName?: string) {
@@ -25,7 +25,9 @@ export function isListAttribute(attrName: string, tagName?: string) {
         return false;
     }
     if (tagSet.size === 0) {
-        return true;
+        // class is global; the obsolete dropzone attribute can be defined by
+        // custom elements instead of having its historical token-list meaning.
+        return attrKey === 'class' || !tagName?.includes('-');
     }
     if (!tagName) {
         return false;
@@ -33,7 +35,7 @@ export function isListAttribute(attrName: string, tagName?: string) {
     return tagSet.has(tagName.toLowerCase());
 }
 
-/** empty set means the attribute is alwasy trimmable */
+/** An empty set means the attribute is global. */
 export const attributesWithSingleValue = new Map<string, Set<string>>([
     ['accept', new Set(['input'])],
     ['action', new Set(['form'])],
@@ -43,7 +45,6 @@ export const attributesWithSingleValue = new Map<string, Set<string>>([
     ['cols', new Set(['textarea'])],
     ['colspan', new Set(['td', 'th'])],
     ['data', new Set(['object'])],
-    ['dropzone', new Set()],
     ['formaction', new Set(['button', 'input'])],
     ['height', new Set(['canvas', 'embed', 'iframe', 'img', 'input', 'object', 'video'])],
     ['high', new Set(['meter'])],
