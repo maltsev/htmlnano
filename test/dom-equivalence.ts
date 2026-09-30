@@ -42,6 +42,17 @@ type NormalizedNode = {
 const ASCII_WHITESPACE = /[\t\n\f\r ]+/g;
 const RAW_TEXT_ELEMENTS = new Set(['script', 'style']);
 const PROTECTED_TEXT_ELEMENTS = new Set(['pre', 'textarea']);
+// Default HTML block boundaries do not render adjacent collapsed whitespace.
+// Unknown/custom and foreign elements are deliberately excluded: their text
+// boundaries cannot be assumed to behave like HTML blocks.
+const BLOCK_ELEMENTS = new Set([
+    'address', 'article', 'aside', 'blockquote', 'body', 'caption', 'center',
+    'dd', 'details', 'dialog', 'dir', 'div', 'dl', 'dt', 'fieldset', 'figcaption',
+    'figure', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head',
+    'header', 'hgroup', 'hr', 'html', 'li', 'main', 'menu', 'nav', 'ol', 'p',
+    'pre', 'section', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'tr', 'ul'
+]);
+const SVG_CONTAINER_ELEMENTS = new Set(['svg', 'g', 'defs', 'symbol', 'clipPath', 'mask', 'marker', 'pattern']);
 
 // These values are states rather than meaningful strings. htmlnano is allowed
 // to serialize them in their shortest form, and parse5 exposes that spelling as
@@ -195,7 +206,8 @@ function normalizeRoot(
 
 function normalizeChildren(
     nodes: DefaultTreeAdapterTypes.ChildNode[],
-    preset: SafePresetName
+    preset: SafePresetName,
+    parent?: DefaultTreeAdapterTypes.Element
 ): NormalizedNode[] {
     const normalized: NormalizedNode[] = [];
 
@@ -213,7 +225,42 @@ function normalizeChildren(
         }
     }
 
-    return normalized;
+    if (parent && (RAW_TEXT_ELEMENTS.has(parent.tagName) || PROTECTED_TEXT_ELEMENTS.has(parent.tagName))) {
+        return normalized;
+    }
+
+    // Normalize after comment removal and text coalescing, so spaces separated
+    // by a removed comment collapse just like adjacent spaces in the browser.
+    return normalized.filter((node, index) => {
+        if (node.type !== '#text') return true;
+
+        let value = (node.value ?? '').replace(ASCII_WHITESPACE, ' ');
+        if (value === ' ' && parent && (
+            parent.namespaceURI === html.NS.HTML && parent.tagName === 'head'
+            || parent.namespaceURI === html.NS.SVG && SVG_CONTAINER_ELEMENTS.has(parent.tagName)
+        )) return false;
+        const previous = adjacentContentNode(normalized, index, -1);
+        const next = adjacentContentNode(normalized, index, 1);
+        const parentIsBlock = parent?.namespaceURI === html.NS.HTML && BLOCK_ELEMENTS.has(parent.tagName);
+
+        if (isBlockNode(previous) || !previous && parentIsBlock) value = value.replace(/^ /, '');
+        if (isBlockNode(next) || !next && parentIsBlock) value = value.replace(/ $/, '');
+
+        node.value = value;
+        return value !== '';
+    });
+}
+
+function adjacentContentNode(nodes: NormalizedNode[], index: number, direction: -1 | 1): NormalizedNode | undefined {
+    for (let i = index + direction; i >= 0 && i < nodes.length; i += direction) {
+        const node = nodes[i];
+        if (node.type !== '#comment' && node.type !== '#documentType') return node;
+    }
+    return undefined;
+}
+
+function isBlockNode(node: NormalizedNode | undefined): boolean {
+    return node?.type === 'element' && node.namespace === html.NS.HTML && BLOCK_ELEMENTS.has(node.name ?? '');
 }
 
 function normalizeNode(
@@ -237,8 +284,7 @@ function normalizeNode(
             return { type: '#text', value: node.value };
         }
 
-        const value = node.value.replace(ASCII_WHITESPACE, ' ').trim();
-        return value ? { type: '#text', value } : null;
+        return { type: '#text', value: node.value };
     }
 
     if (defaultTreeAdapter.isCommentNode(node)) {
@@ -257,8 +303,8 @@ function normalizeNode(
     }
 
     const children = node.tagName === 'template'
-        ? normalizeChildren((node as DefaultTreeAdapterTypes.Template).content.childNodes, preset)
-        : normalizeChildren(node.childNodes, preset);
+        ? normalizeChildren((node as DefaultTreeAdapterTypes.Template).content.childNodes, preset, node)
+        : normalizeChildren(node.childNodes, preset, node);
 
     return {
         type: 'element',
