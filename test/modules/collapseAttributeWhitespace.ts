@@ -147,4 +147,56 @@ describe('collapseAttributeWhitespace', () => {
             options
         );
     });
+
+    it('should retain an unfinished parenthesized descriptor at EOF', () => {
+        return init(
+            '<img srcset="  good.png 2x,  bad.png  (unfinished, other.png 3x  ">',
+            '<img srcset="good.png 2x,bad.png (unfinished, other.png 3x  ">',
+            options
+        );
+    });
+
+    it('should not turn a malformed srcset candidate into a valid fallback', () => {
+        return init(
+            '<img srcset=" bad.png 1x ( ">',
+            '<img srcset="bad.png 1x ( ">',
+            options
+        );
+    });
+
+    it('should preserve whitespace and commas inside parenthesized descriptors', () => {
+        return init(
+            '<img srcset="bad.png  (foo,  bar)  ,  good.png 2x">',
+            '<img srcset="bad.png (foo,  bar),good.png 2x">',
+            options
+        );
+    });
+
+    for (const srcset of [
+        'a.png&#44; 1x , b.png 2x',
+        'a.png&comma; 1x , b.png 2x',
+        'bad.png &#40;  ,  good.png 2x',
+        'a.png &#49;x , b.png 2x'
+    ]) {
+        it(`should leave encoded srcset syntax untouched: ${srcset}`, () => {
+            const input = `<img srcset="${srcset}">`;
+            return init(input, input, options);
+        });
+    }
+
+    it('should preserve non-ASCII whitespace within srcset URLs and descriptors', () => {
+        return init(
+            '<img srcset="  image\u00a0name.png  2x, bad.png \u00a02x, good.png 3x  ">',
+            '<img srcset="image\u00a0name.png 2x,bad.png \u00a02x,good.png 3x">',
+            options
+        );
+    });
+
+    it('should preserve data URLs, extra commas and consecutive descriptorless candidates', () => {
+        return init(
+            '<img srcset=" , data:image/png;base64,AAAA,  image.png,,,  image2.png 2x, ">',
+            '<img srcset="data:image/png;base64,AAAA, image.png, image2.png 2x">',
+            options
+        );
+    });
 });

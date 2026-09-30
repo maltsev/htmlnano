@@ -1,3 +1,4 @@
+import { decodeHTMLAttribute } from 'entities';
 import { isEventHandler } from '../helpers';
 import type { HtmlnanoModule } from '../types';
 
@@ -175,6 +176,7 @@ function parseSrcset(srcset: string): SrcsetCandidate[] | null {
 
             if (state === 'inParens') {
                 if (char === undefined) {
+                    descriptors.push(currentDescriptor);
                     break;
                 }
 
@@ -273,6 +275,11 @@ const mod: HtmlnanoModule = {
                 const attrNameLower = attrName.toLowerCase();
 
                 if (isSrcsetAttribute(attrNameLower, tagName)) {
+                    // PostHTML normally leaves references encoded. They can hide
+                    // separators or parentheses, so tokenizing the source spelling
+                    // could change which image candidates the browser accepts.
+                    if (decodeHTMLAttribute(attrValue) !== attrValue) return;
+
                     const candidates = parseSrcset(attrValue);
                     if (candidates) {
                         newAttrs[attrName] = stringifySrcset(candidates);
