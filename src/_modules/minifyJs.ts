@@ -143,7 +143,7 @@ function analyzeTreeQuotes(tree: PostHTMLTreeLike) {
             const hasDoubleQuote = attrValue.includes('"');
             const hasSingleQuote = attrValue.includes('\'');
 
-            if (hasDoubleQuote && isEventHandler(attrName)) {
+            if (hasDoubleQuote && isEventHandler(attrName, node.tag || undefined)) {
                 needsSmartQuotes = true;
             }
 
@@ -211,7 +211,7 @@ function processNodeWithOnAttrs(node: PostHTML.Node, terserOptions: MinifyOption
     }
 
     for (const attrName in node.attrs) {
-        if (!isEventHandler(attrName)) {
+        if (!isEventHandler(attrName, node.tag || undefined)) {
             continue;
         }
 

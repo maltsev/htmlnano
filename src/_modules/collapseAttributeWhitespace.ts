@@ -250,7 +250,7 @@ export function collapseAttributeWhitespace(attrName: string, attrValue: string,
         return attrValue.replace(/[\t\n\f\r ]+/g, ' ').replace(/^ | $/g, '');
     }
 
-    if (isEventHandler(attrName)) {
+    if (isEventHandler(attrName, tagName)) {
         return attrValue.trim();
     }
 

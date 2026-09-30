@@ -7,6 +7,7 @@ import {
     isComment,
     isConditionalComment,
     isCssStyleType,
+    isEventHandler,
     isStyleNode,
     normalizeMimeType,
     optionalImport,
@@ -15,6 +16,27 @@ import {
 } from '../src/helpers.ts';
 
 describe('[helpers]', () => {
+    context('isEventHandler()', () => {
+        it('should recognize global handlers independently of attribute and tag casing', () => {
+            expect(isEventHandler('OnClick', 'MY-WIDGET')).toBe(true);
+            expect(isEventHandler('onanimationend', 'div')).toBe(true);
+            expect(isEventHandler('ontouchstart', 'div')).toBe(true);
+        });
+
+        it('should preserve unknown on-prefixed attributes', () => {
+            expect(isEventHandler('onstate', 'my-widget')).toBe(false);
+            expect(isEventHandler('onion')).toBe(false);
+            expect(isEventHandler('')).toBe(false);
+        });
+
+        it('should scope window handlers when an element name is provided', () => {
+            expect(isEventHandler('onmessage')).toBe(true);
+            expect(isEventHandler('onmessage', 'BODY')).toBe(true);
+            expect(isEventHandler('onmessage', 'frameset')).toBe(true);
+            expect(isEventHandler('onmessage', 'div')).toBe(false);
+        });
+    });
+
     context('isAmpBoilerplate()', () => {
         it('should detect AMP boilerplate', () => {
             expect(isAmpBoilerplate({

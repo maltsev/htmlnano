@@ -97,8 +97,45 @@ export function normalizeMimeType(value: string): string {
     return mimeType.trim().toLowerCase();
 }
 
-export function isEventHandler(attributeName: string) {
-    return attributeName && attributeName.slice(0, 2).toLowerCase() === 'on' && attributeName.length >= 5;
+// HTML GlobalEventHandlers, with the extensions from CSS animations/transitions,
+// Pointer Events, Touch Events and Fullscreen. Unknown on* attributes are data.
+// https://html.spec.whatwg.org/multipage/webappapis.html#globaleventhandlers
+const globalEventHandlerAttributes = new Set([
+    'onabort', 'onauxclick', 'onbeforeinput', 'onbeforematch', 'onbeforetoggle',
+    'onblur', 'oncancel', 'oncanplay', 'oncanplaythrough', 'onchange', 'onclick',
+    'onclose', 'oncommand', 'oncontextlost', 'oncontextmenu', 'oncontextrestored',
+    'oncopy', 'oncuechange', 'oncut', 'ondblclick', 'ondrag', 'ondragend',
+    'ondragenter', 'ondragleave', 'ondragover', 'ondragstart', 'ondrop',
+    'ondurationchange', 'onemptied', 'onended', 'onerror', 'onfocus', 'onformdata',
+    'oninput', 'oninvalid', 'onkeydown', 'onkeypress', 'onkeyup', 'onload',
+    'onloadeddata', 'onloadedmetadata', 'onloadstart', 'onmousedown', 'onmouseenter',
+    'onmouseleave', 'onmousemove', 'onmouseout', 'onmouseover', 'onmouseup',
+    'onpaste', 'onpause', 'onplay', 'onplaying', 'onprogress', 'onratechange',
+    'onreset', 'onresize', 'onscroll', 'onscrollend', 'onsecuritypolicyviolation',
+    'onseeked', 'onseeking', 'onselect', 'onslotchange', 'onstalled', 'onsubmit',
+    'onsuspend', 'ontimeupdate', 'ontoggle', 'onvolumechange', 'onwaiting', 'onwheel',
+    'onwebkitanimationend', 'onwebkitanimationiteration', 'onwebkitanimationstart',
+    'onwebkittransitionend', 'onanimationstart', 'onanimationiteration',
+    'onanimationend', 'onanimationcancel', 'ontransitionrun', 'ontransitionstart',
+    'ontransitionend', 'ontransitioncancel', 'ongotpointercapture', 'onlostpointercapture',
+    'onpointerdown', 'onpointermove', 'onpointerrawupdate', 'onpointerup', 'onpointercancel',
+    'onpointerover', 'onpointerout', 'onpointerenter', 'onpointerleave',
+    'ontouchstart', 'ontouchend', 'ontouchmove', 'ontouchcancel',
+    'onfullscreenchange', 'onfullscreenerror'
+]);
+
+const windowEventHandlerAttributes = new Set([
+    'onafterprint', 'onbeforeprint', 'onbeforeunload', 'onhashchange', 'onlanguagechange',
+    'onmessage', 'onmessageerror', 'onoffline', 'ononline', 'onpagehide', 'onpagereveal',
+    'onpageshow', 'onpageswap', 'onpopstate', 'onrejectionhandled', 'onstorage',
+    'onunhandledrejection', 'onunload'
+]);
+
+export function isEventHandler(attributeName: string, tagName?: string): boolean {
+    const name = attributeName.toLowerCase();
+    return globalEventHandlerAttributes.has(name)
+        || (windowEventHandlerAttributes.has(name)
+            && (tagName === undefined || tagName.toLowerCase() === 'body' || tagName.toLowerCase() === 'frameset'));
 }
 
 export function extractTextContentFromNode(node: PostHTML.Node): string {

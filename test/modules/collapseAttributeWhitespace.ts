@@ -127,6 +127,32 @@ describe('collapseAttributeWhitespace', () => {
         );
     });
 
+    it('should preserve custom on-prefixed attributes when attribute modules run together', () => {
+        const input = '<my-widget onstate=" return false; " ondata="   " onmessage=" return false; "></my-widget><div onstate=" return false; " onmessage=" return false; "></div>';
+        return init(input, input, {
+            ...options,
+            minifyAttributes: { redundantWhitespaces: 'safe' },
+            minifyJs: true,
+            removeEmptyAttributes: true
+        });
+    });
+
+    it('should still trim global event handlers on custom elements', () => {
+        return init(
+            '<my-widget onclick=" return false; " onpointerdown=" return false; "></my-widget>',
+            '<my-widget onclick="return false;" onpointerdown="return false;"></my-widget>',
+            options
+        );
+    });
+
+    it('should trim window event handlers on body and frameset elements', () => {
+        return init(
+            '<body onmessage=" return false; "></body><frameset onbeforeunload=" return false; "></frameset>',
+            '<body onmessage="return false;"></body><frameset onbeforeunload="return false;"></frameset>',
+            options
+        );
+    });
+
     it('should not trim single value attributes on unrelated tags', () => {
         return init(
             '<div href="  https://example.com  ">click</div>',

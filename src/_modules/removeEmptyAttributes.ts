@@ -104,7 +104,7 @@ const mod: HtmlnanoModule = {
                 const normalizedAttrName = attrName.toLowerCase();
                 const safeAttr = safeToRemoveAttrs[normalizedAttrName];
                 if (
-                    isEventHandler(attrName)
+                    isEventHandler(attrName, tagName)
                     || (
                         safeAttr !== undefined
                         && (safeAttr === null || (tagName && safeAttr.includes(tagName)))
