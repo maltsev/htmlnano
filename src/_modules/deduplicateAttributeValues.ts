@@ -33,7 +33,7 @@ const mod: HtmlnanoModule = {
                     return;
                 }
 
-                const attrValues = attrs[attrName].split(/\s/);
+                const attrValues = attrs[attrName].split(/[\t\n\f\r ]/);
                 const uniqueAttrValues = new Set<string>();
                 const deduplicatedAttrValues: string[] = [];
 

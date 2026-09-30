@@ -143,6 +143,14 @@ describe('minifyAttributes', () => {
     });
 
     context('redundantWhitespaces', () => {
+        it('should preserve significant whitespace in safe mode', () => {
+            return init(
+                '<a class=" foo\u00a0bar " href=" \u00a0/page\u00a0 " style=" color:red\u00a0 "></a>',
+                '<a class="foo\u00a0bar" href="\u00a0/page\u00a0" style="color:red\u00a0"></a>',
+                options
+            );
+        });
+
         it('should collapse list-like and trim single-value attributes in safe mode', () => {
             return init(
                 '<a class=" foo  bar " href="  https://example.com  " id=" foo  bar ">click</a>',

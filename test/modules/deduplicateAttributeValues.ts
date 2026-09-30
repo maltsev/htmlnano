@@ -22,6 +22,14 @@ describe('deduplicateAttributeValues', () => {
         );
     });
 
+    it('should treat non-ASCII whitespace as part of a token', () => {
+        return init(
+            '<div class="foo\u00a0bar foo\u00a0bar foo\u000bbar"></div>',
+            '<div class="foo\u00a0bar foo\u000bbar"></div>',
+            options
+        );
+    });
+
     it('should preserve whitespace around middle duplicates', () => {
         return init(
             '<a class="foo  foo   bar">click</a>',

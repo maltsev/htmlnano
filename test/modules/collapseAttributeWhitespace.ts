@@ -14,6 +14,43 @@ describe('collapseAttributeWhitespace', () => {
         );
     });
 
+    it('should collapse all ASCII whitespace in token lists', () => {
+        return init(
+            '<a class="\t\n\f\r foo\t\n\f\r bar\t\n\f\r ">click</a>',
+            '<a class="foo bar">click</a>',
+            options
+        );
+    });
+
+    for (const whitespace of ['\u00a0', '\u2003', '\u2028', '\u2029', '\ufeff', '\u000b']) {
+        it(`should preserve significant U+${whitespace.charCodeAt(0).toString(16)} in lists, URLs, numbers and CSS`, () => {
+            const input = `<a class=" ${whitespace}foo${whitespace}bar${whitespace} " href=" ${whitespace}/page${whitespace} " style=" color:red${whitespace} "></a><input size=" ${whitespace}2 ">`;
+            const expected = `<a class="${whitespace}foo${whitespace}bar${whitespace}" href="${whitespace}/page${whitespace}" style="color:red${whitespace}"></a><input size="${whitespace}2">`;
+            return init(input, expected, options);
+        });
+    }
+
+    it('should preserve non-ASCII token characters when attribute modules run together', () => {
+        return init(
+            '<div class=" b\u00a0a  b\u00a0a  c "></div>',
+            '<div class="b\u00a0a c"></div>',
+            {
+                ...options,
+                minifyAttributes: { redundantWhitespaces: 'safe' },
+                deduplicateAttributeValues: true,
+                sortAttributesWithLists: 'alphabetical'
+            }
+        );
+    });
+
+    it('should still trim JavaScript whitespace in event handlers', () => {
+        return init(
+            '<button onclick="\u00a0\u2028 return false; \ufeff">click</button>',
+            '<button onclick="return false;">click</button>',
+            options
+        );
+    });
+
     it('should collapse whitespaces inside link sizes attribute', () => {
         return init(
             '<link rel="icon" sizes=" 16x16  32x32 " href="/icon.png">',

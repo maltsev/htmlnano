@@ -1,6 +1,5 @@
-import { isEventHandler } from '../helpers';
 import type { HtmlnanoModule } from '../types';
-import { isListAttribute, isSingleValueAttribute } from './collapseAttributeWhitespace';
+import { collapseAttributeWhitespace } from './collapseAttributeWhitespace';
 
 const asciiWhitespace = new Set(['\t', '\n', '\f', '\r', ' ']);
 
@@ -187,10 +186,6 @@ function normalizeOptions(moduleOptions: Partial<MinifyAttributesOptions> | bool
     return defaultOptions;
 }
 
-function collapseWhitespace(value: string) {
-    return value.replace(/\s+/g, ' ').trim();
-}
-
 function minifyAttributeWhitespace(
     mode: RedundantWhitespaceMode,
     attrName: string,
@@ -201,21 +196,9 @@ function minifyAttributeWhitespace(
         return null;
     }
 
-    const attrNameLower = attrName.toLowerCase();
-
-    if (isListAttribute(attrNameLower, tagName)) {
-        const collapsed = collapseWhitespace(attrValue);
-        return collapsed === attrValue ? null : collapsed;
-    }
-
-    if (isEventHandler(attrName)) {
-        const trimmed = attrValue.trim();
-        return trimmed === attrValue ? null : trimmed;
-    }
-
-    if (isSingleValueAttribute(attrNameLower, tagName)) {
-        const trimmed = attrValue.trim();
-        return trimmed === attrValue ? null : trimmed;
+    const collapsed = collapseAttributeWhitespace(attrName, attrValue, tagName);
+    if (collapsed !== attrValue) {
+        return collapsed;
     }
 
     if (mode === 'aggressive') {

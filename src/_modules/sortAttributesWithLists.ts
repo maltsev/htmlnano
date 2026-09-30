@@ -83,7 +83,9 @@ const mod: HtmlnanoModule<boolean | SortAttributesOption> = {
 
 export default mod;
 
-const splitListAttributeValues = (attrValue: string) => attrValue.split(/\s+/).filter(Boolean);
+function splitListAttributeValues(attrValue: string) {
+    return attrValue.split(/[\t\n\f\r ]+/).filter(Boolean);
+}
 
 function walkListAttributes(
     tree: PostHTMLTreeLike,

@@ -2,6 +2,16 @@ import { init } from '../htmlnano.ts';
 import { describe, it } from 'mocha';
 
 describe('sortAttributesWithLists', () => {
+    for (const sortType of ['alphabetical', 'frequency'] as const) {
+        it(`${sortType} preserves non-ASCII whitespace within tokens`, () => {
+            return init(
+                '<div class="c b\u00a0a"></div>',
+                '<div class="b\u00a0a c"></div>',
+                { sortAttributesWithLists: sortType }
+            );
+        });
+    }
+
     it('alphabetical', () => {
         return init(
             '<a class="foo baz bar">click</a><a class="foo bar">click</a>',

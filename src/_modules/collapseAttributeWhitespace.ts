@@ -242,6 +242,23 @@ function stringifySrcset(candidates: SrcsetCandidate[]) {
         });
 }
 
+/** HTML token lists, URLs and numbers use ASCII whitespace; JavaScript has its own whitespace rules. */
+export function collapseAttributeWhitespace(attrName: string, attrValue: string, tagName?: string): string {
+    if (isListAttribute(attrName, tagName)) {
+        return attrValue.replace(/[\t\n\f\r ]+/g, ' ').replace(/^ | $/g, '');
+    }
+
+    if (isEventHandler(attrName)) {
+        return attrValue.trim();
+    }
+
+    if (isSingleValueAttribute(attrName, tagName)) {
+        return attrValue.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '');
+    }
+
+    return attrValue;
+}
+
 /** Collapse whitespaces inside list-like attributes (e.g. class, rel) */
 const mod: HtmlnanoModule = {
     onAttrs() {
@@ -255,11 +272,6 @@ const mod: HtmlnanoModule = {
 
                 const attrNameLower = attrName.toLowerCase();
 
-                if (isListAttribute(attrNameLower, tagName)) {
-                    newAttrs[attrName] = attrValue.replace(/\s+/g, ' ').trim();
-                    return;
-                }
-
                 if (isSrcsetAttribute(attrNameLower, tagName)) {
                     const candidates = parseSrcset(attrValue);
                     if (candidates) {
@@ -269,11 +281,7 @@ const mod: HtmlnanoModule = {
                     return;
                 }
 
-                if (isEventHandler(attrName)) {
-                    newAttrs[attrName] = attrValue.trim();
-                } else if (isSingleValueAttribute(attrNameLower, tagName)) {
-                    newAttrs[attrName] = attrValue.trim();
-                }
+                newAttrs[attrName] = collapseAttributeWhitespace(attrNameLower, attrValue, tagName);
             });
 
             return newAttrs;
