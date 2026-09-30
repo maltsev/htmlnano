@@ -811,6 +811,10 @@ Minifies HTML inside IE conditional comments (both downlevel-hidden and downleve
 The conditional comment wrappers are preserved while the inner HTML is processed with the same htmlnano options,
 so other modules (like `collapseWhitespace`, `minifyCss`, or `minifyJs`) can apply within the conditional block.
 
+This module is disabled in the `safe` and `ampSafe` presets. On the evaluated
+pages it changed very little output while adding another recursive htmlnano
+pass, so it remains an opt-in there. The `max` preset enables it.
+
 #### Notes
 - Empty conditional comments and standalone `<!--<![endif]-->` markers are left untouched.
 - If the comment content includes an opening `<html>` without a closing tag, any auto-inserted
@@ -829,7 +833,7 @@ Source:
 <![endif]-->
 ```
 
-Minified:
+Minified with `minifyConditionalComments: true`:
 
 ```html
 <!--[if lte IE 7]><style type="text/css">.title{color:red}</style><![endif]-->
@@ -920,7 +924,13 @@ Source:
 <html><head><title>Title</title></head><body><ul><li>One</li><li>Two</li></ul></body></html>
 ```
 
-Minified:
+Minified by the default `safe` preset:
+
+```html
+<html><head><title>Title</title><body><ul><li>One<li>Two</ul>
+```
+
+Minified by the `max` preset:
 
 ```html
 <title>Title</title><ul><li>One<li>Two</ul>
@@ -934,8 +944,9 @@ The option has two enabled modes:
 - `'html5'` canonicalizes casing and redundant ASCII whitespace only when the
   complete input is already the short HTML5 doctype. This conservative mode is
   used by the `safe` preset and inherited by `ampSafe`.
-- `true` also rewrites recognized legacy `PUBLIC`/`SYSTEM` doctypes. This
-  backward-compatible mode is used by the `max` preset.
+- `true` rewrites any top-level doctype string beginning with `<!doctype` and
+  ASCII whitespace, including legacy `PUBLIC`/`SYSTEM` and malformed doctypes.
+  This broad, backward-compatible mode is used by the `max` preset.
 
 #### Notes
 - Only the top-level doctype string node is inspected; posthtml-parser emits the
@@ -966,9 +977,9 @@ Minified with either `'html5'` or `true`:
 Remove quotes around attributes when possible, see
 [HTML Standard - 12.1.2.3 Attributes - Unquoted attribute value syntax](https://html.spec.whatwg.org/multipage/syntax.html#attributes-2).
 
-This module is enabled by the `safe` preset and inherited by `ampSafe`. It only
-removes quotes when the PostHTML renderer considers them optional and its
-configuration permits unquoted attributes.
+This module is enabled by the `safe` preset, inherited by `ampSafe`, and remains
+enabled in `max`. It only removes quotes when the PostHTML renderer considers
+them optional and its configuration permits unquoted attributes.
 
 #### Options
 - `force` — if `true`, forces `quoteAllAttributes` to `false` even when other PostHTML options or plugins set it to `true`.
@@ -986,7 +997,9 @@ Minified:
 
 #### Notice
 The feature is implemented by [posthtml-render's `quoteAllAttributes`](https://github.com/posthtml/posthtml-render#options), which is a PostHTML option.
-`removeAttributeQuotes` sets this option to `false` only when it is not already defined, so other PostHTML plugins and configuration can override it.
+With `removeAttributeQuotes: true` (including the preset default), htmlnano sets
+this renderer option to `false` only when it is not already defined. An explicit
+PostHTML setting or an earlier plugin can therefore override the preset.
 
 For example:
 
@@ -1000,7 +1013,7 @@ posthtml([
 })
 ```
 
-`removeAttributeQuotes` will not work because PostHTML's `quoteAllAttributes` takes the priority.
+The quotes remain because PostHTML's `quoteAllAttributes` setting takes priority.
 
 If you need to ensure quotes are removed even when `quoteAllAttributes` is already `true`, enable the `force` option:
 

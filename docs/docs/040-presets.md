@@ -23,6 +23,22 @@ start tag while omitting eligible end tags. `ampSafe` inherits this conservative
 setting. `max` uses `removeOptionalTags: true`, so it may omit eligible start
 tags as well as end tags.
 
+The completed preset changes differ as follows:
+
+| Behavior | `safe` | `ampSafe` | `max` |
+| --- | --- | --- | --- |
+| Attribute quotes | Removes optional quotes | Same as `safe` | Removes optional quotes |
+| Optional tags | End tags only | End tags only | Start and end tags |
+| Doctype normalization | Short HTML5 doctypes only | Short HTML5 doctypes only | Broad, including legacy doctypes |
+| IE conditional comments | Unchanged | Unchanged | Minifies their contents |
+| Attribute sorting | Disabled | Disabled | Alphabetical |
+
+`ampSafe` otherwise differs from `safe` by enabling AMP-specific boolean
+attribute collapsing and disabling JavaScript minification. Attribute sorting
+remains out of both safe presets because measurements on the cached benchmark
+corpus showed that it increased gzip and Brotli sizes despite leaving raw size
+unchanged.
+
 `max` enables lossy modules on purpose. The most visible one is
 [`removeEmptyElements`](./modules#removeemptyelements) with
 `removeWithAttributes: 'presentational'`: empty elements whose attributes are all
