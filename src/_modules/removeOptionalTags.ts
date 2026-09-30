@@ -87,8 +87,8 @@ const pEndTagForbiddenParentTags = new Set([
 const lastChildEndTagParentTags: Record<string, Set<string> | undefined> = {
     li: new Set(['ul', 'ol', 'menu']),
     dd: new Set(['dl', 'div']),
-    rt: new Set(['ruby', 'rtc']),
-    rp: new Set(['ruby', 'rtc']),
+    rt: new Set(['ruby']),
+    rp: new Set(['ruby']),
     optgroup: new Set(['select']),
     option: new Set(['select', 'optgroup', 'datalist']),
     tbody: new Set(['table']),
@@ -331,17 +331,18 @@ function canOmitEndTag(
         /** An "rt" or "rp" element's end tag may be omitted if it is IMMEDIATELY followed by an "rt" or "rp" element, or if there is no more content in the parent element. */
         case 'rt':
         case 'rp':
-            // At the top level this may be a fragment parsed in a <ruby>
-            // context. Unlike a literal wrapping <ruby>, that context element
-            // is not on the fragment parser's open-elements stack, so omitted
-            // end tags make the following rt/rp elements nest instead of close
-            // their predecessors.
-            return (parent !== null && typeof nextTagName === 'string' && rubyEndTagFollowedByTags.has(nextTagName))
-                || (isLastInParent && canOmitLastChildEndTag(tagName, parent));
+            // A following annotation only closes its predecessor when a ruby
+            // element is in scope. An arbitrary parent or an unknown fragment
+            // context cannot establish that, so require an explicit ruby parent.
+            return getTagNameOf(parent) === 'ruby'
+                && ((typeof nextTagName === 'string' && rubyEndTagFollowedByTags.has(nextTagName))
+                    || isLastInParent);
 
         /** An "optgroup" element's end tag may be omitted if it is IMMEDIATELY followed by another "optgroup" element, or if there is no more content in the parent element. */
         case 'optgroup':
-            return nextTagName === 'optgroup' || (isLastInParent && canOmitLastChildEndTag(tagName, parent));
+            // Outside a select, the next optgroup is nested instead of closing
+            // this one. Retain the end tag when the select context is unknown.
+            return getTagNameOf(parent) === 'select' && (nextTagName === 'optgroup' || isLastInParent);
 
         /** An "option" element's end tag may be omitted if it is IMMEDIATELY followed by another "option" element or an "optgroup" element, or if there is no more content in the parent element. */
         case 'option':

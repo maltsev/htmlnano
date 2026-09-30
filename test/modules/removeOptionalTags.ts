@@ -4,6 +4,7 @@ import { expect } from 'expect';
 import posthtml from 'posthtml';
 import htmlnano from '../../dist/index.mjs';
 import safePreset from '../../dist/presets/safe.mjs';
+import ampSafePreset from '../../dist/presets/ampSafe.mjs';
 import { init, initIdempotent, initWithPostHtmlOptions } from '../htmlnano.ts';
 import type { HtmlnanoOptions, PostHTMLTreeLike } from '../../src/types.js';
 
@@ -686,6 +687,30 @@ describe('removeOptionalTags', () => {
 
             return initWithPostHtmlOptions(input, input, options, { closingSingleTag: 'slash' });
         });
+    });
+
+    context('context-dependent end tags', () => {
+        const cases = [
+            '<div><rt>one</rt><rt>two</rt></div>',
+            '<span><rp>(</rp><rt>note</rt><rp>)</rp></span>',
+            '<rtc><rt>one</rt><rt>two</rt></rtc>',
+            '<optgroup>one</optgroup><optgroup>two</optgroup>',
+            '<div><optgroup>one</optgroup><optgroup>two</optgroup></div>'
+        ];
+        const configurations: Array<[string, HtmlnanoOptions]> = [
+            ['full removal', options],
+            ['end tags only', { removeOptionalTags: { removeStartTags: false } }],
+            ['safe', safePreset],
+            ['ampSafe', ampSafePreset]
+        ];
+
+        for (const [name, configuration] of configurations) {
+            for (const input of cases) {
+                it(`${name} preserves ${input}`, () => {
+                    return initIdempotent(input, input, configuration);
+                });
+            }
+        }
     });
 
     context('safe preset composition', () => {
