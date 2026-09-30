@@ -57,16 +57,49 @@ const SVG_CONTAINER_ELEMENTS = new Set(['svg', 'g', 'defs', 'symbol', 'clipPath'
 // These values are states rather than meaningful strings. htmlnano is allowed
 // to serialize them in their shortest form, and parse5 exposes that spelling as
 // the attribute value, so canonicalize the state before comparing attributes.
-const BOOLEAN_ATTRIBUTES = new Set([
-    'allowfullscreen', 'allowpaymentrequest', 'allowtransparency', 'async',
-    'autofocus', 'autoplay', 'checked', 'compact', 'controls', 'declare',
-    'default', 'defaultchecked', 'defaultmuted', 'defaultselected', 'defer',
-    'disabled', 'enabled', 'formnovalidate', 'hidden', 'indeterminate', 'inert',
-    'ismap', 'itemscope', 'loop', 'multiple', 'muted', 'nohref', 'nomodule',
-    'noresize', 'noshade', 'novalidate', 'nowrap', 'open', 'pauseonexit',
-    'playsinline', 'readonly', 'required', 'reversed', 'scoped', 'seamless',
-    'selected', 'shadowrootclonable', 'shadowrootdelegatesfocus',
-    'shadowrootserializable', 'sortable', 'truespeed', 'typemustmatch', 'visible'
+// null denotes a global HTML boolean attribute. Element-specific attributes
+// remain ordinary strings on custom elements and in SVG/MathML namespaces.
+const BOOLEAN_ATTRIBUTES = new Map<string, Set<string> | null>([
+    ['allowfullscreen', new Set(['iframe'])],
+    ['allowpaymentrequest', new Set(['iframe'])],
+    ['async', new Set(['script'])],
+    ['autofocus', null],
+    ['autoplay', new Set(['audio', 'video'])],
+    ['checked', new Set(['input'])],
+    ['compact', new Set(['dir', 'dl', 'menu', 'ol', 'ul'])],
+    ['controls', new Set(['audio', 'video'])],
+    ['declare', new Set(['object'])],
+    ['default', new Set(['track'])],
+    ['defer', new Set(['script'])],
+    ['disabled', new Set(['button', 'fieldset', 'input', 'link', 'optgroup', 'option', 'select', 'textarea'])],
+    ['formnovalidate', new Set(['button', 'input'])],
+    ['hidden', null],
+    ['inert', null],
+    ['ismap', new Set(['img'])],
+    ['itemscope', null],
+    ['loop', new Set(['audio', 'marquee', 'video'])],
+    ['multiple', new Set(['input', 'select'])],
+    ['muted', new Set(['audio', 'video'])],
+    ['nohref', new Set(['area'])],
+    ['nomodule', new Set(['script'])],
+    ['noresize', new Set(['frame'])],
+    ['noshade', new Set(['hr'])],
+    ['novalidate', new Set(['form'])],
+    ['nowrap', new Set(['td', 'th'])],
+    ['open', new Set(['details', 'dialog'])],
+    ['pauseonexit', new Set(['track'])],
+    ['playsinline', new Set(['video'])],
+    ['readonly', new Set(['input', 'textarea'])],
+    ['required', new Set(['input', 'select', 'textarea'])],
+    ['reversed', new Set(['ol'])],
+    ['scoped', new Set(['style'])],
+    ['seamless', new Set(['iframe'])],
+    ['selected', new Set(['option'])],
+    ['shadowrootclonable', new Set(['template'])],
+    ['shadowrootdelegatesfocus', new Set(['template'])],
+    ['shadowrootserializable', new Set(['template'])],
+    ['truespeed', new Set(['marquee'])],
+    ['typemustmatch', new Set(['object'])]
 ]);
 
 const AMP_BOOLEAN_ATTRIBUTES = new Set([
@@ -338,13 +371,15 @@ function normalizeAttributeValue(
 ): string {
     const lowerName = name.toLowerCase();
 
-    if (BOOLEAN_ATTRIBUTES.has(lowerName)) {
+    const booleanTags = BOOLEAN_ATTRIBUTES.get(lowerName);
+    if (element.namespaceURI === html.NS.HTML && (booleanTags === null || booleanTags?.has(element.tagName))) {
         if (lowerName === 'hidden' && value.toLowerCase() === 'until-found') return 'until-found';
         return '<present>';
     }
 
     if (
         preset === 'ampSafe'
+        && element.namespaceURI === html.NS.HTML
         && AMP_BOOLEAN_ATTRIBUTES.has(lowerName)
         && (value === '' || value.toLowerCase() === lowerName || value.toLowerCase() === 'true')
     ) {

@@ -2,6 +2,41 @@ import { expect } from 'expect';
 import { assertSafeDomEquivalent } from './dom-equivalence.ts';
 
 describe('DOM equivalence helper', () => {
+    describe('boolean attribute scope', () => {
+        const differentCases = [
+            ['<a-box visible="false"></a-box>', '<a-box visible="true"></a-box>'],
+            ['<x-widget enabled="true"></x-widget>', '<x-widget enabled="false"></x-widget>'],
+            ['<x-widget disabled="false"></x-widget>', '<x-widget disabled></x-widget>'],
+            ['<div checked="true"></div>', '<div checked></div>'],
+            ['<svg><g disabled="false"></g></svg>', '<svg><g disabled></g></svg>'],
+            ['<math><mi hidden="false">x</mi></math>', '<math><mi hidden>x</mi></math>'],
+            ['<x-widget hidden="until-found"></x-widget>', '<x-widget hidden></x-widget>']
+        ];
+
+        for (const [source, output] of differentCases) {
+            for (const preset of ['safe', 'ampSafe'] as const) {
+                it(`${preset} rejects value changes in ${source}`, () => {
+                    expect(() => assertSafeDomEquivalent(source, output, preset, { kind: 'fragment' }))
+                        .toThrow('DOM mismatch');
+                });
+            }
+        }
+
+        const equivalentCases = [
+            ['<input disabled="disabled" checked="false">', '<input disabled checked>'],
+            ['<select multiple="multiple"><option selected="selected">One</option></select>', '<select multiple><option selected>One</option></select>'],
+            ['<details open="open">Text</details>', '<details open>Text</details>'],
+            ['<x-widget hidden="hidden" inert="inert"></x-widget>', '<x-widget hidden inert></x-widget>']
+        ];
+
+        for (const [source, output] of equivalentCases) {
+            it(`accepts native boolean spelling changes in ${source}`, () => {
+                expect(() => assertSafeDomEquivalent(source, output, 'safe', { kind: 'fragment' }))
+                    .not.toThrow();
+            });
+        }
+    });
+
     describe('text whitespace', () => {
         const differentCases = [
             ['<p>Hello <em>world</em></p>', '<p>Hello<em>world</em></p>'],
