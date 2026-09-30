@@ -3,8 +3,9 @@
 import { expect } from 'expect';
 import posthtml from 'posthtml';
 import htmlnano from '../../dist/index.mjs';
-import { init, initWithPostHtmlOptions } from '../htmlnano.ts';
-import type { PostHTMLTreeLike } from '../../src/types.js';
+import safePreset from '../../dist/presets/safe.mjs';
+import { init, initIdempotent, initWithPostHtmlOptions } from '../htmlnano.ts';
+import type { HtmlnanoOptions, PostHTMLTreeLike } from '../../src/types.js';
 
 describe('removeOptionalTags', () => {
     const options = {
@@ -53,7 +54,7 @@ describe('removeOptionalTags', () => {
 
         it('retains structural start tags while omitting eligible end tags', () => {
             const input = '<html><head><title>Title</title></head><body><table><colgroup><col></colgroup><tbody><tr><td>Cell</td></tr></tbody></table></body></html>';
-            const expected = '<html><head><title>Title</title><body><table><colgroup><col><tbody><tr><td>Cell</table>';
+            const expected = '<html><head><title>Title</title><body><table><colgroup><col></colgroup><tbody><tr><td>Cell</table>';
 
             return init(input, expected, conservativeOptions);
         });
@@ -81,7 +82,7 @@ describe('removeOptionalTags', () => {
         it('respects a non-default closingSingleTag renderer option', () => {
             const input = '<html><head><title>Title</title></head><body><p>Hi</p></body></html>';
 
-            return initWithPostHtmlOptions(input, input, conservativeOptions, { closingSingleTag: 'slash' });
+            return initIdempotent(input, input, conservativeOptions, { closingSingleTag: 'slash' });
         });
 
         it('is idempotent', () => {
@@ -118,9 +119,9 @@ describe('removeOptionalTags', () => {
             return init(input, expected, options);
         });
 
-        it('omits </colgroup> of an element with attributes', () => {
+        it('keeps </colgroup> when attributes prevent omitting the whole element', () => {
             const input = '<table><colgroup class="c"><col></colgroup><tr><td>a</td></tr></table>';
-            const expected = '<table><colgroup class="c"><col><tr><td>a</table>';
+            const expected = '<table><colgroup class="c"><col></colgroup><tr><td>a</table>';
 
             return init(input, expected, options);
         });
@@ -422,24 +423,20 @@ describe('removeOptionalTags', () => {
 
         it('empty <colgroup>', () => {
             const input = '<colgroup></colgroup>';
-            // The start tag has to stay, but nothing follows </colgroup>
-            const expected = '<colgroup>';
 
-            return init(input, expected, options);
+            return init(input, input, options);
         });
 
         it('first child node is not <col>', () => {
             const input = '<colgroup><div></div><col><col></colgroup>';
-            const expected = '<colgroup><div></div><col><col>';
 
-            return init(input, expected, options);
+            return init(input, input, options);
         });
 
         it('first child is whitespace then <col>', () => {
             const input = '<colgroup> <col></colgroup>';
-            const expected = '<colgroup> <col>';
 
-            return init(input, expected, options);
+            return init(input, input, options);
         });
 
         it('<colgroup> followed by comment', () => {
@@ -462,7 +459,7 @@ describe('removeOptionalTags', () => {
 
         it('<colgroup> preceded by <colgroup>', () => {
             const input = '<colgroup><col></colgroup><colgroup><col></colgroup>';
-            const expected = '<col><colgroup><col>';
+            const expected = '<col><colgroup><col></colgroup>';
 
             return init(input, expected, options);
         });
@@ -500,7 +497,7 @@ describe('removeOptionalTags', () => {
 
         it('<tbody> preceded by <thead>', () => {
             const input = '<table><thead></thead><tbody><tr></tr></tbody></table>';
-            const expected = '<table><thead><tbody><tr></table>';
+            const expected = '<table><thead></thead><tr></table>';
 
             return init(input, expected, options);
         });
@@ -632,9 +629,9 @@ describe('removeOptionalTags', () => {
             return init(input, expected, options);
         });
 
-        it('</caption>, </thead>, </tr>, </th> and </td>', () => {
+        it('keeps table container end tags while omitting </tr>, </th> and </td>', () => {
             const input = '<table><caption>c</caption><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>';
-            const expected = '<table><caption>c<thead><tr><th>a<th>b<tbody><tr><td>1<td>2</table>';
+            const expected = '<table><caption>c</caption><thead><tr><th>a<th>b</thead><tr><td>1<td>2</table>';
 
             return init(input, expected, options);
         });
@@ -682,6 +679,95 @@ describe('removeOptionalTags', () => {
             const input = '<ul><li>one</li><li>two</li></ul>';
 
             return initWithPostHtmlOptions(input, input, options, { closingSingleTag: 'slash' });
+        });
+    });
+
+    context('safe preset composition', () => {
+        const safeOptions = safePreset as HtmlnanoOptions;
+
+        it('omits tags after earlier modules remove whitespace between document sections', () => {
+            const input = '<html><head><title>x</title></head> \n <body><p>y</p></body></html>';
+            const expected = '<html><head><title>x</title><body><p>y';
+
+            return initIdempotent(input, expected, safeOptions);
+        });
+
+        it('omits </li> after a removable comment disappears', () => {
+            const input = '<ul><li>one</li><!-- removable --><li>two</li></ul>';
+            const expected = '<ul><li>one<li>two</ul>';
+
+            return initIdempotent(input, expected, safeOptions);
+        });
+
+        it('keeps </li> when a preserved comment blocks omission', () => {
+            const input = '<ul><li>one</li><!--! keep --><li>two</li></ul>';
+            const expected = '<ul><li>one</li><!--! keep --><li>two</ul>';
+
+            return initIdempotent(input, expected, safeOptions);
+        });
+
+        it('omits stable list and definition-list end tags', () => {
+            const input = '<ul><li>one</li><li>two</li></ul>'
+                + '<dl><dt>term</dt><dd>definition</dd><dt>term2</dt><dd>definition2</dd></dl>';
+            const expected = '<ul><li>one<li>two</ul>'
+                + '<dl><dt>term<dd>definition<dt>term2<dd>definition2</dl>';
+
+            return initIdempotent(input, expected, safeOptions);
+        });
+
+        it('omits stable ruby, option, and optgroup end tags', () => {
+            const input = '<ruby>base<rp>(</rp><rt>note</rt><rp>)</rp></ruby>'
+                + '<select><optgroup label="a"><option value="1">one</option>'
+                + '<option value="2">two</option></optgroup><optgroup label="b">'
+                + '<option>three</option></optgroup></select>';
+            const expected = '<ruby>base<rp>(<rt>note<rp>)</ruby>'
+                + '<select><optgroup label=a><option value=1>one<option value=2>two'
+                + '<optgroup label=b><option>three</select>';
+
+            return initIdempotent(input, expected, safeOptions);
+        });
+
+        it('keeps parser-sensitive table containers and omits stable cell and row end tags', () => {
+            const input = '<table><caption>cap</caption><colgroup><col></colgroup>'
+                + '<thead><tr><th>a</th><th>b</th></tr></thead>'
+                + '<tbody><tr><td>1</td><td>2</td></tr></tbody>'
+                + '<tfoot><tr><td>3</td><td>4</td></tr></tfoot></table>';
+            const expected = '<table><caption>cap</caption><colgroup><col></colgroup>'
+                + '<thead><tr><th>a<th>b</thead><tbody><tr><td>1<td>2</tbody>'
+                + '<tfoot><tr><td>3<td>4</table>';
+
+            return initIdempotent(input, expected, safeOptions);
+        });
+
+        it('uses normalized HTML5 doctypes for no-quirks </p> omission', () => {
+            const input = '<!DOCTYPE HTML><div><p>one</p>'
+                + '<table><tr><td>x</td></tr></table></div>';
+            const expected = '<!doctype html><div><p>one<table><tr><td>x</table></div>';
+
+            return initIdempotent(input, expected, safeOptions);
+        });
+
+        it('preserves quirks doctypes and the mode-dependent </p> tag', () => {
+            const input = '<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML Strict 3.0//EN//">'
+                + '<div><p>one</p><table><tr><td>x</td></tr></table></div>';
+            const expected = '<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML Strict 3.0//EN//">'
+                + '<div><p>one</p><table><tr><td>x</table></div>';
+
+            return initIdempotent(input, expected, safeOptions);
+        });
+
+        it('keeps optional HTML end tags explicit throughout foreign content', () => {
+            const input = '<svg><foreignObject><p>one</p><ul><li>a</li><li>b</li></ul>'
+                + '</foreignObject></svg><math><mtext><p>two</p></mtext></math>';
+
+            return initIdempotent(input, input, safeOptions);
+        });
+
+        it('honors closingSingleTag without creating unstable end-tag omissions', () => {
+            const input = '<ul><li>one</li><li>two</li></ul><img src="x">';
+            const expected = '<ul><li>one</li><li>two</li></ul><img src=x />';
+
+            return initIdempotent(input, expected, safeOptions, { closingSingleTag: 'slash' });
         });
     });
 

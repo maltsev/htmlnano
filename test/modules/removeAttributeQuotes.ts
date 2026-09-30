@@ -1,9 +1,7 @@
-import { init } from '../htmlnano.ts';
+import { init, initIdempotent } from '../htmlnano.ts';
 import safePreset from '../../dist/presets/safe.mjs';
 import type { HtmlnanoOptions } from '../../src/types.js';
 
-import posthtml from 'posthtml';
-import htmlnano from '../../dist/index.mjs';
 import { expect } from 'expect';
 
 describe('removeAttributeQuotes', () => {
@@ -23,29 +21,23 @@ describe('removeAttributeQuotes', () => {
     });
 
     it('shouldn\'t override exists options', () => {
-        return posthtml([
-            htmlnano(options, {})
-        ]).process(
+        return initIdempotent(
             html,
-            // @ts-expect-error unknown option
+            html,
+            options,
             { quoteAllAttributes: true }
-        ).then((result) => {
-            expect(result.html).toBe(html);
-        });
+        );
     });
 
     it('should force override quoteAllAttributes', () => {
         const forceOptions = { ...safePreset, removeAttributeQuotes: { force: true } } as HtmlnanoOptions;
 
-        return posthtml([
-            htmlnano(forceOptions, {})
-        ]).process(
+        return initIdempotent(
             html,
-            // @ts-expect-error unknown option
+            '<div class=foo title="hello world"></div>',
+            forceOptions,
             { quoteAllAttributes: true }
-        ).then((result) => {
-            expect(result.html).toBe('<div class=foo title="hello world"></div>');
-        });
+        );
     });
 
     it('should keep quotes around values containing spaces', () => {
@@ -100,32 +92,26 @@ describe('removeAttributeQuotes', () => {
     it('force:true should override a user-provided quoteAllAttributes:true', () => {
         const forceOptions = { ...safePreset, removeAttributeQuotes: { force: true } } as HtmlnanoOptions;
 
-        return posthtml([
-            htmlnano(forceOptions, {})
-        ]).process(
+        return initIdempotent(
             '<div class="foo"></div>',
-            // @ts-expect-error unknown option
+            '<div class=foo></div>',
+            forceOptions,
             { quoteAllAttributes: true }
-        ).then((result) => {
-            expect(result.html).toBe('<div class=foo></div>');
-        });
+        );
     });
 
     it('without force, the user-provided quoteAllAttributes:true wins', () => {
-        return posthtml([
-            htmlnano(options, {})
-        ]).process(
+        return initIdempotent(
             '<div class="foo"></div>',
-            // @ts-expect-error unknown option
+            '<div class="foo"></div>',
+            options,
             { quoteAllAttributes: true }
-        ).then((result) => {
-            expect(result.html).toBe('<div class="foo"></div>');
-        });
+        );
     });
 
     it('should interact with removeEmptyAttributes', () => {
         // safe preset removes empty style/class-like attributes; remaining ones stay quoted when empty
-        return init(
+        return initIdempotent(
             '<div style="" class="foo"></div>',
             '<div class=foo></div>',
             options
@@ -133,7 +119,7 @@ describe('removeAttributeQuotes', () => {
     });
 
     it('should interact with collapseBooleanAttributes', () => {
-        return init(
+        return initIdempotent(
             '<input disabled="disabled" name="foo">',
             '<input disabled name=foo>',
             options
@@ -141,7 +127,7 @@ describe('removeAttributeQuotes', () => {
     });
 
     it('should handle event-handler output', () => {
-        return init(
+        return initIdempotent(
             '<button onclick="alert(1); return false"></button>',
             '<button onclick="return alert(1),!1"></button>',
             options
@@ -149,7 +135,7 @@ describe('removeAttributeQuotes', () => {
     });
 
     it('should keep JSON-like attribute values quoted', () => {
-        return init(
+        return initIdempotent(
             '<div data-config=\'{"enabled":true}\'></div>',
             '<div data-config=\'{"enabled":true}\'></div>',
             options
@@ -157,7 +143,7 @@ describe('removeAttributeQuotes', () => {
     });
 
     it('should preserve quotes added by SVG minification', () => {
-        return init(
+        return initIdempotent(
             '<svg viewBox="0 0 10 10"><path d="M0 0h10v10z" fill="red"/></svg>',
             '<svg viewBox="0 0 10 10"><path fill="red" d="M0 0h10v10z"/></svg>',
             options
@@ -165,10 +151,54 @@ describe('removeAttributeQuotes', () => {
     });
 
     it('should remove optional quotes from custom and data attributes', () => {
-        return init(
+        return initIdempotent(
             '<x-card custom-attribute="enabled" data-state="ready"></x-card>',
             '<x-card custom-attribute=enabled data-state=ready></x-card>',
             options
         );
     });
+
+    it('keeps reference-minified delimiters quoted and removes safe attribute quotes', () => {
+        const input = '<div title="it&#39;s" data-double="say &quot;hi&quot;"'
+            + ' data-amp="rock&amp;roll" data-lt="a&lt;b" data-gt="a&gt;b"'
+            + ' data-json="{&quot;a&quot;:&#39;b&#39;}"></div>';
+        const expected = '<div title="it\'s" data-double="say &quot;hi&quot;"'
+            + ' data-amp=rock&roll data-lt="a<b" data-gt="a>b"'
+            + ' data-json=\'{"a":&#39;b&#39;}\'></div>';
+
+        return initIdempotent(input, expected, {
+            minifyCharacterReferences: true,
+            removeAttributeQuotes: true
+        });
+    });
+
+    const quoteStyleCases = [
+        {
+            name: 'smart quotes without replacement',
+            postHtmlOptions: { quoteStyle: 0, replaceQuote: false },
+            expected: '<div title=\'it&#39;s "quoted"\' data-json=\'{"a":&#39;b&#39;}\'></div>'
+        },
+        {
+            name: 'single quotes with replacement',
+            postHtmlOptions: { quoteStyle: 1, replaceQuote: true },
+            expected: '<div title=\'it&#39;s &quot;quoted&quot;\' data-json=\'{"a":&#39;b&#39;}\'></div>'
+        },
+        {
+            name: 'double quotes with replacement',
+            postHtmlOptions: { quoteStyle: 2, replaceQuote: true },
+            expected: '<div title="it\'s &quot;quoted&quot;" data-json=\'{"a":&#39;b&#39;}\'></div>'
+        }
+    ] as const;
+
+    for (const { name, postHtmlOptions, expected } of quoteStyleCases) {
+        it(`respects ${name} after character-reference minification`, () => {
+            const input = '<div title="it&#39;s &quot;quoted&quot;"'
+                + ' data-json="{&quot;a&quot;:&#39;b&#39;}"></div>';
+
+            return initIdempotent(input, expected, {
+                minifyCharacterReferences: true,
+                removeAttributeQuotes: true
+            }, postHtmlOptions);
+        });
+    }
 });

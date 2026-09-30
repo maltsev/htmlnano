@@ -30,7 +30,6 @@ const optionalEndTags = new Set([
 
 const bodyStartTagCantBeOmittedWithFirstChildTags = new Set(['meta', 'link', 'script', 'style', 'template']);
 const tbodyStartTagCantBeOmittedWithPrecededTags = new Set(['tbody', 'thead', 'tfoot']);
-const tableSectionEndTagFollowedByTags = new Set(['tbody', 'tfoot']);
 const cellEndTagFollowedByTags = new Set(['td', 'th']);
 const rubyEndTagFollowedByTags = new Set(['rt', 'rp']);
 /*
@@ -280,7 +279,8 @@ function canOmitEndTag(
     tagName: string,
     nextNode: PostHTMLNodeLike | null,
     parent: PostHTML.Node | null,
-    context: OmissionContext
+    context: OmissionContext,
+    isStartTagOmittable: boolean
 ) {
     const isLastInParent = nextNode === null;
     const nextTagName = getTagNameOf(nextNode);
@@ -295,11 +295,20 @@ function canOmitEndTag(
         case 'body':
             return !isNextComment;
 
-        /** A "head", "caption" or "colgroup" element's end tag may be omitted if it is not IMMEDIATELY followed by ASCII whitespace or a comment. */
+        /** A "head" element's end tag may be omitted if it is not IMMEDIATELY followed by ASCII whitespace or a comment. */
         case 'head':
-        case 'caption':
-        case 'colgroup':
             return !isNextWhitespaceOrComment;
+
+        /**
+         * The same specification rule applies to "caption" and "colgroup",
+         * but htmlparser2 nests their following sibling when only the end tag
+         * is absent. A whole optional "colgroup" pair remains safe to remove.
+         * "caption" has no optional start tag, so its end tag must stay.
+         */
+        case 'caption':
+            return false;
+        case 'colgroup':
+            return isStartTagOmittable && !isNextWhitespaceOrComment;
 
         /** A "li" element's end tag may be omitted if it is IMMEDIATELY followed by another "li" element, or if there is no more content in the parent element. */
         case 'li':
@@ -333,13 +342,20 @@ function canOmitEndTag(
         case 'option':
             return nextTagName === 'option' || nextTagName === 'optgroup' || (isLastInParent && canOmitLastChildEndTag(tagName, parent));
 
-        /** A "thead" element's end tag may be omitted if it is IMMEDIATELY followed by a "tbody" or "tfoot" element. */
+        /**
+         * The specification permits omitting "thead" before "tbody" or "tfoot",
+         * but htmlparser2 nests the following section inside "thead" on a second
+         * pass. Keep the tag so minification remains idempotent.
+         */
         case 'thead':
-            return typeof nextTagName === 'string' && tableSectionEndTagFollowedByTags.has(nextTagName);
+            return false;
 
-        /** A "tbody" element's end tag may be omitted if it is IMMEDIATELY followed by a "tbody" or "tfoot" element, or if there is no more content in the parent element. */
+        /**
+         * htmlparser2 likewise nests a following "tbody" or "tfoot" when this
+         * end tag is absent. The last-child form remains stable and can be omitted.
+         */
         case 'tbody':
-            return (typeof nextTagName === 'string' && tableSectionEndTagFollowedByTags.has(nextTagName))
+            return (isStartTagOmittable && (nextTagName === 'tbody' || nextTagName === 'tfoot'))
                 || (isLastInParent && canOmitLastChildEndTag(tagName, parent));
 
         /** A "tfoot" element's end tag may be omitted if there is no more content in the parent element. */
@@ -456,10 +472,11 @@ function removeOptionalTagsFrom(nodes: PostHTMLNodeLike[], parent: PostHTML.Node
             && typeof prevNode !== 'string'
             && context.endTagOmittedNodes.has(prevNode);
 
-        const isEndTagOmittable = optionalEndTags.has(tagName) && canOmitEndTag(tagName, nextNode, parent, context);
         const isStartTagOmittable = context.removeStartTags
             && optionalStartTags.has(tagName)
             && canOmitStartTag(node, tagName, prevNode, isPrevEndTagOmitted);
+        const isEndTagOmittable = optionalEndTags.has(tagName)
+            && canOmitEndTag(tagName, nextNode, parent, context, isStartTagOmittable);
 
         if (isStartTagOmittable && isEndTagOmittable) {
             omitTag(node);

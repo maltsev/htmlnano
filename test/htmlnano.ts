@@ -108,3 +108,18 @@ export function initWithPostHtmlOptions(
         expect(result.html).toBe(minifiedHtml);
     });
 }
+
+export async function initIdempotent(
+    html: string,
+    minifiedHtml: string,
+    options?: HtmlnanoOptions,
+    postHtmlOptions?: Record<string, unknown>
+): Promise<void> {
+    const process = (source: string) => posthtml([htmlnano(options, {})])
+        .process(source, postHtmlOptions ? { ...postHtmlOptions } : undefined)
+        .then(result => String(result.html));
+
+    const first = await process(html);
+    expect(first).toBe(minifiedHtml);
+    expect(await process(first)).toBe(first);
+}
