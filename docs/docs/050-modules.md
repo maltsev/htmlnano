@@ -1453,10 +1453,13 @@ htmlnano.process(html, {
 });
 ```
 
-`minifySvg: true` enables SVGO with its default configuration.
+`minifySvg: true` and `minifySvg: {}` enable SVGO with htmlnano's inline SVG defaults.
 htmlnano enables SVGO multipass by default; set `multipass: false` to disable it.
 
 #### Notes
+- htmlnano disables `cleanupIds`, `removeUselessDefs`, and `removeHiddenElems` in SVGO's `preset-default`. Each SVG is optimized separately, but its IDs, symbols, gradients, and other definitions can be referenced elsewhere in the HTML document. These defaults preserve shared sprites and definitions and prevent ID renaming from creating duplicate IDs across SVGs.
+- SVGO's `inlineStyles` uses `removeMatchedSelectors: false` so inlining local CSS rules does not remove IDs or classes used elsewhere in the page.
+- Explicit `preset-default` overrides take precedence over these defaults. For example, `params: { overrides: { cleanupIds: {} } }` re-enables ID cleanup. Plugins explicitly listed outside the preset, custom plugins, and an empty plugin list are passed through as configured.
 - SVGs are rendered with quoted attributes before SVGO runs to keep the output stable.
 - Parser errors from SVGO leave the original `<svg>` as-is. Other SVGO errors are logged and the module falls back to a no-plugin SVGO run; if that also fails, the original SVG is preserved.
 - Set `skipInternalWarnings: true` to suppress SVGO error logging.

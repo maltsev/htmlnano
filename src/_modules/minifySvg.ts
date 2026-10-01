@@ -1,6 +1,16 @@
 import { optionalImport } from '../helpers';
 import type { HtmlnanoModule } from '../types';
-import type { Config as SvgoConfig } from 'svgo';
+import type { Config as SvgoConfig, PluginConfig } from 'svgo';
+
+// Inline SVG IDs and definitions can be referenced by other SVGs, HTML, CSS, or JS.
+// Optimizing one SVG at a time cannot determine whether they are unused or hidden.
+const inlineSvgOverrides = {
+    cleanupIds: false,
+    removeUselessDefs: false,
+    removeHiddenElems: false,
+    // Inlining a local rule must not remove IDs/classes used elsewhere in the page.
+    inlineStyles: { removeMatchedSelectors: false }
+} as const;
 
 /** Minify SVG with SVGO */
 const mod: HtmlnanoModule<SvgoConfig> = {
@@ -67,6 +77,30 @@ function resolveSvgoOptions(svgoOptions: SvgoConfig | true | null | undefined): 
 function applySvgoDefaults(svgoOptions: SvgoConfig): SvgoConfig {
     return {
         ...svgoOptions,
-        multipass: svgoOptions.multipass ?? true
+        multipass: svgoOptions.multipass ?? true,
+        plugins: (svgoOptions.plugins ?? ['preset-default']).map(applyInlineSvgDefaults)
+    };
+}
+
+function applyInlineSvgDefaults(plugin: PluginConfig): PluginConfig {
+    if (plugin === 'preset-default') {
+        return {
+            name: plugin,
+            params: { overrides: inlineSvgOverrides }
+        };
+    }
+    if (typeof plugin !== 'object' || plugin === null || plugin.name !== 'preset-default' || 'fn' in plugin) {
+        return plugin;
+    }
+
+    return {
+        ...plugin,
+        params: {
+            ...plugin.params,
+            overrides: {
+                ...inlineSvgOverrides,
+                ...plugin.params?.overrides
+            }
+        }
     };
 }
