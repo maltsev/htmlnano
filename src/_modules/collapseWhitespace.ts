@@ -31,9 +31,11 @@ const noTrimWhitespacesInsideElements = new Set([
  */
 const whitespacePreservingStylePattern = /(?:^|;|\s)white-space\s*:\s*(?:pre|pre-wrap|pre-line|break-spaces)/i;
 
-const startsWithWhitespacePattern = /^\s/;
-const endsWithWhitespacePattern = /\s$/;
 // See https://infra.spec.whatwg.org/#strip-and-collapse-ascii-whitespace and https://infra.spec.whatwg.org/#ascii-whitespace
+// Non-ASCII whitespace is text content, including at element boundaries.
+const startsWithWhitespacePattern = /^[\t\n\f\r ]+/;
+const endsWithWhitespacePattern = /[\t\n\f\r ]+$/;
+const edgeWhitespacePattern = /^[\t\n\f\r ]+|[\t\n\f\r ]+$/g;
 const multipleWhitespacePattern = /[\t\n\f\r ]+/g;
 const NONE = '';
 const SINGLE_SPACE = ' ';
@@ -121,12 +123,12 @@ function collapseRedundantWhitespaces(
     if (shouldTrim) {
         // top level, trim all ('all' is handled by collapseAllWhitespaces)
         if (collapseType === 'conservative') {
-            return text.trim();
+            return text.replace(edgeWhitespacePattern, NONE);
         }
 
         if (
             collapseType === 'aggressive'
-            && text.trim().length === 0
+            && text.replace(edgeWhitespacePattern, NONE).length === 0
             && (isTrimmableAroundNode(prevNode) || prevNode == null)
             && (isTrimmableAroundNode(nextNode) || nextNode == null)
             && !(isCommentNode(prevNode) && isCommentNode(nextNode))
@@ -146,7 +148,7 @@ function collapseRedundantWhitespaces(
                 || (
                     typeof prevNode === 'object' && prevNode.tag && !noTrimWhitespacesArroundElements.has(prevNode.tag))
             ) {
-                text = text.trimStart();
+                text = text.replace(startsWithWhitespacePattern, NONE);
             } else {
                 // previous node is a "no trim whitespaces arround element"
                 if (
@@ -166,7 +168,7 @@ function collapseRedundantWhitespaces(
                             )
                         )
                     ) {
-                        text = text.trimStart();
+                        text = text.replace(startsWithWhitespacePattern, NONE);
                     }
                 }
             }
@@ -174,7 +176,7 @@ function collapseRedundantWhitespaces(
                 !nextNode
                 || typeof nextNode === 'object' && nextNode.tag && !noTrimWhitespacesArroundElements.has(nextNode.tag)
             ) {
-                text = text.trimEnd();
+                text = text.replace(endsWithWhitespacePattern, NONE);
             }
         } else {
             // now it is a textNode inside a "no trim whitespaces inside elements" node
@@ -184,7 +186,7 @@ function collapseRedundantWhitespaces(
                 && typeof parent?.prevNode === 'string' // the prev of the node is a textNode as well
                 && endsWithWhitespacePattern.test(parent.prevNode[parent.prevNode.length - 1] ?? '') // that prev is ends with a white
             ) {
-                text = text.trimStart();
+                text = text.replace(startsWithWhitespacePattern, NONE);
             }
         }
     }
@@ -212,7 +214,7 @@ function collapseAllWhitespaces(text: string, tree: ArrayLike<PostHTMLNodeLike>,
     const keepSpaceBefore = startsWithWhitespacePattern.test(text) && isRenderedSpaceBefore(tree, index, parent);
     const keepSpaceAfter = endsWithWhitespacePattern.test(text) && isRenderedSpaceAfter(tree, index, parent);
 
-    const trimmedText = text.trim();
+    const trimmedText = text.replace(edgeWhitespacePattern, NONE);
     if (!trimmedText) {
         // A whitespace-only node is the separator itself, so one space is enough
         return keepSpaceBefore && keepSpaceAfter ? SINGLE_SPACE : NONE;

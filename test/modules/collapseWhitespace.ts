@@ -50,6 +50,48 @@ describe('collapseWhitespace', () => {
                     </body>
                 </html> `;
 
+    for (const collapseType of ['all', 'aggressive', 'conservative'] as const) {
+        context(`non-ASCII whitespace in ${collapseType} mode`, () => {
+            const options: HtmlnanoOptions = { collapseWhitespace: collapseType };
+
+            it('preserves no-break spaces next to custom and inline elements (issue #465)', () => {
+                const input = '<p>Let x be ?\u00a0<emu-xref><a href="#call">Call</a></emu-xref>(F).</p>'
+                    + '<p>Press\u00a0<kbd>Ctrl</kbd>\u00a0+\u00a0<kbd>C</kbd>.</p>'
+                    + '<p>10\u00a0km</p>';
+
+                return init(input, input, options);
+            });
+
+            for (const char of ['\u00a0', '\u2003', '\u202f', '\u2028', '\u2029', '\ufeff', '\u000b']) {
+                const codePoint = char.charCodeAt(0).toString(16).padStart(4, '0');
+
+                it(`preserves U+${codePoint} at text edges and in standalone text nodes`, () => {
+                    const input = `${char}<p>${char}word${char}</p>${char}<p>${char}</p>${char}`;
+
+                    return init(input, input, options);
+                });
+
+                it(`keeps ASCII spaces beside U+${codePoint} across inline boundaries`, () => {
+                    const input = `<p>x${char}<em> y</em></p>`
+                        + `<p><b><span>x${char}</span></b><i> y</i></p>`
+                        + `<p><em>x </em>${char}y</p>`
+                        + `<p>x <em>${char}y</em></p>`;
+
+                    return init(input, input, options);
+                });
+            }
+
+            it('still collapses and trims ASCII whitespace around non-ASCII content', () => {
+                const input = '\t\n\f\r \u00a0 \t\n\f\r <p>\t\n\f\r \u00a0x\u00a0 \t\n\f\r </p>\t\n\f\r \u00a0 \t\n\f\r ';
+                const expected = collapseType === 'conservative'
+                    ? '\u00a0<p> \u00a0x\u00a0 </p>\u00a0'
+                    : '\u00a0<p>\u00a0x\u00a0</p>\u00a0';
+
+                return init(input, expected, options);
+            });
+        });
+    }
+
     context('all', () => {
         const options: HtmlnanoOptions = {
             collapseWhitespace: maxPreset.collapseWhitespace
