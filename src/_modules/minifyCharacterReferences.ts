@@ -1,6 +1,8 @@
 import { decodeHTML, decodeHTMLAttribute, decodeHTMLStrict } from 'entities';
 import { isComment } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
+import { canRenderApostrophe, isJsonLikeValue } from './helpers/attributeQuoting.js';
+import type { RenderQuotingOptions } from './helpers/attributeQuoting.js';
 
 export interface MinifyCharacterReferencesOptions {
     /**
@@ -168,12 +170,6 @@ const referencePattern = /&(?:#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);/g
  * decoding instead of scanning the rest of a possibly huge text node.
  */
 const ampersandLookaheadLimit = 64;
-
-/** Options of posthtml-render that decide the attribute quote character. */
-type RenderQuotingOptions = {
-    quoteStyle?: 0 | 1 | 2 | undefined;
-    replaceQuote?: boolean | undefined;
-};
 
 /**
  * Hooks have no access to the tree or its render options. Both receive the
@@ -375,32 +371,6 @@ function decodeReferences(text: string, context: DecodeContext): string {
     }
 
     return result;
-}
-
-/**
- * posthtml-render single-quotes JSON-ish attribute values, so an apostrophe
- * would terminate them. This mirrors the "is-json" check it uses.
- */
-function isJsonLikeValue(value: string): boolean {
-    const compacted = value.replace(/\s/g, '');
-    if (/^\{.*\}$/.test(compacted)) {
-        return /"(.*?)":/.test(compacted);
-    }
-    return /^\[.*\]$/.test(compacted);
-}
-
-/** Whether posthtml-render is guaranteed to double-quote the given value. */
-function canRenderApostrophe(value: string, quoting: RenderQuotingOptions): boolean {
-    // quoteStyle 1 is "always single quotes".
-    if (quoting.quoteStyle === 1) {
-        return false;
-    }
-    // quoteStyle 0 is "single quotes for values containing a double quote",
-    // which only happens when the double quotes are not replaced beforehand.
-    if (quoting.quoteStyle === 0 && quoting.replaceQuote === false && value.indexOf('"') !== -1) {
-        return false;
-    }
-    return !isJsonLikeValue(value);
 }
 
 function decodeAttributeValue(

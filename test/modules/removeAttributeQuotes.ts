@@ -1,6 +1,9 @@
 import { init, initIdempotent } from '../htmlnano.ts';
 import safePreset from '../../dist/presets/safe.mjs';
+import htmlnano from '../../dist/index.mjs';
 import type { HtmlnanoOptions } from '../../src/types.js';
+import { parseFragment } from 'parse5';
+import type { DefaultTreeAdapterTypes } from 'parse5';
 
 import { expect } from 'expect';
 
@@ -224,4 +227,62 @@ describe('removeAttributeQuotes', () => {
             }, postHtmlOptions);
         });
     }
+
+    const injectionCases = [
+        {
+            name: 'single quotes',
+            input: '<div data-x="\' onmouseover=alert(1) x=\'"></div>',
+            postHtmlOptions: { quoteStyle: 1 }
+        },
+        {
+            name: 'JSON values',
+            input: '<div data-x="{&quot;a&quot;:&quot;\' onmouseover=alert(1) x=\'&quot;}"></div>',
+            postHtmlOptions: {}
+        },
+        {
+            name: 'smart quotes with decoded entities',
+            input: '<div data-x="&quot;\' onmouseover=alert(1) x=\'"></div>',
+            postHtmlOptions: { quoteStyle: 0, replaceQuote: false, decodeEntities: true }
+        },
+        {
+            name: 'double quotes without replacement',
+            input: '<div data-x="&quot; onmouseover=alert(1) x=&quot;"></div>',
+            postHtmlOptions: { replaceQuote: false, decodeEntities: true }
+        },
+        {
+            name: 'explicitly quoted attributes',
+            input: '<div data-x="\' onmouseover=alert(1) x=\'"></div>',
+            postHtmlOptions: { quoteStyle: 1, quoteAllAttributes: true }
+        }
+    ];
+
+    for (const { name, input, postHtmlOptions } of injectionCases) {
+        it(`prevents attribute injection with ${name}`, async () => {
+            const moduleOptions = { removeAttributeQuotes: true };
+            const result = await htmlnano.process(input, moduleOptions, {}, { ...postHtmlOptions });
+            const sourceNode = parseFragment(input).childNodes[0] as DefaultTreeAdapterTypes.Element;
+            const outputNode = parseFragment(result.html).childNodes[0] as DefaultTreeAdapterTypes.Element;
+
+            // Compare browser-parsed values and the entire attribute set: a
+            // leaked delimiter must never create an event-handler attribute.
+            expect(outputNode.attrs).toEqual(sourceNode.attrs);
+            await initIdempotent(input, result.html, moduleOptions, postHtmlOptions);
+        });
+    }
+
+    it('escapes delimiters produced by other modules regardless of option order', async () => {
+        const input = '<button onclick="alert(&quot;it\'s&quot;)"></button>';
+        const moduleOptions: HtmlnanoOptions = {
+            removeOptionalTags: true,
+            removeAttributeQuotes: { force: true },
+            minifyJs: {}
+        };
+        const postHtmlOptions = { quoteStyle: 1 };
+        const expected = '<button onclick=\'alert(&quot;it&#39;s&quot;);\'></button>';
+
+        await initIdempotent(input, expected, moduleOptions, postHtmlOptions);
+        const sourceNode = parseFragment(input).childNodes[0] as DefaultTreeAdapterTypes.Element;
+        const outputNode = parseFragment(expected).childNodes[0] as DefaultTreeAdapterTypes.Element;
+        expect(outputNode.attrs).toEqual([{ name: 'onclick', value: `${sourceNode.attrs[0].value};` }]);
+    });
 });

@@ -3,12 +3,13 @@
 // See also: https://github.com/maltsev/htmlnano/issues/6#issuecomment-707105334
 
 import type { HtmlnanoModule } from '../types';
+import { canRenderApostrophe } from './helpers/attributeQuoting.js';
 
 type RemoveAttributeQuotesOptions = {
     force?: boolean;
 };
 
-/** Disable quoteAllAttributes while not overriding the configuration */
+/** Remove optional HTML quotes and escape delimiters in required quoted values. */
 const mod: HtmlnanoModule<RemoveAttributeQuotesOptions> = {
     default: function removeAttributeQuotes(tree, _options, moduleOptions) {
         // XML requires quoted values, including empty ones. `force` only
@@ -19,10 +20,30 @@ const mod: HtmlnanoModule<RemoveAttributeQuotesOptions> = {
 
         if (moduleOptions && typeof moduleOptions === 'object' && moduleOptions.force) {
             tree.options.quoteAllAttributes = false;
-            return tree;
+        } else {
+            tree.options.quoteAllAttributes ??= false;
         }
 
-        tree.options.quoteAllAttributes ??= false;
+        const quoting = tree.options;
+        tree.walk((node) => {
+            if (!node.attrs) return node;
+
+            for (const [name, value] of Object.entries(node.attrs)) {
+                if (typeof value !== 'string') continue;
+                let escaped = value;
+
+                // The renderer escapes double quotes by default, but never
+                // apostrophes in single-quoted values (including JSON).
+                if (value.includes('\'') && !canRenderApostrophe(value, quoting)) {
+                    escaped = escaped.replace(/'/g, '&#39;');
+                }
+                if (quoting.replaceQuote === false && quoting.quoteStyle !== 0 && quoting.quoteStyle !== 1) {
+                    escaped = escaped.replace(/"/g, '&quot;');
+                }
+                node.attrs[name] = escaped;
+            }
+            return node;
+        });
 
         return tree;
     }

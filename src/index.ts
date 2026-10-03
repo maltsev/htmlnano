@@ -64,8 +64,11 @@ export function loadConfig(
  * later (e.g. `removeXmlLeftovers` stripping the last attribute off `<html>`)
  * and hides elements from later modules (e.g. `removeUnusedCss` would drop a
  * `body { … }` rule after `<body>` had already been omitted).
+ *
+ * `removeAttributeQuotes` escapes delimiters in the final attribute values.
+ * Running it earlier would miss quotes introduced by other minifiers.
  */
-const finalPassModules = new Set<string>(['removeOptionalTags']);
+const finalPassModules = new Set<string>(['removeAttributeQuotes', 'removeOptionalTags']);
 
 const optionalDependencies = {
     minifyCss: ['cssnano', 'postcss'],

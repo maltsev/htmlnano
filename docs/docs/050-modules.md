@@ -1031,6 +1031,8 @@ enabled in `max`. It only removes quotes when the PostHTML renderer considers
 them optional and its configuration permits unquoted attributes.
 In PostHTML's `xmlMode`, this module leaves quoting options unchanged, even
 with `force: true`, because XML requires quotes around attribute values.
+When quotes are required, literal quote delimiters are escaped as needed to
+preserve the value and prevent it from introducing additional attributes.
 
 #### Options
 - `force` — if `true`, forces `quoteAllAttributes` to `false` even when other PostHTML options or plugins set it to `true`.
