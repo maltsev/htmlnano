@@ -76,6 +76,14 @@ describe('normalizeAttributeValues', () => {
         ]);
     });
 
+    it('should recognize encoded hidden states without trimming meaningful whitespace', () => {
+        return init(
+            '<div hidden="UNTIL&#45;FOUND"></div><div hidden=" until-found "></div><div hidden="&#32;until-found"></div>',
+            '<div hidden="until-found"></div><div hidden="hidden"></div><div hidden="hidden"></div>',
+            options
+        );
+    });
+
     it('normalizes casing and whitespace for invalid defaults', () => {
         return Promise.all([
             init(

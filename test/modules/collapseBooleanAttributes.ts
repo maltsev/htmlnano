@@ -205,6 +205,29 @@ describe('collapseBooleanAttributes', () => {
         );
     });
 
+    for (const value of ['UNTIL-FOUND', '&#117;ntil-found', 'until&#45;found', 'until&#45found', '&#x55;NTIL-found']) {
+        it(`should preserve the until-found state in hidden="${value}"`, () => {
+            const input = `<div hidden="${value}"></div><my-widget hidden="${value}"></my-widget>`;
+            return initIdempotent(input, input, options);
+        });
+
+        for (const [name, preset] of [['safe', safePreset], ['ampSafe', ampSafePreset]] as const) {
+            it(`${name} preserves the until-found state in hidden="${value}"`, () => {
+                return initIdempotent(
+                    `<div hidden="${value}"></div>`,
+                    '<div hidden=until-found></div>',
+                    preset
+                );
+            });
+        }
+    }
+
+    for (const value of [' until-found ', '&#32;until-found', 'until-found&#x20;', '\u00a0until-found', 'until&hyphen;found']) {
+        it(`should collapse the hidden state in hidden="${value}" with an invalid keyword`, () => {
+            return initIdempotent(`<div hidden="${value}"></div>`, '<div hidden></div>', safePreset);
+        });
+    }
+
     it('should collapse hidden="hidden"', () => {
         return init(
             '<div hidden="hidden"></div>',

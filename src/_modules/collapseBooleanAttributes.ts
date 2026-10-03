@@ -1,6 +1,7 @@
 // Source: https://github.com/kangax/html-minifier/issues/63
 // https://html.spec.whatwg.org/#boolean-attribute
 
+import { decodeHTMLAttribute } from 'entities';
 import { hasOwn } from '../helpers';
 import type { HtmlnanoModule } from '../types';
 
@@ -174,7 +175,7 @@ const mod: HtmlnanoModule<CollapseBooleanAttributesOptions> = {
                     if (
                         attrNameLower === 'hidden'
                         && typeof newAttrs[attrName] === 'string'
-                        && (newAttrs[attrName]).toLowerCase() === 'until-found'
+                        && decodeHTMLAttribute(newAttrs[attrName]).toLowerCase() === 'until-found'
                     ) {
                         continue;
                     }

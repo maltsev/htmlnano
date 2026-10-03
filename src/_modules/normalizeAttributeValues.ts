@@ -1,3 +1,4 @@
+import { decodeHTMLAttribute } from 'entities';
 import type { HtmlnanoModule } from '../types';
 
 const caseInsensitiveAttributes: Record<string, null | string[]> = {
@@ -134,7 +135,9 @@ const mod: HtmlnanoModule = {
                 const shouldNormalizeCase = hasCaseInsensitive || appliesInvalidValueDefault;
 
                 if (typeof attrValue === 'string' && shouldNormalizeCase) {
-                    newAttrValue = attrValue.trim().toLowerCase();
+                    // Hidden keywords match the decoded value exactly; whitespace
+                    // makes "until-found" invalid and selects the hidden state.
+                    newAttrValue = (attrName === 'hidden' ? decodeHTMLAttribute(attrValue) : attrValue.trim()).toLowerCase();
                 }
 
                 if (appliesInvalidValueDefault && invalidMeta) {

@@ -182,7 +182,7 @@ Minified:
 - Collapses `crossorigin="anonymous"` (case-insensitive) to `crossorigin`.
 - Collapses `popover="auto"` (case-insensitive) to `popover`, since the empty string maps to the same state. `popover="manual"` and `popover="hint"` are left untouched.
 - Collapses the declarative shadow DOM template booleans `shadowrootclonable`, `shadowrootdelegatesfocus`, and `shadowrootserializable` (but not the enumerated `shadowrootmode`).
-- Leaves `hidden="until-found"` untouched, since it is a distinct state from the collapsed `hidden`.
+- Leaves `hidden="until-found"` untouched (including case variants and character references), since it is a distinct state from the collapsed `hidden`. Surrounding whitespace makes this keyword invalid, selecting the ordinary hidden state.
 - Preserves attribute values on custom elements, including A-Frame's
   `visible="false"` and attributes such as `enabled` or `disabled`. Global HTML
   states (`autofocus`, `hidden`, `inert`, `itemscope`, and `popover`) still
