@@ -1,5 +1,5 @@
 import type PostHTML from 'posthtml';
-import { isComment } from '../helpers';
+import { isComment, isConditionalComment } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 import { escapeTextBoundary } from './helpers/escapeTextBoundary';
 
@@ -71,7 +71,7 @@ const presentationalAttributes = ['class', 'style', 'aria-hidden'];
  * that are submitted and scripted while empty — an empty `<textarea>` is simply
  * one the user hasn't typed into yet. The rest render or are painted by something
  * other than their markup: `<canvas>` by scripts, `<iframe>` by a nested document,
- * `<audio>`/`<video>` by the resource of their `src`, `<slot>` by the light DOM
+ * `<audio>`/`<video>`/`<object>` by an external resource, `<slot>` by the light DOM
  * projected into it.
  */
 const meaningfulWhenEmptyElements = new Set([
@@ -80,6 +80,7 @@ const meaningfulWhenEmptyElements = new Set([
     'caption',
     'colgroup',
     'iframe',
+    'object',
     'option',
     'select',
     'slot',
@@ -151,7 +152,7 @@ function isEmptyContent(content: PostHTML.Node['content'], ignoreComments: boole
     }
 
     return contentArray.every(child => typeof child === 'string'
-        && (child === '' || ignoreComments && isComment(child)));
+        && (child === '' || ignoreComments && isComment(child) && !isConditionalComment(child.toLowerCase())));
 }
 
 function shouldRemoveNode(node: PostHTML.Node, options: NormalizedOptions) {
@@ -161,6 +162,11 @@ function shouldRemoveNode(node: PostHTML.Node, options: NormalizedOptions) {
 
     const tag = node.tag.toLowerCase();
     if (voidElements.has(tag) || meaningfulWhenEmptyElements.has(tag)) {
+        return false;
+    }
+
+    // External scripts execute even with no inline content, in every mode.
+    if (tag === 'script' && Object.keys(node.attrs || {}).some(attribute => attribute.toLowerCase() === 'src')) {
         return false;
     }
 

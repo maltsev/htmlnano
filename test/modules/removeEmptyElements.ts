@@ -11,6 +11,24 @@ describe('removeEmptyElements', () => {
         { removeWithAttributes: true }
     ];
 
+    it('should keep external scripts and object resources even with an empty body', async () => {
+        const html = '<script src="app.js"></script><SCRIPT SRC=""></SCRIPT>'
+            + '<object data="picture.svg"></object><object></object>';
+        for (const removeEmptyElements of [...removalModes, { removeWithAttributes: ['src', 'data'] }]) {
+            await init(html + '<span></span>', html, { removeEmptyElements });
+        }
+    });
+
+    it('should keep elements containing conditional comments', async () => {
+        const html = '<div><!--[if IE]><script src="legacy.js"></script><![endif]--></div>'
+            + '<div><!--[IF IE]>legacy<![ENDIF]--></div>'
+            + '<div><!--[if IE]><!--><span></span><!--<![endif]--></div>';
+        const expected = html.replace('<span></span>', '');
+        for (const removeEmptyElements of removalModes) {
+            await init(html + '<div><!-- ordinary comment --></div>', expected, { removeEmptyElements });
+        }
+    });
+
     it('should keep comment-looking text and apparent empty descendants in text elements', async () => {
         const tags = ['script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes', 'noscript'];
         const html = tags.map(tag => `<${tag}><!-- literal --><span></span></${tag}>`).join('')

@@ -780,7 +780,8 @@ Removes elements that have no meaningful content.
   but with your own list of attributes that don't prevent the removal.
 - `{ removeWithAttributes: true }` — removes empty elements no matter what they carry.
 
-Empty elements are defined as elements with no child elements and no text content; comments do not count as content.
+Empty elements are defined as elements with no child elements and no text content;
+ordinary comments do not count as content, but IE conditional comments do.
 Whitespace is text content and is preserved because it can separate inline content or be significant in preformatted text.
 Text joined across a removed element is escaped when necessary to avoid creating
 new markup or changing a character reference.
@@ -795,9 +796,11 @@ keep doing their job while empty, whatever `removeWithAttributes` says:
   Dropping an empty cell shifts every following cell of the row into the wrong column.
 - `textarea`, `select`, `option` — form controls that are submitted and scripted while
   empty; an empty `<textarea>` is simply one the user hasn't typed into yet.
-- `canvas`, `iframe`, `audio`, `video`, `slot` — they are painted or filled by something
+- `canvas`, `iframe`, `audio`, `video`, `object`, `slot` — they are painted or filled by something
   other than their own markup: scripts, a nested document, the resource of their `src`,
   or the light DOM projected into them.
+- `script` with a `src` attribute — it executes an external resource even without
+  inline content.
 
 ##### The `'presentational'` mode
 
