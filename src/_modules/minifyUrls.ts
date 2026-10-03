@@ -14,15 +14,13 @@ const tagsHasHrefAttributes = new Set([
 
 const attributesOfImgTagHasUriValues = new Set([
     'src',
-    'longdesc',
-    'usemap'
+    'longdesc'
 ]);
 
 const attributesOfObjectTagHasUriValues = new Set([
     'classid',
     'codebase',
-    'data',
-    'usemap'
+    'data'
 ]);
 
 const tagsHasCiteAttributes = new Set([
@@ -57,9 +55,7 @@ const isUriTypeAttribute = (tag: string, attr: string) => {
         || tag === 'object' && attributesOfObjectTagHasUriValues.has(attr)
         || tagsHasCiteAttributes.has(tag) && attr === 'cite'
         || tag === 'form' && attr === 'action'
-        || tag === 'input' && attr === 'usemap'
         || tag === 'head' && attr === 'profile'
-        || tag === 'script' && attr === 'for'
         || tagsHasSrcAttributes.has(tag) && attr === 'src'
     );
 };

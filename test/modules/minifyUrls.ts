@@ -376,4 +376,12 @@ describe('minifyUrls', () => {
             )
         ]);
     });
+
+    it('should preserve identifier attributes that look like URLs', () => {
+        const html = '<img usemap="https://example.com/foo/#map"><input usemap="https://example.com/foo/#map">'
+            + '<object usemap="https://example.com/foo/#map"></object><img usemap=" #map ">'
+            + '<script for="https://example.com/foo/window" event="onload">alert(true)</script>'
+            + '<script for="javascript:alert(true)"></script>';
+        return init(html, html, { minifyUrls: 'https://example.com/foo/' });
+    });
 });

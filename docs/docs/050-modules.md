@@ -333,7 +333,7 @@ htmlnano.process(html, {
 #### Notes
 
 - Only `http(s)` and relative URLs are related. Non-HTTP schemes (e.g. `mailto:`, `tel:`, `data:`) are left untouched.
-- Hash-only (`#...`) and query-only (`?...`) URLs are left untouched.
+- Hash-only (`#...`) and query-only (`?...`) URLs are left untouched. Identifier attributes such as `usemap` and `script[for]` are never treated as URLs.
 - A default port matching the scheme is stripped (`https://example.com:443/x` → `https://example.com/x`, `http://example.com:80/x` → `http://example.com/x`). A mismatched port is kept (e.g. `:443` is not removed for `http`, nor `:8443` for `https`).
 - URL destinations are preserved, including explicit `index.html` resources and query/fragment delimiters. Rewrites that change the browser-resolved URL are skipped.
 - Documents containing `<base href>` are left unchanged because their base can override the configured URL.
