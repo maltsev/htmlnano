@@ -1076,10 +1076,13 @@ otherwise-mergeable styles, namely:
 - a `<link rel="stylesheet">` (any other `rel`, such as `preload`, is not a
   stylesheet source and does not break a group);
 - a `<style>` with different group attributes (e.g. a different `media` or
-  `type`), or a skipped `scoped`/`integrity` style.
+  `type`), or a skipped style, including AMP boilerplate;
+- a CSP `<meta>`, `<script>` or `<base>` element, to preserve authorization,
+  script observations and relative URL resolution;
+- `<svg>` or `<math>` content, whose styles are left untouched.
 
-Non-stylesheet content between styles (plain elements, text, comments, AMP
-boilerplate, preload links) does not break a group. When a group is closed a new
+Ordinary content between styles (plain elements, text, comments, preload links)
+does not break a group. When a group is closed a new
 one starts, so a document can produce several independent merged groups.
 
 #### `<noscript>` and `<template>` are separate scopes

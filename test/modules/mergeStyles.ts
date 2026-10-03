@@ -278,11 +278,45 @@ describe('mergeStyles', () => {
             + '<style>p { color: green }</style>'
             + '<style amp4email-boilerplate="">span { color: black }</style>',
 
-            '<style>h1 { color: red } p { color: green }</style>'
+            '<style>h1 { color: red }</style>'
             + '<style amp4ads-boilerplate="">div { color: blue }</style>'
+            + '<style>p { color: green }</style>'
             + '<style amp4email-boilerplate="">span { color: black }</style>',
 
             options
         );
     });
+
+    for (const barrier of [
+        '<link REL="alternate StyleSheet" href="theme.css">',
+        '<LINK rel="style&#115;heet" href="theme.css">',
+        '<style AMP-BOILERPLATE="">a { color: green }</style>',
+        '<meta HTTP-EQUIV="Content-Security-Polic&#121;" content="style-src \'none\'">',
+        '<script>document.write(\'<style>a { color: green }</style>\')</script>',
+        '<base href="https://example.com/">',
+        '<NOSCRIPT><style>a { color: green }</style></NOSCRIPT>',
+        '<svg><style>a { color: green }</style></svg>',
+        '<MATH><style>a { color: green }</style></MATH>'
+    ]) {
+        it(`should preserve style positions around ${barrier}`, () => {
+            const html = '<style>a { color: red }</style>' + barrier
+                + '<style>a { color: blue }</style>';
+            return init(html, html, options);
+        });
+    }
+
+    it('should handle style and template tags regardless of case', () => {
+        return init(
+            '<STYLE>a {}</STYLE><TEMPLATE><STYLE>b {}</STYLE><style>c {}</style></TEMPLATE><style>d {}</style>',
+            '<STYLE>a {} d {}</STYLE><TEMPLATE><STYLE>b {} c {}</STYLE></TEMPLATE>',
+            options
+        );
+    });
+
+    for (const tag of ['svg', 'SVG', 'math', 'MATH']) {
+        it(`should leave styles within <${tag}> untouched`, () => {
+            const html = `<${tag}><style>a {}</style><style>b {}</style></${tag}>`;
+            return init(html, html, options);
+        });
+    }
 });

@@ -10,5 +10,5 @@ const isolatedScopeTags = new Set(['noscript', 'template']);
 export function isIsolatedScope(node: PostHTMLNodeLike) {
     return typeof node === 'object'
         && typeof node.tag === 'string'
-        && isolatedScopeTags.has(node.tag);
+        && isolatedScopeTags.has(node.tag.toLowerCase());
 }

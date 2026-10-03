@@ -71,15 +71,10 @@ function extractStyleTextContent(node: PostHTML.Node) {
 // A <link rel="stylesheet"> pulls in external CSS at its position in the
 // document, so it participates in the cascade. Other rel values (e.g.
 // "preload") do not apply styles and must not break a merge group.
-function isStylesheetLink(node: PostHTML.Node) {
-    if (node.tag !== 'link' || !node.attrs || typeof node.attrs.rel !== 'string') {
-        return false;
-    }
-
-    return node.attrs.rel
-        .trim()
-        .toLowerCase()
-        .split(/\s+/)
+function isStylesheetLink(attrs: PostHTML.NodeAttributes) {
+    return typeof attrs.rel === 'string' && attrs.rel
+        .replace(/[A-Z]/g, letter => letter.toLowerCase())
+        .split(/[\t\n\f\r ]+/)
         .includes('stylesheet');
 }
 
@@ -106,6 +101,18 @@ function mergeStylesInScope(nodes: Array<PostHTMLNodeLike>, group: MergeGroup) {
             return;
         }
 
+        const tag = node.tag.toLowerCase();
+        const nodeAttrs = normalizeStyleAttrs(node.attrs || {});
+        // Moving CSS before a CSP changes its authorization. Scripts can
+        // inspect or insert styles, and <base> changes relative URL resolution.
+        // Foreign content has different parsing/namespace rules; leave it alone.
+        if (tag === 'script' || tag === 'base' || tag === 'svg' || tag === 'math'
+            || (tag === 'meta' && typeof nodeAttrs['http-equiv'] === 'string'
+                && nodeAttrs['http-equiv'].toLowerCase() === 'content-security-policy')) {
+            flushGroup(group);
+            return;
+        }
+
         // <noscript> and <template> hold their own cascade, so their styles are
         // merged among themselves and never with the surrounding document.
         if (isIsolatedScope(node)) {
@@ -113,7 +120,7 @@ function mergeStylesInScope(nodes: Array<PostHTMLNodeLike>, group: MergeGroup) {
             // this very position, so an open group can't reach past it.
             // <template> content never applies to the current document, so it
             // doesn't interrupt anything.
-            if (node.tag === 'noscript') {
+            if (tag === 'noscript') {
                 flushGroup(group);
             }
 
@@ -126,12 +133,12 @@ function mergeStylesInScope(nodes: Array<PostHTMLNodeLike>, group: MergeGroup) {
 
         // A stylesheet <link> contributes to the cascade at its position,
         // so it ends any open merge group.
-        if (isStylesheetLink(node)) {
+        if (tag === 'link' && isStylesheetLink(nodeAttrs)) {
             flushGroup(group);
             return;
         }
 
-        if (node.tag !== 'style' || !node.content) {
+        if (tag !== 'style' || !node.content) {
             if (Array.isArray(node.content)) {
                 mergeStylesInScope(node.content, group);
             }
@@ -139,7 +146,6 @@ function mergeStylesInScope(nodes: Array<PostHTMLNodeLike>, group: MergeGroup) {
             return;
         }
 
-        const nodeAttrs = normalizeStyleAttrs(node.attrs || {});
         // Skip <style scoped></style>
         // https://developer.mozilla.org/en/docs/Web/HTML/Element/style
         //
@@ -152,9 +158,9 @@ function mergeStylesInScope(nodes: Array<PostHTMLNodeLike>, group: MergeGroup) {
             return;
         }
 
-        // AMP boilerplate styles are left untouched and do not participate
-        // in the mergeable cascade, so they don't break a group.
-        if (isAmpBoilerplate(node)) {
+        // AMP boilerplate is still CSS and participates in source order.
+        if (isAmpBoilerplate({ ...node, attrs: nodeAttrs })) {
+            flushGroup(group);
             return;
         }
 
