@@ -3,11 +3,11 @@ import type { HtmlnanoModule } from '../types';
 type AttrValue = void | boolean | string;
 type Attrs = Record<string, AttrValue>;
 
-function normalizeAttrValue(value: AttrValue): string | null {
+function normalizeAttrValue(value: AttrValue, trimWhitespace = false): string | null {
     if (typeof value !== 'string') return null;
 
-    const trimmed = value.trim();
-    return trimmed.length === 0 ? '' : trimmed.toLowerCase();
+    const normalized = trimWhitespace ? value.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '') : value;
+    return normalized.replace(/[A-Z]/g, char => char.toLowerCase());
 };
 
 function findAttrEntry(attrs: Attrs, name: string): { name: string; value: AttrValue } | null {
@@ -22,9 +22,9 @@ function findAttrEntry(attrs: Attrs, name: string): { name: string; value: AttrV
     return null;
 };
 
-function getNormalizedAttrValue(attrs: Attrs, name: string): string | null {
+function getNormalizedAttrValue(attrs: Attrs, name: string, trimWhitespace = false): string | null {
     const entry = findAttrEntry(attrs, name);
-    return entry ? normalizeAttrValue(entry.value) : null;
+    return entry ? normalizeAttrValue(entry.value, trimWhitespace) : null;
 };
 
 function hasAttr(attrs: Attrs, name: string): boolean {
@@ -82,10 +82,16 @@ const missingValueDefaultAttributes: Record<string, Record<string, string | ((at
         // https://html.spec.whatwg.org/#fetch-priority-attributes
         fetchpriority: 'auto',
         type: (attrs) => {
-            const typeValue = getNormalizedAttrValue(attrs, 'type');
-            return typeValue !== null && redundantScriptTypes.has(typeValue);
+            const typeValue = getNormalizedAttrValue(attrs, 'type', true);
+            const languageEntry = findAttrEntry(attrs, 'language');
+            const languageValue = languageEntry ? normalizeAttrValue(languageEntry.value) : null;
+            // Without type, a nonempty language selects "text/" + language,
+            // without whitespace trimming. Keep type if that would disable JS.
+            const hasJavaScriptFallback = !languageEntry || languageValue === ''
+                || (languageValue !== null && redundantScriptTypes.has(`text/${languageValue}`));
+            return typeValue !== null && redundantScriptTypes.has(typeValue) && hasJavaScriptFallback;
         },
-        // Remove attribute if the function returns false
+        // Remove attribute if the function returns true
         charset: (attrs) => {
             // The charset attribute only really makes sense on “external” SCRIPT elements:
             // http://perfectionkills.com/optimizing-html/#8_script_charset
@@ -94,12 +100,12 @@ const missingValueDefaultAttributes: Record<string, Record<string, string | ((at
     },
 
     style: {
-        media: 'all',
+        media: attrs => getNormalizedAttrValue(attrs, 'media', true) === 'all',
         type: 'text/css'
     },
 
     link: {
-        media: 'all',
+        media: attrs => getNormalizedAttrValue(attrs, 'media', true) === 'all',
         // https://html.spec.whatwg.org/#fetch-priority-attributes
         fetchpriority: 'auto',
         type: (attrs) => {
@@ -111,12 +117,14 @@ const missingValueDefaultAttributes: Record<string, Record<string, string | ((at
                 return false;
             }
 
-            const relTokens = relValue.split(/\s+/);
+            const relTokens = relValue.split(/[\t\n\f\r ]+/).filter(Boolean);
             const isRelStyleSheet = relTokens.includes('stylesheet');
             const isTypeTextCSS = typeValue === 'text/css';
 
-            // Only "text/css" is redundant for link[rel=stylesheet]. Otherwise "type" shouldn't be removed
-            return isRelStyleSheet && isTypeTextCSS;
+            // Other relationships (e.g. preload as=script) can also use type
+            // to suppress a fetch, even when stylesheet is present.
+            return isRelStyleSheet && isTypeTextCSS
+                && relTokens.every(token => token === 'stylesheet' || token === 'alternate');
         }
     },
 
