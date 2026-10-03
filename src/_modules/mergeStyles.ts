@@ -1,4 +1,5 @@
 import type PostHTML from 'posthtml';
+import { decodeHTMLAttribute } from 'entities';
 import { extractTextContentFromNode, isAmpBoilerplate } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 import { isIsolatedScope } from './helpers/isolatedScopes';
@@ -12,8 +13,7 @@ function normalizeStyleType(attrs: PostHTML.NodeAttributes) {
         return 'text/css';
     }
 
-    const type = attrs.type.trim();
-    return type ? type.toLowerCase() : 'text/css';
+    return attrs.type === '' ? 'text/css' : attrs.type.replace(/[A-Z]/g, letter => letter.toLowerCase());
 }
 
 function normalizeStyleMedia(attrs: PostHTML.NodeAttributes) {
@@ -21,8 +21,26 @@ function normalizeStyleMedia(attrs: PostHTML.NodeAttributes) {
         return 'all';
     }
 
-    const media = attrs.media.trim();
-    return media ? media.replace(/\s+/g, ' ').toLowerCase() : 'all';
+    const media = attrs.media.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '');
+    // Strings, escapes and custom identifiers can be case/whitespace sensitive.
+    if (/["'\\]|--/.test(media)) {
+        return media;
+    }
+
+    return media ? media.replace(/[\t\n\f\r ]+/g, ' ').replace(/[A-Z]/g, letter => letter.toLowerCase()) : 'all';
+}
+
+function normalizeStyleAttrs(attrs: PostHTML.NodeAttributes) {
+    const normalized = new Map<string, PostHTML.NodeAttributes[string]>();
+    for (const [name, value] of Object.entries(attrs)) {
+        const lowerName = name.replace(/[A-Z]/g, letter => letter.toLowerCase());
+        // HTML ignores later attributes with the same ASCII case-insensitive name.
+        if (!normalized.has(lowerName)) {
+            normalized.set(lowerName, typeof value === 'string' ? decodeHTMLAttribute(value) : value);
+        }
+    }
+
+    return Object.fromEntries(normalized) as PostHTML.NodeAttributes;
 }
 
 function normalizeStyleAttrsForKey(attrs: PostHTML.NodeAttributes) {
@@ -121,7 +139,7 @@ function mergeStylesInScope(nodes: Array<PostHTMLNodeLike>, group: MergeGroup) {
             return;
         }
 
-        const nodeAttrs = node.attrs || {};
+        const nodeAttrs = normalizeStyleAttrs(node.attrs || {});
         // Skip <style scoped></style>
         // https://developer.mozilla.org/en/docs/Web/HTML/Element/style
         //
@@ -129,7 +147,7 @@ function mergeStylesInScope(nodes: Array<PostHTMLNodeLike>, group: MergeGroup) {
         //
         // These styles are excluded from merging, but they still apply to
         // the cascade, so they end any open merge group.
-        if ('scoped' in nodeAttrs || 'integrity' in nodeAttrs) {
+        if ('scoped' in nodeAttrs || 'integrity' in nodeAttrs || normalizeStyleType(nodeAttrs) !== 'text/css') {
             flushGroup(group);
             return;
         }

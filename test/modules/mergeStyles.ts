@@ -202,6 +202,41 @@ describe('mergeStyles', () => {
         );
     });
 
+    it('should respect the first case-insensitive duplicate nonce', () => {
+        const html = '<style nonce="trusted" NONCE="untrusted">a { color: red }</style>'
+            + '<style NONCE="untrusted" nonce="trusted">b { color: blue }</style>';
+        return init(html, html, options);
+    });
+
+    it('should match attribute names and decoded values using HTML semantics', () => {
+        return init(
+            '<style NoNcE="trus&#116;ed" TYPE="TEXT/CSS">a {}</style>'
+            + '<style nonce="trusted">b {}</style>',
+            '<style NoNcE="trus&#116;ed" TYPE="TEXT/CSS">a {} b {}</style>',
+            options
+        );
+    });
+
+    for (const attrs of ['SCOPED=""', 'INTEGRITY="hash"', 'type="text/plain"', 'type=" text/css "', 'type="&#32;"', 'type="text/css; charset=utf-8"']) {
+        it(`should leave styles with ${attrs} separate`, () => {
+            const html = `<style ${attrs}>a {}</style><style ${attrs}>b {}</style>`;
+            return init(html, html, options);
+        });
+    }
+
+    for (const [first, second] of [
+        ['(--Theme)', '(--theme)'],
+        ['(foo: &quot;A&quot;)', '(foo: &quot;a&quot;)'],
+        ['(foo: &quot;a  b&quot;)', '(foo: &quot;a b&quot;)'],
+        ['screen\u00a0and (color)', 'screen and (color)'],
+        ['(foo: \\41)', '(foo: \\41 )']
+    ]) {
+        it(`should preserve distinct media queries ${first} and ${second}`, () => {
+            const html = `<style media="${first}">a {}</style><style media="${second}">b {}</style>`;
+            return init(html, html, options);
+        });
+    }
+
     it('should not merge amp-custom and non-amp-custom styles', () => {
         return init(
             '<style amp-custom>h1 { color: red }</style>'
