@@ -142,14 +142,14 @@ const mod: HtmlnanoModule<HtmlnanoOptions['minifyUrls']> = {
                 if (isUriTypeAttribute(tag, attrNameLower)) {
                     if (typeof attrValue !== 'string') continue;
 
-                    const javascriptMatch = getJavaScriptUrlMatch(attrValue);
+                    const value = decoded ? attrValue : decodeHTMLAttribute(attrValue);
+                    const javascriptMatch = getJavaScriptUrlMatch(value);
                     if (javascriptMatch) {
                         promises.push(minifyJavaScriptUrl(node, attrName, javascriptMatch, terser));
                         continue;
                     }
 
                     if (relateUrlInstance) {
-                        const value = decoded ? attrValue : decodeHTMLAttribute(attrValue);
                         const related = relateUrlValue(relateUrlInstance, value, urlBase);
                         if (related !== value) node.attrs[attrName] = related.replace(/&/g, '&amp;');
                     }
@@ -194,13 +194,13 @@ type JavaScriptUrlMatch = {
     code: string;
 };
 
-const jsWrapperStart = 'function a(){';
-const jsWrapperEnd = '}a();';
-const javascriptUrlRegex = /^(\s*)(javascript:)([\s\S]*)$/i;
+const javascriptUrlRegex = /^([\t\n\f\r ]*)(javascript:)([\s\S]*)$/i;
 
 function getJavaScriptUrlMatch(url: string): JavaScriptUrlMatch | null {
     const match = javascriptUrlRegex.exec(url);
-    if (!match) return null;
+    // Browsers remove tabs and newlines during URL parsing, even inside JS
+    // strings. Leave such inputs intact rather than minifying different code.
+    if (!match || /[\t\n\r]/.test(match[3])) return null;
 
     return {
         leadingWhitespace: match[1],
@@ -238,17 +238,30 @@ function minifyJavaScriptUrl(
 ) {
     if (!terser) return Promise.resolve();
 
-    const result = jsWrapperStart + match.code + jsWrapperEnd;
+    let source: string;
+    try {
+        // JavaScript URLs are percent-decoded before being evaluated.
+        source = decodeURIComponent(match.code);
+    } catch {
+        return Promise.resolve();
+    }
 
     return terser
-        .minify(result, {}) // Default Option is good enough
+        .minify(source, {
+            // URL scripts run at global scope, and their completion value can
+            // replace the document. Avoid optimizations that discard that value.
+            compress: { defaults: false, booleans: true },
+            mangle: false,
+            parse: { shebang: false }
+        })
         .then(({ code }) => {
-            if (!code) return;
-            const minifiedJs = code.substring(
-                jsWrapperStart.length,
-                code.length - jsWrapperEnd.length
-            );
-            node.attrs![attrName] = match.leadingWhitespace + JAVASCRIPT_URL_PROTOCOL + minifiedJs;
+            if (code === undefined) return;
+            // Protect literal percent signs from URL decoding, line breaks from
+            // URL parsing, and ampersands from HTML character-reference decoding.
+            const encoded = code.replace(/%/g, '%25')
+                .replace(/\t/g, '%09').replace(/\n/g, '%0A').replace(/\r/g, '%0D')
+                .replace(/&/g, '%26');
+            node.attrs![attrName] = match.leadingWhitespace + JAVASCRIPT_URL_PROTOCOL + encoded;
         })
         .catch(() => undefined);
 }

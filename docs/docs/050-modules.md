@@ -339,7 +339,7 @@ htmlnano.process(html, {
 - Documents containing `<base href>` are left unchanged because their base can override the configured URL.
 - Canonical links are never rewritten; `canonical` is recognized as a case-insensitive token in `rel`.
 - `srcset` and `imagesrcset` are processed when `srcset` is installed; invalid `srcset` strings are left unchanged.
-- `javascript:` URLs are minified with `terser` when available, preserving leading whitespace and normalizing the protocol to lowercase.
+- `javascript:` URLs are minified with `terser` when available, preserving global scope and completion values, decoding HTML/URL escapes, and protecting the output from further decoding. Invalid or ambiguous inputs are left unchanged; leading ASCII whitespace is preserved and the protocol is normalized to lowercase.
 - This module is not enabled by the default presets; you must pass a base URL to turn it on.
 
 #### Example

@@ -1,5 +1,10 @@
 import { expect } from 'expect';
-import { init } from '../htmlnano.ts';
+import { runInNewContext } from 'node:vm';
+import type { Node } from 'posthtml';
+import posthtml from 'posthtml';
+import { decodeHTMLAttribute } from 'entities';
+import htmlnano from '../../dist/index.mjs';
+import { init, initWithPostHtmlOptions } from '../htmlnano.ts';
 import safePreset from '../../dist/presets/safe.mjs';
 import maxPreset from '../../dist/presets/max.mjs';
 import ampSafePreset from '../../dist/presets/ampSafe.mjs';
@@ -118,7 +123,7 @@ describe('minifyUrls', () => {
     it('should minify javascript url', () => {
         return init(
             '<img src="javascript:alert(true)">',
-            '<img src="javascript:alert(!0)">',
+            '<img src="javascript:alert(!0);">',
             { minifyUrls: 'https://example.com/foo/baz/' }
         );
     });
@@ -126,7 +131,7 @@ describe('minifyUrls', () => {
     it('should minify javascript url with mixed case protocol', () => {
         return init(
             '<img src="JaVaScRiPt:alert(true)">',
-            '<img src="javascript:alert(!0)">',
+            '<img src="javascript:alert(!0);">',
             { minifyUrls: 'https://example.com/foo/baz/' }
         );
     });
@@ -134,7 +139,7 @@ describe('minifyUrls', () => {
     it('should minify javascript url with leading whitespace', () => {
         return init(
             '<img src="  JaVaScRiPt:alert(true)">',
-            '<img src="  javascript:alert(!0)">',
+            '<img src="  javascript:alert(!0);">',
             { minifyUrls: 'https://example.com/foo/baz/' }
         );
     });
@@ -239,7 +244,7 @@ describe('minifyUrls', () => {
             ),
             init(
                 '<a href="javascript:alert(true)">js</a>',
-                '<a href="javascript:alert(!0)">js</a>',
+                '<a href="javascript:alert(!0);">js</a>',
                 { minifyUrls: 'https://example.com/foo/' }
             )
         ]);
@@ -287,5 +292,58 @@ describe('minifyUrls', () => {
             '<SOURCE SRC="video.mp4"><source srcset="image.png 1x">',
             { minifyUrls: 'https://example.com/foo/' }
         );
+    });
+
+    it('should preserve JavaScript URL scope and completion values', async () => {
+        for (const source of [
+            'var longName = 1; longName',
+            '"replacement document"',
+            'void "replacement document"',
+            'if (true) "replacement document";',
+            'function a() { return "value"; } a()',
+            '"hello" // trailing comment',
+            'var value = "%22"; value',
+            '"&quot;"',
+            '"&" + "quot;"'
+        ]) {
+            const html = `<a href="javascript:${encodeURIComponent(source)}">link</a>`;
+            const result = await posthtml([htmlnano({ minifyUrls: 'https://example.com/' }, {})]).process(html);
+            const parsed = await posthtml().process(result.html);
+            const node = parsed.tree[0] as Node;
+            const attr = node.attrs!.href as string;
+            const code = decodeURIComponent(decodeHTMLAttribute(attr).slice('javascript:'.length));
+            const originalContext: Record<string, unknown> = {};
+            const minifiedContext: Record<string, unknown> = {};
+            expect(runInNewContext(code, minifiedContext)).toEqual(runInNewContext(source, originalContext));
+            expect(minifiedContext.longName).toEqual(originalContext.longName);
+            expect(minifiedContext.value).toEqual(originalContext.value);
+            expect(typeof minifiedContext.a).toEqual(typeof originalContext.a);
+        }
+    });
+
+    it('should decode HTML character references in JavaScript URLs', () => {
+        const html = '<a href="javascript:alert(&quot;hello&quot;)">link</a>';
+        const expected = '<a href="javascript:alert(&quot;hello&quot;);">link</a>';
+        const options = { minifyUrls: 'https://example.com/' };
+        return Promise.all([
+            init(html, expected, options),
+            initWithPostHtmlOptions(html, expected, options, { decodeEntities: true })
+        ]);
+    });
+
+    it('should preserve invalid or ambiguous JavaScript URL inputs', () => {
+        return Promise.all([
+            'javascript:return alert(true)',
+            'javascript:alert(',
+            'javascript:alert("%ZZ")',
+            'javascript:alert("a\nb")',
+            'java\nscript:alert(true)',
+            '\u00a0javascript:alert(true)'
+        ].map((value) => {
+            const html = `<a href='${value}'>link</a>`;
+            // PostHTML uses double quotes and escapes quotes when re-rendering.
+            const expected = `<a href="${value.replace(/"/g, '&quot;')}">link</a>`;
+            return init(html, expected, { minifyUrls: 'https://example.com/' });
+        }));
     });
 });
