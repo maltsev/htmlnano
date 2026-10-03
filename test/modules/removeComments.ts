@@ -1,4 +1,5 @@
 import { init } from '../htmlnano.ts';
+import { expect } from 'expect';
 import type { RemoveCommentsOptions } from '../../src/_modules/removeComments';
 import safePreset from '../../dist/presets/safe.mjs';
 import maxPreset from '../../dist/presets/max.mjs';
@@ -162,6 +163,22 @@ describe('removeComments', () => {
     });
 
     context('custom matcher', () => {
+        for (const flags of ['g', 'y', 'gy']) {
+            for (const asString of [false, true]) {
+                it(`matches each comment independently with ${flags} flags (${asString ? 'string' : 'RegExp'})`, async () => {
+                    const matcher = new RegExp('<!--remove-->', flags);
+                    matcher.lastIndex = 5;
+                    const options = { removeComments: asString ? matcher.toString() : matcher };
+                    const input = '<!--remove--><!--keep--><!--remove--><div><!--remove--><!--keep--><!--remove--></div>';
+                    const output = '<!--keep--><div><!--keep--></div>';
+
+                    await init(input, output, options);
+                    await init(input, output, options);
+                    expect(matcher.lastIndex).toBe(5);
+                });
+            }
+        }
+
         it('RegExp', () => {
             return init(
                 '<!--noindex-->this text will not be indexed<!--/noindex-->Lorem ipsum dolor sit amet<!--more-->Lorem ipsum dolor sit amet',

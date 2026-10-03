@@ -84,6 +84,8 @@ function isCommentToRemove(text: PostHTMLNodeLike, removeType: Partial<RemoveCom
 
 function isMatch(input: string, matcher: Partial<RemoveCommentsOptions>): boolean {
     if (matcher instanceof RegExp) {
+        // Each comment is an independent input, including with global/sticky flags.
+        matcher.lastIndex = 0;
         return matcher.test(input);
     }
 
@@ -96,6 +98,11 @@ function isMatch(input: string, matcher: Partial<RemoveCommentsOptions>): boolea
 }
 
 function normalizeRemoveType(removeType: Partial<RemoveCommentsOptions>): Partial<RemoveCommentsOptions> {
+    if (removeType instanceof RegExp) {
+        // Keep matching state local rather than mutating the caller's regexp.
+        return new RegExp(removeType.source, removeType.flags);
+    }
+
     if (removeType === 'all' || removeType === 'safe' || isMatcher(removeType)) {
         return removeType;
     }

@@ -658,6 +658,9 @@ Minified:
 - A string — treated as a regexp pattern. Supports `/pattern/flags` or a plain pattern string (useful in JSON config files)
 - A `Function` that returns boolean — removes HTML comments for which the callback returns a truthy value
 
+Regexp matching starts at the beginning of each comment, including with `g` or `y`
+flags. The supplied regexp's `lastIndex` is left unchanged.
+
 **Security warning: the `removeComments` option must come from a source you trust.**
 A string option is compiled into a `RegExp` and then tested against every comment, so a
 pattern crafted to backtrack catastrophically turns comment-heavy input into a hang
