@@ -1,6 +1,7 @@
 // class, rel, ping
 import type { HtmlnanoModule, PostHTMLTreeLike, SortAttributesOption } from '../types';
 import { isListAttribute } from './collapseAttributeWhitespace';
+import { canRenderApostrophe } from './helpers/attributeQuoting.js';
 import {
     resolveSortType
 
@@ -87,6 +88,15 @@ function splitListAttributeValues(attrValue: string) {
     return attrValue.split(/[\t\n\f\r ]+/).filter(Boolean);
 }
 
+function stringifyListAttributeValues(values: string[], tree: PostHTMLTreeLike) {
+    const value = values.join(' ');
+    // Sorting can create a JSON-like value, which the renderer single-quotes
+    // without escaping apostrophes. Keep them inside the attribute value.
+    return value.includes('\'') && !canRenderApostrophe(value, tree.options ?? {})
+        ? value.replace(/'/g, '&#39;')
+        : value;
+}
+
 function walkListAttributes(
     tree: PostHTMLTreeLike,
     walkFn: (nodeAttrs: Record<string, string | void>, attrName: string, attrValues: string) => void
@@ -118,10 +128,10 @@ function sortAttributesWithListsInAlphabeticalOrder(tree: PostHTMLTreeLike) {
             return;
         }
 
-        nodeAttrs[attrName] = values.sort((a, b) => {
+        nodeAttrs[attrName] = stringifyListAttributeValues(values.sort((a, b) => {
             // @ts-expect-error -- deliberately use minus operator to sort things
             return typeof a.localeCompare === 'function' ? a.localeCompare(b) : a - b;
-        }).join(' ');
+        }), tree);
     });
 
     return tree;
@@ -144,9 +154,10 @@ function sortAttributesWithListsByFrequency(tree: PostHTMLTreeLike) {
             return;
         }
 
-        nodeAttrs[attrName] = tokenChainObj[attrNameLower]
-            .sortFromNodeAttrsArray(splitListAttributeValues(attrValues))
-            .join(' ');
+        nodeAttrs[attrName] = stringifyListAttributeValues(
+            tokenChainObj[attrNameLower].sortFromNodeAttrsArray(splitListAttributeValues(attrValues)),
+            tree
+        );
     });
 
     return tree;

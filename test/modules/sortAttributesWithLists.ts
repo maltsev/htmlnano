@@ -1,8 +1,25 @@
-import { init } from '../htmlnano.ts';
+import { expect } from 'expect';
+import posthtml from 'posthtml';
+import { parseFragment } from 'parse5';
+import htmlnano from '../../dist/index.mjs';
+import { init, initIdempotent } from '../htmlnano.ts';
 import { describe, it } from 'mocha';
 
 describe('sortAttributesWithLists', () => {
     for (const sortType of ['alphabetical', 'frequency'] as const) {
+        it(`${sortType} prevents attribute injection when sorting creates a JSON-like value`, async () => {
+            const input = '<div class="onmouseover=\'alert(1)\'&quot;} {&quot;x&quot;:&quot;foo\'"></div>';
+            const expected = '<div class=\'{"x":"foo&#39; onmouseover=&#39;alert(1)&#39;"}\'></div>';
+            await initIdempotent(input, expected, { sortAttributesWithLists: sortType });
+
+            const result = await posthtml([htmlnano({ sortAttributesWithLists: sortType }, {})]).process(input);
+            const element = parseFragment(result.html).childNodes[0];
+            if (!('attrs' in element)) throw new Error('Expected an element');
+            expect(element.attrs).toEqual([
+                { name: 'class', value: '{"x":"foo\' onmouseover=\'alert(1)\'"}' }
+            ]);
+        });
+
         it(`${sortType} preserves non-ASCII whitespace within tokens`, () => {
             return init(
                 '<div class="c b\u00a0a"></div>',
