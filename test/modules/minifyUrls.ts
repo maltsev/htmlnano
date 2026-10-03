@@ -77,7 +77,7 @@ describe('minifyUrls', () => {
             ),
             init(
                 '<a href="https://example.com/foo/bar/index.html">bar</a>',
-                '<a href="/foo/bar/">bar</a>',
+                '<a href="/foo/bar/index.html">bar</a>',
                 { minifyUrls: 'https://example.com/bar/baz/' }
             )
         ]);
@@ -187,21 +187,21 @@ describe('minifyUrls', () => {
         ]);
     });
 
-    it('should remove a trailing empty query or fragment', () => {
+    it('should preserve empty URL delimiters', () => {
         return Promise.all([
             init(
                 '<a href="https://example.com/foo/bar?">bar</a>',
-                '<a href="bar">bar</a>',
+                '<a href="https://example.com/foo/bar?">bar</a>',
                 { minifyUrls: 'https://example.com/foo/' }
             ),
             init(
                 '<a href="https://example.com/foo/bar#">bar</a>',
-                '<a href="bar">bar</a>',
+                '<a href="bar#">bar</a>',
                 { minifyUrls: 'https://example.com/foo/' }
             ),
             init(
                 '<a href="https://example.com/foo/bar?#">bar</a>',
-                '<a href="bar">bar</a>',
+                '<a href="https://example.com/foo/bar?#">bar</a>',
                 { minifyUrls: 'https://example.com/foo/' }
             )
         ]);
@@ -225,7 +225,7 @@ describe('minifyUrls', () => {
     it('should normalize srcset urls', () => {
         return init(
             '<img srcset="https://example.com:443/foo/bar.png 1x, https://example.com/foo/baz.png# 2x">',
-            '<img srcset="bar.png 1x, baz.png 2x">',
+            '<img srcset="bar.png 1x, baz.png# 2x">',
             { minifyUrls: 'https://example.com/foo/' }
         );
     });
@@ -243,5 +243,49 @@ describe('minifyUrls', () => {
                 { minifyUrls: 'https://example.com/foo/' }
             )
         ]);
+    });
+
+    it('should not turn a path into an executable URL scheme', () => {
+        return init(
+            '<a href="https://example.com/foo/javascript:alert(1)">link</a>',
+            '<a href="./javascript:alert(1)">link</a>',
+            { minifyUrls: 'https://example.com/foo/' }
+        );
+    });
+
+    for (const suffix of ['bar?a=1&a=2', 'bar?a=', 'bar?a=%20', 'bar#section#', 'bar#section?', '/other.com/x']) {
+        it(`should preserve the destination of ${suffix}`, () => {
+            const value = `https://example.com/foo/${suffix}`;
+            const html = `<a href="${value}">link</a>`;
+            // Fragment delimiters must survive; unsafe legacy query/path rewrites are skipped.
+            const expected = suffix.startsWith('bar#') ? `<a href="${suffix}">link</a>` : html;
+            return init(html, expected, { minifyUrls: 'https://example.com/foo/' });
+        });
+    }
+
+    it('should handle character references before shortening a URL', () => {
+        return init(
+            '<a href="https://example.com/foo/&#106;avascript:alert(1)">link</a>',
+            '<a href="./javascript:alert(1)">link</a>',
+            { minifyUrls: 'https://example.com/foo/' }
+        );
+    });
+
+    it('should recognize canonical tokens regardless of case or character references', () => {
+        const html = '<LINK HREF="https://example.com/foo/" REL="alternate &#67;ANONICAL">';
+        return init(html, html, { minifyUrls: 'https://example.com/' });
+    });
+
+    it('should preserve URLs when a document supplies its own base', () => {
+        const html = '<a href="https://example.com/foo/a">link</a><base href="https://other.com/"><img src="https://example.com/foo/b">';
+        return init(html, html, { minifyUrls: 'https://example.com/foo/' });
+    });
+
+    it('should process source URLs and mixed case tags', () => {
+        return init(
+            '<SOURCE SRC="https://example.com/foo/video.mp4"><source srcset="https://example.com/foo/image.png 1x">',
+            '<SOURCE SRC="video.mp4"><source srcset="image.png 1x">',
+            { minifyUrls: 'https://example.com/foo/' }
+        );
     });
 });

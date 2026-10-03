@@ -1,30 +1,8 @@
 import type RelateUrl from 'relateurl';
 import type PostHTML from 'posthtml';
+import { decodeHTMLAttribute } from 'entities';
 import { optionalImport } from '../helpers';
 import type { HtmlnanoModule, HtmlnanoOptions } from '../types';
-
-// Adopts from https://github.com/kangax/html-minifier/blob/51ce10f4daedb1de483ffbcccecc41be1c873da2/src/htmlminifier.js#L209-L221
-const tagsHaveUriValuesForAttributes = new Set([
-    'a',
-    'area',
-    'link',
-    'base',
-    'object',
-    'blockquote',
-    'q',
-    'del',
-    'ins',
-    'form',
-    'input',
-    'head',
-    'audio',
-    'embed',
-    'iframe',
-    'img',
-    'script',
-    'track',
-    'video'
-]);
 
 const tagsHasHrefAttributes = new Set([
     'a',
@@ -106,20 +84,17 @@ const processModuleOptions = (options: MinifyUrlsOptions) => {
 };
 
 const isLinkRelCanonical = ({ tag, attrs }: PostHTML.Node) => {
-    // Return false early for non-"link" tag
-    if (tag !== 'link' || !attrs) return false;
+    if (tag?.toLowerCase() !== 'link' || !attrs) return false;
 
     for (const [attrName, attrValue] of Object.entries(attrs)) {
-        if (attrName.toLowerCase() === 'rel' && attrValue === 'canonical') return true;
+        if (attrName.toLowerCase() === 'rel' && typeof attrValue === 'string'
+            && decodeHTMLAttribute(attrValue).toLowerCase().split(/[\t\n\f\r ]+/).includes('canonical')) return true;
     }
 
     return false;
 };
 
 const JAVASCRIPT_URL_PROTOCOL = 'javascript:';
-
-let relateUrlInstance: RelateUrl;
-let STORED_URL_BASE: string;
 
 /** Convert absolute url into relative url */
 const mod: HtmlnanoModule<HtmlnanoOptions['minifyUrls']> = {
@@ -135,25 +110,27 @@ const mod: HtmlnanoModule<HtmlnanoOptions['minifyUrls']> = {
         // Invalid configuration, return tree directly
         if (!urlBase) return tree;
 
-        /** Bring up a reusable RelateUrl instances (only once)
-     *
-     * STORED_URL_BASE is used to invalidate RelateUrl instances,
-     * avoiding require.cache acrossing multiple htmlnano instance with different configuration,
-     * e.g. unit tests cases.
-     */
-        if (!relateUrlInstance || STORED_URL_BASE !== urlBase) {
-            if (RelateUrl) {
-                relateUrlInstance = new RelateUrl(urlBase);
+        // Keep the instance local to this run and retain explicit index resources.
+        const relateUrlInstance = RelateUrl ? new RelateUrl(urlBase, { removeDirectoryIndexes: false }) : null;
+        const decoded = tree.options?.decodeEntities === true;
+        let hasBaseHref = false;
+        tree.walk((node) => {
+            if (node.tag?.toLowerCase() === 'base' && node.attrs
+                && Object.keys(node.attrs).some(name => name.toLowerCase() === 'href')) {
+                hasBaseHref = true;
             }
-            STORED_URL_BASE = urlBase;
-        }
+            return node;
+        });
 
         tree.walk((node) => {
             if (!node.attrs) return node;
 
             if (!node.tag) return node;
 
-            if (!tagsHaveUriValuesForAttributes.has(node.tag)) return node;
+            const tag = node.tag.toLowerCase();
+            // A document's <base> can override the configured URL. Preserve its
+            // URLs rather than resolving against the wrong base (including <base> itself).
+            if (hasBaseHref) return node;
 
             // Prevent link[rel=canonical] being processed
             // Can't be excluded by isUriTypeAttribute()
@@ -162,7 +139,7 @@ const mod: HtmlnanoModule<HtmlnanoOptions['minifyUrls']> = {
             for (const [attrName, attrValue] of Object.entries(node.attrs)) {
                 const attrNameLower = attrName.toLowerCase();
 
-                if (isUriTypeAttribute(node.tag, attrNameLower)) {
+                if (isUriTypeAttribute(tag, attrNameLower)) {
                     if (typeof attrValue !== 'string') continue;
 
                     const javascriptMatch = getJavaScriptUrlMatch(attrValue);
@@ -172,13 +149,15 @@ const mod: HtmlnanoModule<HtmlnanoOptions['minifyUrls']> = {
                     }
 
                     if (relateUrlInstance) {
-                        node.attrs[attrName] = relateUrlValue(relateUrlInstance, attrValue);
+                        const value = decoded ? attrValue : decodeHTMLAttribute(attrValue);
+                        const related = relateUrlValue(relateUrlInstance, value, urlBase);
+                        if (related !== value) node.attrs[attrName] = related.replace(/&/g, '&amp;');
                     }
 
                     continue;
                 }
 
-                if (isSrcsetAttribute(node.tag, attrNameLower)) {
+                if (isSrcsetAttribute(tag, attrNameLower)) {
                     if (srcset && typeof attrValue === 'string') {
                         try {
                             const parsedSrcset = srcset.parseSrcset(attrValue, { strict: true });
@@ -186,7 +165,7 @@ const mod: HtmlnanoModule<HtmlnanoOptions['minifyUrls']> = {
                             node.attrs[attrName] = srcset.stringifySrcset(parsedSrcset.map((item) => {
                                 if (relateUrlInstance) {
                                     // @ts-expect-error -- not actually readonly
-                                    item.url = relateUrlValue(relateUrlInstance, item.url);
+                                    item.url = relateUrlValue(relateUrlInstance, item.url, urlBase);
                                 }
 
                                 return item;
@@ -229,57 +208,26 @@ function getJavaScriptUrlMatch(url: string): JavaScriptUrlMatch | null {
     };
 }
 
-function getUrlScheme(value: string) {
-    const match = /^[a-z][a-z0-9+.-]*:/i.exec(value);
-    if (!match) return null;
+function relateUrlValue(relateUrl: RelateUrl, value: string, base: string) {
+    if (!value.trim() || /^[\t\n\f\r ]*[#?]/.test(value)) return value;
 
-    return match[0].slice(0, -1).toLowerCase();
-}
-
-function shouldRelateUrlValue(value: string) {
-    const trimmed = value.trim();
-    if (!trimmed) return false;
-    if (trimmed.startsWith('#') || trimmed.startsWith('?')) return false;
-
-    const scheme = getUrlScheme(trimmed);
-    if (scheme) return scheme === 'http' || scheme === 'https';
-
-    return true;
-}
-
-function relateUrlValue(relateUrl: RelateUrl, value: string) {
-    if (!shouldRelateUrlValue(value)) return value;
-
-    // relateUrl#relate is wrapped in try...catch because attrValue might not be
-    // a valid URL, and relateurl can throw for malformed input.
     try {
-        // relateurl (with its default `defaultPorts`) already strips default ports
-        // (e.g. `:443` for https, `:80` for http, but not mismatched ones)
-        // and a trailing empty query ("?"), but it keeps a trailing empty
-        // fragment ("#"). Normalize the result to also drop that.
-        return normalizeRelatedUrl(relateUrl.relate(value));
+        const original = new URL(value, base);
+        if (original.protocol !== 'http:' && original.protocol !== 'https:') return value;
+
+        let related = relateUrl.relate(value);
+        // A colon in the first path segment becomes a scheme after shortening.
+        // In particular, /javascript:... must never become executable code.
+        if (/^[a-z][a-z0-9+.-]*:/i.test(related) && !/^https?:/i.test(related)) {
+            related = './' + related;
+        }
+
+        // relateurl uses a legacy URL parser and can change queries, repeated
+        // slashes, or URL delimiters. Only accept a browser-equivalent result.
+        return new URL(related, base).href === original.href ? related : value;
     } catch {
         return value;
     }
-}
-
-/**
- * Remove a trailing lone "?" (empty query) or "#" (empty fragment).
- * A non-empty query ("?x=1") or fragment ("#top") is left untouched.
- */
-function normalizeRelatedUrl(value: string) {
-    // Drop an empty fragment ("#"). "#top" ends with "p", so it is untouched.
-    if (value.endsWith('#')) {
-        value = value.slice(0, -1);
-    }
-
-    // Drop an empty query ("?"), including one exposed by removing a "?#" tail.
-    // "?x=1" ends with "1", so it is untouched.
-    if (value.endsWith('?')) {
-        value = value.slice(0, -1);
-    }
-
-    return value;
 }
 
 function minifyJavaScriptUrl(
