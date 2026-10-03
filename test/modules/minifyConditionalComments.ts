@@ -252,6 +252,38 @@ describe('minifyConditionalComments', () => {
         );
     });
 
+    for (const tag of ['script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes', 'noscript']) {
+        for (const spelling of [tag, tag.toUpperCase()]) {
+            it(`should preserve comment-like text inside <${spelling}>`, async () => {
+                const content = `<!--[if IE]><div title="&lt;/${tag}&gt;&lt;img src=x onerror=alert(1)&gt;">&copy;</div><![endif]-->`;
+                const input = `<${spelling}>${content}</${spelling}>`;
+                const result = await processHtml(input, {
+                    minifyConditionalComments: true,
+                    minifyCharacterReferences: true
+                }, {}, {});
+
+                expect(result.html).toBe(input);
+                expect(parseFragment(String(result.html)).childNodes.map(node => node.nodeName))
+                    .toStrictEqual([tag]);
+            });
+        }
+    }
+
+    it('should preserve comment-like text after plaintext, including ancestor siblings', () => {
+        const comment = '<!--[if IE]><div>&copy;</div><![endif]-->';
+        const input = `<div><plaintext>${comment}</plaintext>${comment}</div>${comment}`;
+        return init(input, input, { minifyConditionalComments: true, minifyCharacterReferences: true });
+    });
+
+    it('should continue minifying actual comments after raw-text elements', () => {
+        const comment = '<!--[if IE]><div>&copy;</div><![endif]-->';
+        return init(
+            `<iframe><plaintext>${comment}</plaintext></iframe><div>${comment}</div>`,
+            `<iframe><plaintext>${comment}</plaintext></iframe><div><!--[if IE]><div>©</div><![endif]--></div>`,
+            { minifyConditionalComments: true, minifyCharacterReferences: true }
+        );
+    });
+
     describe('safe preset evaluation', () => {
         for (const { name, input, expected } of evaluationFixtures) {
             it(name, async () => {

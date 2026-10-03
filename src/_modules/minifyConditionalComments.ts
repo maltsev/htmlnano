@@ -7,22 +7,43 @@ const CONDITIONAL_COMMENT_HIDDEN_REGEXP = /(<!--\[if\s+?[^<>[\]]+?]>)([\s\S]*?)(
 const CONDITIONAL_COMMENT_REVEALED_REGEXP = /(<!--\[if\s+?[^<>[\]]+?\]><!-->)([\s\S]*?)(<!--<!\[endif\]-->)/gm;
 const CONDITIONAL_COMMENT_START_REGEXP = /<!--\[if\s/i;
 
-async function minifyConditionalComments(tree: PostHTMLTreeLike, htmlnanoOptions: Partial<HtmlnanoOptions>): Promise<PostHTMLTreeLike>;
-async function minifyConditionalComments(tree: PostHTMLNodeLike[], htmlnanoOptions: Partial<HtmlnanoOptions>): Promise<PostHTMLNodeLike[]>;
-async function minifyConditionalComments(tree: PostHTMLTreeLike | PostHTMLNodeLike[], htmlnanoOptions: Partial<HtmlnanoOptions>) {
-    // forEach, tree.walk, tree.match just don't support Promise.
-    for (let i = 0, len = tree.length; i < len; i++) {
-        const node = tree[i];
+// These elements contain literal text, not conditional comments. Noscript must
+// also be safe with scripting enabled, when browsers treat it as raw text.
+const textElements = new Set([
+    'script', 'style', 'textarea', 'title', 'xmp', 'iframe',
+    'noembed', 'noframes', 'noscript'
+]);
 
-        if (typeof node === 'string') {
-            if (isConditionalComment(node)) {
-                tree[i] = (await minifyContentInsideConditionalComments(node, htmlnanoOptions)) as PostHTMLNodeLike;
+async function minifyConditionalComments(tree: PostHTMLTreeLike, htmlnanoOptions: Partial<HtmlnanoOptions>): Promise<PostHTMLTreeLike> {
+    let inPlaintext = false;
+
+    async function visit(nodes: PostHTMLNodeLike[]): Promise<void> {
+        // forEach, tree.walk, tree.match just don't support Promise.
+        for (let i = 0; i < nodes.length; i++) {
+            // Plaintext consumes everything to EOF, even beyond its apparent
+            // closing tag and ancestors in PostHTML's tree.
+            if (inPlaintext) return;
+            const node = nodes[i];
+
+            if (typeof node === 'string') {
+                if (isConditionalComment(node)) {
+                    nodes[i] = await minifyContentInsideConditionalComments(node, htmlnanoOptions);
+                }
+            } else if (node) {
+                const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+                if (tag === 'plaintext') {
+                    inPlaintext = true;
+                    return;
+                }
+                if (textElements.has(tag)) continue;
+                if (node.content && node.content.length) {
+                    await visit(node.content);
+                }
             }
-        } else if (node.content && node.content.length) {
-            node.content = await minifyConditionalComments(node.content, htmlnanoOptions);
         }
     }
 
+    await visit(tree);
     return tree;
 }
 
