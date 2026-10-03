@@ -1,3 +1,4 @@
+import { decodeHTMLAttribute } from 'entities';
 import type { HtmlnanoModule } from '../types';
 import { isListAttribute } from './collapseAttributeWhitespace';
 
@@ -13,7 +14,7 @@ function getDeduplicationKey(attrNameLower: string, attrValue: string) {
         return attrValue;
     }
 
-    return attrValue.toLowerCase();
+    return attrValue.replace(/[A-Z]/g, char => char.toLowerCase());
 }
 
 /** Deduplicate values inside list-like attributes (e.g. class, rel) */
@@ -44,7 +45,10 @@ const mod: HtmlnanoModule = {
                         return;
                     }
 
-                    const deduplicationKey = getDeduplicationKey(attrNameLower, attrValue);
+                    // Compare browser values, keeping the first source spelling.
+                    // Lowercasing references themselves can confuse &Tab; with
+                    // &tab; and remove security tokens such as noopener.
+                    const deduplicationKey = getDeduplicationKey(attrNameLower, decodeHTMLAttribute(attrValue));
                     if (uniqueAttrValues.has(deduplicationKey)) {
                         return;
                     }

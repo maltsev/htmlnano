@@ -61,4 +61,44 @@ describe('deduplicateAttributeValues', () => {
             options
         );
     });
+
+    it('should compare case-insensitive tokens using ASCII casing only', () => {
+        return init(
+            '<link rel="K K k Ä ä Ä">',
+            '<link rel="K K Ä ä">',
+            options
+        );
+    });
+
+    it('should preserve security tokens hidden behind character references', () => {
+        return init(
+            '<a href="/" target="example" rel="foo&tab;noopener foo&Tab;noopener foo&newline;noreferrer foo&NewLine;noreferrer">click</a>',
+            '<a href="/" target="example" rel="foo&tab;noopener foo&Tab;noopener foo&newline;noreferrer foo&NewLine;noreferrer">click</a>',
+            options
+        );
+    });
+
+    it('should preserve distinct named references in case-insensitive lists', () => {
+        return init(
+            '<link rel="&Aacute; &aacute;">',
+            '<link rel="&Aacute; &aacute;">',
+            options
+        );
+    });
+
+    it('should compare decoded tokens while keeping the first source spelling', () => {
+        return init(
+            '<div class="&#102;oo foo f&#111;o &amp; &amp; FOO"></div><link rel="&#78;OOPENER noopener">',
+            '<div class="&#102;oo &amp; FOO"></div><link rel="&#78;OOPENER">',
+            options
+        );
+    });
+
+    it('should deduplicate matching groups containing encoded whitespace', () => {
+        return init(
+            '<div class="foo&#32;bar foo&#32;bar baz baz"></div><iframe sandbox="allow-scripts&#9;allow-forms allow-scripts&#9;allow-forms"></iframe>',
+            '<div class="foo&#32;bar baz"></div><iframe sandbox="allow-scripts&#9;allow-forms"></iframe>',
+            options
+        );
+    });
 });
