@@ -130,6 +130,16 @@ describe('minifyHtmlTemplate', () => {
         );
     });
 
+    for (const attr of ['INTEGRITY="hash"', 'Integrity', 'SRC="tpl.html"', 'Src=""']) {
+        it(`should skip mixed-case script templates with ${attr}`, () => {
+            const html = `<SCRIPT TYPE="text/html" ${attr}> <div>  x  </div> </SCRIPT>`;
+            return init(html, html.replace(' Integrity>', ' Integrity="">'), {
+                collapseWhitespace: 'conservative',
+                minifyHtmlTemplate: true
+            });
+        });
+    }
+
     it('should skip script templates with a src attribute', () => {
         return init(
             '<script type="text/html" src="tpl.html"></script>',

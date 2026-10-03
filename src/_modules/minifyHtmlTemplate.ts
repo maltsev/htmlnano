@@ -44,15 +44,16 @@ const mod: HtmlnanoModule<MinifyHtmlTemplateOptions> = {
                 return node;
             }
 
-            if (!matchesTemplateRule(node, rules)) {
+            const attrs = normalizeNodeAttrs(node);
+            if (!matchesTemplateRule(node, attrs, rules)) {
                 return node;
             }
 
-            if (node.attrs && 'integrity' in node.attrs) {
+            if (hasOwn(attrs, 'integrity')) {
                 return node;
             }
 
-            if (node.tag === 'script' && node.attrs && 'src' in node.attrs) {
+            if (node.tag.toLowerCase() === 'script' && hasOwn(attrs, 'src')) {
                 return node;
             }
 
@@ -135,13 +136,11 @@ function normalizeRule(rule: HtmlnanoTemplateRule): NormalizedRule | null {
     return null;
 }
 
-function matchesTemplateRule(node: PostHTML.Node, rules: NormalizedRule[]): boolean {
+function matchesTemplateRule(node: PostHTML.Node, attrs: Record<string, string | boolean | void>, rules: NormalizedRule[]): boolean {
     const tag = node.tag?.toLowerCase();
     if (!tag) {
         return false;
     }
-
-    const attrs = normalizeNodeAttrs(node);
 
     for (const rule of rules) {
         if (tag !== rule.tag) {
