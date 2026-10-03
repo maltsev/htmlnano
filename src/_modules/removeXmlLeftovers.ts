@@ -1,4 +1,5 @@
 import type { HtmlnanoModule } from '../types';
+import { decodeHTMLAttribute } from 'entities';
 
 type AttrValue = void | boolean | string;
 type Attrs = Record<string, AttrValue>;
@@ -7,33 +8,48 @@ type Attrs = Record<string, AttrValue>;
 const XHTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
 
 function findAttrEntry(attrs: Attrs, name: string): { name: string; value: AttrValue } | null {
-    const targetName = name.toLowerCase();
+    let entry: { name: string; value: AttrValue } | null = null;
 
     for (const [attrName, attrValue] of Object.entries(attrs)) {
-        if (attrName.toLowerCase() === targetName) {
-            return { name: attrName, value: attrValue };
+        if (attrName.replace(/[A-Z]/g, char => char.toLowerCase()) === name) {
+            // Removing the first duplicate could expose a different value to a browser.
+            if (entry) return null;
+            entry = { name: attrName, value: attrValue };
         }
     }
 
-    return null;
+    return entry;
 }
 
-function normalizeValue(value: AttrValue): string | null {
-    return typeof value === 'string' ? value.trim().toLowerCase() : null;
+function decodeValue(value: AttrValue, alreadyDecoded: boolean): string | null {
+    if (typeof value !== 'string') return null;
+    return alreadyDecoded ? value : decodeHTMLAttribute(value);
+}
+
+function normalizeLanguage(value: AttrValue, alreadyDecoded: boolean): string | null {
+    // Language values use ASCII case folding, without whitespace trimming.
+    return decodeValue(value, alreadyDecoded)?.replace(/[A-Z]/g, char => char.toLowerCase()) ?? null;
 }
 
 /** Removes XHTML/XML leftovers that are meaningless in HTML documents */
 const mod: HtmlnanoModule = {
-    onAttrs() {
-        return (attrs, node) => {
-            const attrsRecord = attrs as Attrs;
+    default: function removeXmlLeftovers(tree) {
+        // XML namespace declarations and xml:lang remain significant in XML mode.
+        if (tree.options?.xmlMode) return tree;
+
+        const alreadyDecoded = tree.options?.decodeEntities === true;
+        // A tree pass preserves unrelated attribute names and case variants of
+        // duplicates, which the shared onAttrs walk would otherwise fold together.
+        tree.walk((node) => {
+            if (!node.attrs) return node;
+            const attrsRecord = node.attrs as Attrs;
 
             // Remove xmlns="http://www.w3.org/1999/xhtml" from <html>.
             // The HTML parser ignores it — <html> is always in the HTML namespace.
             // Scoped strictly to the <html> tag so xmlns on <svg>/<math> is left untouched.
-            if (node.tag === 'html') {
+            if (node.tag?.toLowerCase() === 'html') {
                 const xmlnsEntry = findAttrEntry(attrsRecord, 'xmlns');
-                if (xmlnsEntry && normalizeValue(xmlnsEntry.value) === XHTML_NAMESPACE) {
+                if (xmlnsEntry && decodeValue(xmlnsEntry.value, alreadyDecoded) === XHTML_NAMESPACE) {
                     delete attrsRecord[xmlnsEntry.name];
                 }
             }
@@ -45,16 +61,18 @@ const mod: HtmlnanoModule = {
             if (xmlLangEntry) {
                 const langEntry = findAttrEntry(attrsRecord, 'lang');
                 if (langEntry) {
-                    const xmlLangValue = normalizeValue(xmlLangEntry.value);
-                    const langValue = normalizeValue(langEntry.value);
+                    const xmlLangValue = normalizeLanguage(xmlLangEntry.value, alreadyDecoded);
+                    const langValue = normalizeLanguage(langEntry.value, alreadyDecoded);
                     if (xmlLangValue !== null && xmlLangValue === langValue) {
                         delete attrsRecord[xmlLangEntry.name];
                     }
                 }
             }
 
-            return attrsRecord;
-        };
+            return node;
+        });
+
+        return tree;
     }
 };
 export default mod;
