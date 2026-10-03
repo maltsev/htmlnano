@@ -1132,38 +1132,34 @@ two inline styles and could change the cascade:
 
 
 ### mergeScripts
-Merge adjacent inline `<script>` tags when they share the same normalized attributes (all except `src`, `integrity`, and `type`).
+Merge adjacent sibling inline `<script>` tags, separated only by whitespace, when they share the same normalized attributes (all except `src`, `integrity`, and `type`).
 The merged content is appended into the last script in the group and the earlier scripts are removed.
 
 #### Notes
 - Only inline scripts with mergeable types are considered: `text/javascript` and `application/javascript` (default is `text/javascript`). Other types (including `type="module"`) are left untouched.
-- Scripts with `src` or `integrity` are never merged and they break a merge group, so code on each side stays separate.
-- Scripts inside `<noscript>` or `<template>` are left untouched: they don't run alongside the surrounding scripts (a `<script>` in `<noscript>` never executes, and one in `<template>` only executes once the template is cloned), so they neither merge nor break a group.
+- Scripts with `src` or `integrity`, scripts with different attributes or types, and intervening markup break a merge group, so code on each side stays separate. Groups never cross parent boundaries.
+- Scripts inside `<noscript>`, `<template>`, `<svg>`, or `<math>` are left untouched. These elements also break the surrounding merge group.
 - Boolean attributes (`async`, `defer`, `nomodule`) are normalized and treated as present, so `defer` and `defer="defer"` match.
 - Scripts are separated by `nonce` value, by `nomodule`, and by `async`/`defer` differences.
 - A missing trailing semicolon is added when concatenating. If a script ends with a line comment, the merger inserts `\n;` before the next script to avoid comment swallowing.
 
 #### Side effects
 Merging changes where the code physically lives in the document.
-This can break code when different attribute sets must remain isolated (for example `async` or `nomodule`), or when external tools rely on script boundaries.
+Code must tolerate sharing a script: merging can change declaration hoisting, lexical bindings, and error isolation. Code that inspects `document.currentScript`, uses `document.write()`, or depends on individual script elements can also behave differently. Generate CSP hashes after minification, since merging changes script text. This module is disabled in the safe preset.
 
 #### Example
 Source:
 ```html
-<script>const foo = 'A:1';</script>
-<script class="test">foo = 'B:1';</script>
-<script type="text/javascript">foo = 'A:2';</script>
-<script defer>foo = 'C:1';</script>
-<script>foo = 'A:3';</script>
-<script defer="defer">foo = 'C:2';</script>
-<script class="test" type="text/javascript">foo = 'B:2';</script>
+<script>window.foo = 1;</script>
+<script type="text/javascript">window.bar = 2;</script>
+<script defer>window.baz = 3;</script>
+<script defer="defer">window.qux = 4;</script>
 ```
 
 Minified:
 ```html
-<script>const foo = 'A:1';foo = 'A:2';foo = 'A:3';</script>
-<script defer="defer">foo = 'C:1';foo = 'C:2';</script>
-<script class="test" type="text/javascript">foo = 'B:1';foo = 'B:2';</script>
+<script type="text/javascript">window.foo = 1;window.bar = 2;</script>
+<script defer="defer">window.baz = 3;window.qux = 4;</script>
 ```
 
 

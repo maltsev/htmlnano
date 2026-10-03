@@ -6,25 +6,55 @@ describe('mergeScripts', () => {
         mergeScripts: maxPreset.mergeScripts
     };
 
-    it('should merge <script> with the same attributes', () => {
+    it('should merge adjacent <script> with the same normalized attributes', () => {
         return init(
-            `<script>var foo = 1;</script>
-            <script class="test">foo = 2;</script>
-            <script type="text/javascript">foo = 3;</script>
-            <script defer>foo = 4;</script>
-            <script>foo = 5;</script>
-            <script></script>
-            <script defer="defer">foo = 6;</script>
-            <script class="test" type="text/javascript">foo = 7;</script>`,
-
-            '\n            \n            \n            \n            \n            '
-            + `<script>var foo = 1;foo = 3;foo = 5;</script>
-            <script defer="defer">foo = 4;foo = 6;</script>
-            <script class="test" type="text/javascript">foo = 2;foo = 7;</script>`,
-
+            '<script>var foo = 1;</script>\n<script type="text/javascript">foo = 2;</script>'
+            + '<script defer>foo = 3;</script><script defer="defer">foo = 4;</script>'
+            + '<script class="test">foo = 5;</script><script class="test">foo = 6;</script>',
+            '\n<script type="text/javascript">var foo = 1;foo = 2;</script>'
+            + '<script defer="defer">foo = 3;foo = 4;</script>'
+            + '<script class="test">foo = 5;foo = 6;</script>',
             options
         );
     });
+
+    it('should not reorder scripts with different attributes', () => {
+        const html = '<script>window.order = [1]</script>'
+            + '<script class="test">window.order.push(2)</script>'
+            + '<script>window.order.push(3)</script>';
+        return init(html, html, options);
+    });
+
+    for (const barrier of [
+        '<div id="later"></div>',
+        '<meta http-equiv="Content-Security-Policy" content="script-src \'none\'">',
+        'visible text',
+        '<!-- comment -->',
+        '<script type="module">window.module = true</script>',
+        '<script type="application/json">{}</script>',
+        '<script index="same" src="external.js"></script>'
+    ]) {
+        it(`should not merge across ${barrier}`, () => {
+            const html = '<script index="same">window.before = true</script>'
+                + barrier + '<script index="same">window.after = true</script>';
+            return init(html, html, options);
+        });
+    }
+
+    it('should merge scripts within a parent without crossing parent boundaries', () => {
+        return init(
+            '<div><script>foo()</script><script>bar()</script></div><script>baz()</script>',
+            '<div><script>foo();bar()</script></div><script>baz()</script>',
+            options
+        );
+    });
+
+    for (const tag of ['svg', 'math', 'SVG', 'MATH', 'NOSCRIPT', 'TEMPLATE']) {
+        it(`should leave scripts inside <${tag}> untouched`, () => {
+            const html = `<${tag}><script>foo()</script><script>bar()</script></${tag}>`;
+            return init(html, html, options);
+        });
+    }
 
     it('should add trailing ; when it\'s missing in oneline <script>', () => {
         return init(
@@ -90,9 +120,9 @@ describe('mergeScripts', () => {
             <script async>window.async = true</script>
             <script>window.foo2 = 'bar'</script>`,
 
-            `
+            `<script>window.foo1 = 'foo'</script>
             <script async>window.async = true</script>
-            <script>window.foo1 = 'foo';window.foo2 = 'bar'</script>`,
+            <script>window.foo2 = 'bar'</script>`,
 
             options
         );
@@ -104,9 +134,9 @@ describe('mergeScripts', () => {
             <script>window.bar = 'bar'</script>
             <script type="application/javascript">window.foo2 = 'baz'</script>`,
 
-            `
+            `<script type="application/javascript">window.foo1 = 'foo'</script>
             <script>window.bar = 'bar'</script>
-            <script type="application/javascript">window.foo1 = 'foo';window.foo2 = 'baz'</script>`,
+            <script type="application/javascript">window.foo2 = 'baz'</script>`,
 
             options
         );
@@ -142,8 +172,9 @@ describe('mergeScripts', () => {
             + '<noscript><script>window.bar = 2</script></noscript>'
             + '<script>window.baz = 3</script>',
 
-            '<noscript><script>window.bar = 2</script></noscript>'
-            + '<script>window.foo = 1;window.baz = 3</script>',
+            '<script>window.foo = 1</script>'
+            + '<noscript><script>window.bar = 2</script></noscript>'
+            + '<script>window.baz = 3</script>',
 
             options
         );
@@ -165,8 +196,9 @@ describe('mergeScripts', () => {
             + '<template><script>window.bar = 2</script></template>'
             + '<script>window.baz = 3</script>',
 
-            '<template><script>window.bar = 2</script></template>'
-            + '<script>window.foo = 1;window.baz = 3</script>',
+            '<script>window.foo = 1</script>'
+            + '<template><script>window.bar = 2</script></template>'
+            + '<script>window.baz = 3</script>',
 
             options
         );

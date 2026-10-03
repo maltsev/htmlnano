@@ -1,19 +1,9 @@
 import type PostHTML from 'posthtml';
-import type { HtmlnanoModule } from '../types';
+import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 import { extractTextContentFromNode } from '../helpers';
-import { isIsolatedScope } from './helpers/isolatedScopes';
 import { normalizeAttrsForKey } from './helpers/normalizeAttrsForKey';
 
-type ScriptTracking = {
-    mergedScriptNodes: WeakSet<PostHTML.Node>;
-    removedScriptNodes: WeakSet<PostHTML.Node>;
-};
-
 function normalizeAsyncAttr(attrs: PostHTML.NodeAttributes) {
-    if (!attrs) {
-        return;
-    }
-
     if (attrs.async === '') {
         (attrs as Record<string, string | boolean>).async = true;
     }
@@ -35,6 +25,7 @@ function isMergeableScriptType(type: string) {
 
 const booleanAttrs = new Set(['async', 'defer', 'nomodule']);
 const skippedAttrs = new Set(['src', 'integrity', 'type']);
+const untouchedTags = new Set(['noscript', 'template', 'svg', 'math']);
 
 function normalizeScriptAttrsForKey(attrs: PostHTML.NodeAttributes, scriptType: string) {
     return normalizeAttrsForKey(attrs, {
@@ -44,10 +35,9 @@ function normalizeScriptAttrsForKey(attrs: PostHTML.NodeAttributes, scriptType: 
     });
 }
 
-function buildScriptKey(attrs: PostHTML.NodeAttributes, scriptType: string, scriptSrcIndex: number) {
+function buildScriptKey(attrs: PostHTML.NodeAttributes, scriptType: string) {
     const normalizedAttrs = normalizeScriptAttrsForKey(attrs, scriptType);
     const keyObject: Record<string, string | boolean | number> = {
-        index: scriptSrcIndex,
         ...normalizedAttrs
     };
 
@@ -66,121 +56,70 @@ function endsWithLineComment(scriptContent: string) {
     return /\/\/.*$/.test(lastLine);
 }
 
-// A <script> inside <noscript> never executes, and a <script> inside <template>
-// only executes once the template is cloned into the document. Neither belongs
-// to the execution order of the surrounding document, so merging them with the
-// regular scripts would make dead or deferred code run — collect them upfront
-// to leave them alone.
-function collectScriptNodes(node: PostHTML.Node, scriptNodes: WeakSet<PostHTML.Node>) {
-    if (!Array.isArray(node.content)) {
-        return;
-    }
+// Only sibling scripts separated by whitespace can share a merge group.
+// Moving code across another script or markup changes execution order or the
+// DOM available when it runs (including a meta CSP's position).
+function mergeScriptsInScope(nodes: PostHTMLNodeLike[]) {
+    let previousScript: PostHTML.Node | null = null;
+    let previousIndex = -1;
+    let previousKey: string | null = null;
 
-    for (const childNode of node.content) {
-        if (typeof childNode !== 'object') {
-            continue;
+    nodes.forEach((node, index) => {
+        if (typeof node === 'string' && /^[\t\n\f\r ]*$/.test(node)) {
+            return;
         }
 
-        if (childNode.tag === 'script') {
-            scriptNodes.add(childNode);
-        }
+        if (typeof node !== 'object' || node.tag !== 'script') {
+            previousScript = null;
+            previousKey = null;
 
-        collectScriptNodes(childNode, scriptNodes);
-    }
-}
-
-function mergeScriptNodes(
-    scriptNodesIndex: Record<string, PostHTML.Node[]>,
-    tracking: ScriptTracking
-) {
-    for (const scriptNodes of Object.values(scriptNodesIndex)) {
-        if (scriptNodes.length < 2) {
-            continue;
-        }
-
-        const lastScriptNode = scriptNodes.pop()!;
-        tracking.mergedScriptNodes.add(lastScriptNode);
-
-        scriptNodes.reverse().forEach((scriptNode) => {
-            let scriptContent = extractTextContentFromNode(scriptNode).trim();
-
-            if (!scriptContent) {
-                tracking.removedScriptNodes.add(scriptNode);
-                // @ts-expect-error -- remove node
-                scriptNode.tag = false;
-                scriptNode.content = [];
-                return;
+            // Inert and foreign content does not follow HTML script execution
+            // rules. Leave its scripts untouched, including nested descendants.
+            if (typeof node === 'object'
+                && !untouchedTags.has((node.tag || '').toLowerCase())
+                && Array.isArray(node.content)) {
+                mergeScriptsInScope(node.content);
             }
 
-            if (endsWithLineComment(scriptContent)) {
-                scriptContent += '\n;';
-            } else if (scriptContent.slice(-1) !== ';') {
-                scriptContent += ';';
+            return;
+        }
+
+        const nodeAttrs = node.attrs || {};
+        normalizeAsyncAttr(nodeAttrs);
+        const scriptType = getScriptType(nodeAttrs);
+        if ('src' in nodeAttrs || 'integrity' in nodeAttrs || !isMergeableScriptType(scriptType)) {
+            previousScript = null;
+            previousKey = null;
+            return;
+        }
+
+        const scriptKey = buildScriptKey(nodeAttrs, scriptType);
+        if (previousScript && previousKey === scriptKey) {
+            let scriptContent = extractTextContentFromNode(previousScript).trim();
+            if (scriptContent) {
+                if (endsWithLineComment(scriptContent)) {
+                    scriptContent += '\n;';
+                } else if (scriptContent.slice(-1) !== ';') {
+                    scriptContent += ';';
+                }
+
+                node.content = node.content || [];
+                node.content.unshift(scriptContent);
             }
 
-            lastScriptNode.content = lastScriptNode.content || [];
-            lastScriptNode.content.unshift(scriptContent);
+            nodes[previousIndex] = '';
+        }
 
-            tracking.removedScriptNodes.add(scriptNode);
-            // @ts-expect-error -- remove node
-            scriptNode.tag = false;
-            scriptNode.content = [];
-        });
-    }
+        previousScript = node;
+        previousIndex = index;
+        previousKey = scriptKey;
+    });
 }
 
 /* Merge multiple <script> into one */
 const mod: HtmlnanoModule = {
     default(tree) {
-        const scriptNodesIndex: Record<string, PostHTML.Node[]> = {};
-        const tracking: ScriptTracking = {
-            mergedScriptNodes: new WeakSet<PostHTML.Node>(),
-            removedScriptNodes: new WeakSet<PostHTML.Node>()
-        };
-        let scriptSrcIndex = 1;
-
-        const isolatedScriptNodes = new WeakSet<PostHTML.Node>();
-        tree.walk((node) => {
-            if (isIsolatedScope(node)) {
-                collectScriptNodes(node, isolatedScriptNodes);
-            }
-
-            return node;
-        });
-
-        tree.match({ tag: 'script' }, (node) => {
-            // Scripts of an isolated scope don't run alongside the surrounding
-            // ones, so they neither merge nor split the document's own scripts.
-            if (isolatedScriptNodes.has(node)) {
-                return node;
-            }
-
-            const nodeAttrs = node.attrs || {};
-            normalizeAsyncAttr(nodeAttrs);
-            if (
-                'src' in nodeAttrs
-                // Skip SRI, reasons are documented in "minifyJs" module
-                || 'integrity' in nodeAttrs
-            ) {
-                scriptSrcIndex++;
-                return node;
-            }
-
-            const scriptType = getScriptType(nodeAttrs);
-            if (!isMergeableScriptType(scriptType)) {
-                return node;
-            }
-
-            const scriptKey = buildScriptKey(nodeAttrs, scriptType, scriptSrcIndex);
-            if (!scriptNodesIndex[scriptKey]) {
-                scriptNodesIndex[scriptKey] = [];
-            }
-
-            scriptNodesIndex[scriptKey].push(node);
-            return node;
-        });
-
-        mergeScriptNodes(scriptNodesIndex, tracking);
+        mergeScriptsInScope(tree);
         return tree;
     }
 };
