@@ -118,6 +118,24 @@ function asciiLowercase(value: string): string {
     return value.replace(/[A-Z]/g, char => char.toLowerCase());
 }
 
+function normalizeCase(attrName: string, attrValue: string, tagName?: string): string {
+    // Character reference names and MIME parameter values can be case-sensitive.
+    if (attrValue.includes('&') || (attrName === 'type' && attrValue.includes(';'))) {
+        return attrValue;
+    }
+
+    let value = asciiLowercase(attrValue);
+    if (['charset', 'dropzone', 'sandbox', 'sizes'].includes(attrName) || (attrName === 'type' && tagName === 'script')) {
+        const trimmed = value.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '');
+        // A whitespace-only script type is a data block; an empty type executes JS.
+        if (attrName !== 'type' || trimmed !== '') {
+            value = trimmed;
+        }
+    }
+
+    return value;
+}
+
 const mod: HtmlnanoModule = {
     onAttrs() {
         return (attrs, node) => {
@@ -143,7 +161,7 @@ const mod: HtmlnanoModule = {
                     const value = asciiLowercase(typeof attrValue === 'string' ? decodeHTMLAttribute(attrValue) : '');
                     newAttrValue = invalidMeta.valid.includes(value) ? value : invalidMeta.default;
                 } else if (typeof attrValue === 'string' && hasCaseInsensitive) {
-                    newAttrValue = attrValue.trim().toLowerCase();
+                    newAttrValue = normalizeCase(attrName, attrValue, node.tag || undefined);
                 }
 
                 newAttrs[attrName] = newAttrValue;

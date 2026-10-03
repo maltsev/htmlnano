@@ -1,4 +1,4 @@
-import { init } from '../htmlnano.ts';
+import { init, initIdempotent } from '../htmlnano.ts';
 
 describe('normalizeAttributeValues', () => {
     const options = {
@@ -103,7 +103,7 @@ describe('normalizeAttributeValues', () => {
             ),
             init(
                 '<form method="  GET  "></form>',
-                '<form method="get"></form>',
+                '<form method="  get  "></form>',
                 options
             )
         ]);
@@ -137,5 +137,42 @@ describe('normalizeAttributeValues', () => {
     it('ignores CORS and referrer policy attributes on unrelated elements', () => {
         const html = '<custom-fetch crossorigin="USE-CREDENTIALS" referrerpolicy="NO-REFERRER"></custom-fetch><div crossorigin="example" referrerpolicy="example"></div>';
         return init(html, html, options);
+    });
+
+    it('preserves invalid padded keywords', () => {
+        return init(
+            '<form method=" POST "></form><input type=" HIDDEN " step=" ANY "><div contenteditable=" TRUE " draggable=" TRUE "></div>',
+            '<form method=" post "></form><input type=" hidden " step=" any "><div contenteditable=" true " draggable=" true "></div>',
+            options
+        );
+    });
+
+    it('normalizes sandbox tokens without granting permissions to invalid Unicode tokens', () => {
+        return initIdempotent(
+            '<iframe sandbox=" \tALLOW-SCRIPTS ALLOW-POINTER-LOCK \u00a0ALLOW-SAME-ORIGIN\u00a0 \t"></iframe>',
+            '<iframe sandbox="allow-scripts allow-pointer-locK \u00a0allow-same-origin\u00a0"></iframe>',
+            { ...options, collapseAttributeWhitespace: true, deduplicateAttributeValues: true }
+        );
+    });
+
+    it('preserves character reference spelling in case-insensitive values', () => {
+        const html = '<iframe sandbox="ALLOW-SCRIPTS&Tab;ALLOW-SAME-ORIGIN &Amp;"></iframe><script type="TEXT&sol;JAVASCRIPT"></script>';
+        return initIdempotent(html, html, options);
+    });
+
+    it('preserves inactive script types and only trims ASCII whitespace from nonempty types', () => {
+        return initIdempotent(
+            '<script type=" \t ">alert(1)</script><script type="\u00a0MODULE\u00a0">alert(2)</script><script type=" MODULE "></script>',
+            '<script type=" \t ">alert(1)</script><script type="\u00a0module\u00a0">alert(2)</script><script type="module"></script>',
+            options
+        );
+    });
+
+    it('preserves MIME parameters and continues normalizing plain MIME types', () => {
+        return initIdempotent(
+            '<object type="multipart/form-data; boundary=CaseSensitive"></object><link type="TEXT/CSS"><style type=" TEXT/CSS "></style><input step="ANY">',
+            '<object type="multipart/form-data; boundary=CaseSensitive"></object><link type="text/css"><style type=" text/css "></style><input step="any">',
+            options
+        );
     });
 });
