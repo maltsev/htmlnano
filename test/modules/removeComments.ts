@@ -1,10 +1,53 @@
-import { init } from '../htmlnano.ts';
+import { init, initIdempotent } from '../htmlnano.ts';
 import { expect } from 'expect';
+import { assertSafeDomEquivalent } from '../dom-equivalence.ts';
 import type { RemoveCommentsOptions } from '../../src/_modules/removeComments';
 import safePreset from '../../dist/presets/safe.mjs';
 import maxPreset from '../../dist/presets/max.mjs';
 
 describe('removeComments', () => {
+    context('literal text and comment boundaries', () => {
+        const modes: RemoveCommentsOptions[] = ['safe', 'all', /./, () => true];
+
+        it('keeps comment-looking content in text elements in every removal mode', async () => {
+            const textElements = ['script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes', 'noscript'];
+            const input = textElements.map(tag => `<${tag}><!-- literal -->text</${tag}>`).join('')
+                + '<NOSCRIPT><div><!-- also literal with scripting enabled --></div></NOSCRIPT>';
+
+            for (const removeComments of modes) {
+                await init(input + '<div><!-- remove --></div>', input + '<div></div>', { removeComments });
+            }
+        });
+
+        it('keeps everything after plaintext, including outside its apparent ancestors', async () => {
+            const input = '<!-- remove --><div><plaintext><!-- literal --></plaintext></div><!-- also literal -->';
+            const output = '<div><plaintext><!-- literal --></plaintext></div><!-- also literal -->';
+
+            for (const removeComments of modes) {
+                await init(input, output, { removeComments });
+            }
+        });
+
+        const boundaries = [
+            ['<<!-- remove -->img src=x onerror=alert(1)>', '&lt;img src=x onerror=alert(1)>'],
+            ['<div><<!-- one --><!-- two -->script>alert(1)</div>', '<div>&lt;script>alert(1)</div>'],
+            ['&co<!-- remove -->py;', '&amp;copy;'],
+            ['&not<!-- remove -->in;', '¬in;'],
+            ['&#6<!-- remove -->5;', '\u00065;'],
+            ['&#x3<!-- remove -->c;', '\u0003c;'],
+            ['&#13<!-- remove -->0;', '&#13;0;'],
+            ['&amp;<!-- remove -->copy;', '&amp;copy;']
+        ];
+        for (const [input, output] of boundaries) {
+            it(`preserves text when deleting comments from ${JSON.stringify(input)}`, async () => {
+                for (const removeComments of modes) {
+                    await initIdempotent(input, output, { removeComments });
+                }
+                assertSafeDomEquivalent(input, output, 'safe', { kind: 'fragment' });
+            });
+        }
+    });
+
     context('safe (default)', () => {
         const options = {
             removeComments: safePreset.removeComments as 'safe'
@@ -163,6 +206,21 @@ describe('removeComments', () => {
     });
 
     context('custom matcher', () => {
+        it('calls the matcher once per HTML comment and never for literal text', async () => {
+            const comments: string[] = [];
+            await init(
+                '<!-- root --><div><!-- remove --><!-- keep --><script><!-- literal --></script></div>',
+                '<div><!-- keep --><script><!-- literal --></script></div>',
+                {
+                    removeComments: (comment) => {
+                        comments.push(comment);
+                        return !comment.includes('keep');
+                    }
+                }
+            );
+            expect(comments).toEqual(['<!-- root -->', '<!-- remove -->', '<!-- keep -->']);
+        });
+
         for (const flags of ['g', 'y', 'gy']) {
             for (const asString of [false, true]) {
                 it(`matches each comment independently with ${flags} flags (${asString ? 'string' : 'RegExp'})`, async () => {

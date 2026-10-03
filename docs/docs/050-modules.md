@@ -661,6 +661,12 @@ Minified:
 Regexp matching starts at the beginning of each comment, including with `g` or `y`
 flags. The supplied regexp's `lastIndex` is left unchanged.
 
+Only HTML comments are removed. Comment-looking text inside `script`, `style`,
+`textarea`, `title`, `xmp`, `iframe`, `noembed`, `noframes`, and `noscript`, and
+everything after `plaintext`, is kept. When removing a comment would join text
+into HTML markup or change a character reference, the text boundary is escaped
+to preserve its meaning.
+
 **Security warning: the `removeComments` option must come from a source you trust.**
 A string option is compiled into a `RegExp` and then tested against every comment, so a
 pattern crafted to backtrack catastrophically turns comment-heavy input into a hang

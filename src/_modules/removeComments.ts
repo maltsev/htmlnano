@@ -1,3 +1,4 @@
+import { decodeHTML, escapeText } from 'entities';
 import { isComment, isConditionalComment } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 
@@ -5,28 +6,68 @@ const MATCH_EXCERPT_REGEXP = /^\s*more\b/i;
 const MATCH_NOINDEX_REGEXP = /^\s*\/?\s*noindex\s*$/i;
 const MATCH_SSE_REGEXP = /^\s*\/?\s*sse\s*$/i;
 
+// Comment-looking content in these elements is literal text. Noscript must
+// also work with scripting enabled, when browsers parse it as raw text.
+const textElements = new Set([
+    'script', 'style', 'textarea', 'title', 'xmp', 'iframe',
+    'noembed', 'noframes', 'noscript'
+]);
+
 export type RemoveCommentsOptions = boolean | RegExp | ((comment: string) => boolean) | string;
 
 /** Removes HTML comments */
 const mod: HtmlnanoModule<RemoveCommentsOptions> = {
-    onNode(_, removeType) {
+    default(tree, _, removeType) {
         removeType = normalizeRemoveType(removeType);
-        return (node) => {
-            if (isCommentToRemove(node, removeType)) {
-                return '';
+        let inPlaintext = false;
+
+        function visit(nodes: PostHTMLNodeLike[]): void {
+            let writeIndex = 0;
+            let removedComment = false;
+
+            for (const node of nodes) {
+                if (!inPlaintext) {
+                    if (isCommentToRemove(node, removeType)) {
+                        removedComment = true;
+                        continue;
+                    }
+
+                    if (node && typeof node === 'object') {
+                        const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+                        if (tag === 'plaintext') {
+                            // Plaintext consumes the rest of the document, even
+                            // beyond its apparent closing tag in PostHTML's tree.
+                            inPlaintext = true;
+                        } else if (!textElements.has(tag) && Array.isArray(node.content)) {
+                            visit(node.content);
+                        }
+                    }
+                }
+
+                const previous = nodes[writeIndex - 1];
+                if (removedComment && typeof previous === 'string' && typeof node === 'string') {
+                    nodes[writeIndex - 1] = escapeCommentBoundary(previous);
+                }
+                removedComment = false;
+                nodes[writeIndex++] = node;
             }
-            return node;
-        };
-    },
-    onContent(_, removeType) {
-        removeType = normalizeRemoveType(removeType);
-        return (contents) => {
-            return contents.filter(content => !isCommentToRemove(content, removeType));
-        };
+            nodes.length = writeIndex;
+        }
+
+        visit(tree);
+        return tree;
     }
 };
 
 export default mod;
+
+function escapeCommentBoundary(text: string): string {
+    // Joining text across a removed comment must not create markup or extend a
+    // character reference. Decode only the unfinished suffix, then escape it.
+    return text.replace(/<$|&(?:#(?:[xX][\da-fA-F]*|\d*)|[a-zA-Z\d]*)$/, suffix =>
+        escapeText(decodeHTML(suffix)).replace(/\r/g, '&#13;')
+    );
+}
 
 function isCommentToRemove(text: PostHTMLNodeLike, removeType: Partial<RemoveCommentsOptions>): boolean {
     if (typeof text !== 'string') {
