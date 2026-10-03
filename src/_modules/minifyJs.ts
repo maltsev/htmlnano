@@ -3,6 +3,7 @@ import { decodeHTMLAttribute } from 'entities';
 import { extractTextContentFromNode, isEventHandler, optionalImport } from '../helpers';
 import type { HtmlnanoModule, PostHTMLTreeLike } from '../types';
 import { redundantScriptTypes } from './removeRedundantAttributes.js';
+import { getScriptType } from './helpers/getScriptType.js';
 
 import type { MinifyOptions } from 'terser';
 
@@ -72,14 +73,6 @@ function normalizeScriptAttrs(attrs: PostHTML.NodeAttributes, decoded: boolean) 
         }
     }
     return normalized;
-}
-
-function getScriptType(attrs: PostHTML.NodeAttributes) {
-    if ('type' in attrs) {
-        const type = typeof attrs.type === 'string' ? attrs.type : '';
-        return type === '' ? 'text/javascript' : type.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '').toLowerCase();
-    }
-    return attrs.language ? `text/${attrs.language}`.toLowerCase() : 'text/javascript';
 }
 
 function stripCdata(js: string) {

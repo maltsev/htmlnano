@@ -31,15 +31,19 @@ function processStyleNodeUnCSS(html: string, styleNode: PostHTML.Node, uncssOpti
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- uncss no types
     return runUncss(html, strippedCss, uncssOptions, uncss).then((css) => {
-        // uncss may have left some style tags empty
-        if (css.trim().length === 0) {
-            // @ts-expect-error -- explicitly remove the tag
-            styleNode.tag = false;
-            styleNode.content = [];
-            return;
-        }
-        styleNode.content = [wrapCssCdata(css, isCdataWrapped)];
+        updateStyleNode(styleNode, css, isCdataWrapped);
     });
+}
+
+function updateStyleNode(styleNode: PostHTML.Node, css: string, isCdataWrapped: boolean): void {
+    // Removing unused rules may have left the style tag empty.
+    if (css.trim().length === 0) {
+        // @ts-expect-error -- explicitly remove the tag
+        styleNode.tag = false;
+        styleNode.content = [];
+        return;
+    }
+    styleNode.content = [wrapCssCdata(css, isCdataWrapped)];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- uncss callback uses untyped args
@@ -118,13 +122,7 @@ function processStyleNodePurgeCSS(tree: PostHTMLTreeLike, styleNode: PostHTML.No
     const { strippedCss, isCdataWrapped } = stripCssCdata(css);
     return runPurgecss(tree, strippedCss, purgecssOptions, purgecss, selectors)
         .then((css) => {
-            if (css.trim().length === 0) {
-                // @ts-expect-error -- explicitly remove the tag
-                styleNode.tag = false;
-                styleNode.content = [];
-                return;
-            }
-            styleNode.content = [wrapCssCdata(css, isCdataWrapped)];
+            updateStyleNode(styleNode, css, isCdataWrapped);
         });
 }
 

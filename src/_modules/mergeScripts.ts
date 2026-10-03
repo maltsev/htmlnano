@@ -3,6 +3,7 @@ import { decodeHTMLAttribute } from 'entities';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 import { extractTextContentFromNode } from '../helpers';
 import { normalizeAttrsForKey } from './helpers/normalizeAttrsForKey';
+import { getScriptType } from './helpers/getScriptType.js';
 
 function normalizeAsyncAttr(attrs: PostHTML.NodeAttributes) {
     if (attrs.async === '') {
@@ -12,19 +13,6 @@ function normalizeAsyncAttr(attrs: PostHTML.NodeAttributes) {
     if (attrs.nomodule === '') {
         (attrs as Record<string, string | boolean>).nomodule = true;
     }
-}
-
-function getScriptType(attrs: PostHTML.NodeAttributes) {
-    if ('type' in attrs) {
-        const type = typeof attrs.type === 'string' ? attrs.type : '';
-        // Only an actually empty type defaults to JavaScript. Whitespace alone
-        // becomes a data block, and type takes precedence over language.
-        return type === ''
-            ? 'text/javascript'
-            : type.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '').toLowerCase();
-    }
-
-    return attrs.language ? `text/${attrs.language}`.toLowerCase() : 'text/javascript';
 }
 
 function normalizeScriptAttrs(attrs: PostHTML.NodeAttributes) {
