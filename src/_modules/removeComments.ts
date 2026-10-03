@@ -1,6 +1,6 @@
-import { decodeHTML, escapeText } from 'entities';
 import { isComment, isConditionalComment } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
+import { escapeTextBoundary } from './helpers/escapeTextBoundary';
 
 const MATCH_EXCERPT_REGEXP = /^\s*more\b/i;
 const MATCH_NOINDEX_REGEXP = /^\s*\/?\s*noindex\s*$/i;
@@ -46,7 +46,7 @@ const mod: HtmlnanoModule<RemoveCommentsOptions> = {
 
                 const previous = nodes[writeIndex - 1];
                 if (removedComment && typeof previous === 'string' && typeof node === 'string') {
-                    nodes[writeIndex - 1] = escapeCommentBoundary(previous);
+                    nodes[writeIndex - 1] = escapeTextBoundary(previous);
                 }
                 removedComment = false;
                 nodes[writeIndex++] = node;
@@ -60,14 +60,6 @@ const mod: HtmlnanoModule<RemoveCommentsOptions> = {
 };
 
 export default mod;
-
-function escapeCommentBoundary(text: string): string {
-    // Joining text across a removed comment must not create markup or extend a
-    // character reference. Decode only the unfinished suffix, then escape it.
-    return text.replace(/<$|&(?:#(?:[xX][\da-fA-F]*|\d*)|[a-zA-Z\d]*)$/, suffix =>
-        escapeText(decodeHTML(suffix)).replace(/\r/g, '&#13;')
-    );
-}
 
 function isCommentToRemove(text: PostHTMLNodeLike, removeType: Partial<RemoveCommentsOptions>): boolean {
     if (typeof text !== 'string') {

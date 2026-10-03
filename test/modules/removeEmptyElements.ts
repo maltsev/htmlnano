@@ -1,8 +1,24 @@
 import { expect } from 'expect';
 import htmlnano from '../../dist/index.mjs';
-import { init } from '../htmlnano.ts';
+import { init, initIdempotent } from '../htmlnano.ts';
 
 describe('removeEmptyElements', () => {
+    it('should not create markup or character references across removed elements', async () => {
+        const cases = [
+            ['<<span></span><b></b>img src=x onerror=alert(1)>', '&lt;img src=x onerror=alert(1)>'],
+            ['<div><<span><b></b></span>script>alert(1)</div>', '<div>&lt;script>alert(1)</div>'],
+            ['&co<span></span>py;', '&amp;copy;'],
+            ['&not<span></span>in;', '¬in;'],
+            ['&#6<span></span>5;', '\u00065;'],
+            ['&#x3<span></span>c;', '\u0003c;'],
+            ['&#13<span></span>0;', '&#13;0;'],
+            ['&amp;<span></span>copy;', '&amp;copy;']
+        ];
+        for (const [input, output] of cases) {
+            await initIdempotent(input, output, { removeEmptyElements: true });
+        }
+    });
+
     it('should remove empty elements without attributes by default', () => {
         return init(
             '<div>hello<span><b></b></span></div>',

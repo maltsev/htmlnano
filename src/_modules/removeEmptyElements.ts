@@ -1,6 +1,7 @@
 import type PostHTML from 'posthtml';
 import { isComment } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
+import { escapeTextBoundary } from './helpers/escapeTextBoundary';
 
 export type RemoveWithAttributesOption = boolean | 'presentational' | string[];
 
@@ -173,9 +174,15 @@ function shouldRemoveNode(node: PostHTML.Node, options: NormalizedOptions) {
 
 function pruneNodes(nodes: PostHTMLNodeLike[], options: NormalizedOptions) {
     const result: PostHTMLNodeLike[] = [];
+    let removedElement = false;
 
     for (const node of nodes) {
         if (typeof node === 'string') {
+            const previous = result[result.length - 1];
+            if (removedElement && typeof previous === 'string') {
+                result[result.length - 1] = escapeTextBoundary(previous);
+            }
+            removedElement = false;
             result.push(node);
             continue;
         }
@@ -186,9 +193,11 @@ function pruneNodes(nodes: PostHTMLNodeLike[], options: NormalizedOptions) {
         }
 
         if (shouldRemoveNode(node, options)) {
+            removedElement = true;
             continue;
         }
 
+        removedElement = false;
         result.push(node);
     }
 

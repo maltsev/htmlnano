@@ -782,6 +782,8 @@ Removes elements that have no meaningful content.
 
 Empty elements are defined as elements with no child elements and no text content; comments do not count as content.
 Whitespace is text content and is preserved because it can separate inline content or be significant in preformatted text.
+Text joined across a removed element is escaped when necessary to avoid creating
+new markup or changing a character reference.
 Void elements (like `<img>` or `<br>`) are never removed, and neither are elements that
 keep doing their job while empty, whatever `removeWithAttributes` says:
 
