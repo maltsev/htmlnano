@@ -130,7 +130,13 @@ async function minifyContentInsideConditionalComments(text: string, htmlnanoOpti
             minified = minified.replace(/<\/html>/i, '');
         }
 
-        result += match.open + minified + match.close;
+        // Hidden content is still an HTML comment in other browsers. Decoding
+        // references (even in attributes) must not expose it as active markup.
+        if (!match.open.endsWith('<!-->') && /--!?>/.test(minified)) {
+            result += text.slice(match.start, match.end);
+        } else {
+            result += match.open + minified + match.close;
+        }
         lastIndex = match.end;
     }
 

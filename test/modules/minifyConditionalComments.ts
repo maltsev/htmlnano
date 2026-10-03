@@ -1,5 +1,6 @@
 import { expect } from 'expect';
 import { performance } from 'node:perf_hooks';
+import { parseFragment } from 'parse5';
 import { init } from '../htmlnano.ts';
 import { process as processHtml } from '../../dist/index.mjs';
 import safePreset from '../../dist/presets/safe.mjs';
@@ -221,6 +222,33 @@ describe('minifyConditionalComments', () => {
             {
                 minifyConditionalComments: true
             }
+        );
+    });
+
+    for (const content of [
+        '<div title="--&gt;"></div>',
+        '<div>--&#62;</div>',
+        '<div>--!&#x3e;</div>'
+    ]) {
+        it(`should not expose hidden markup when minifying ${content}`, async () => {
+            const input = `<!--[if IE]>${content}<img src=x onerror=alert(1)><![endif]-->`;
+            const result = await processHtml(input, {
+                minifyConditionalComments: true,
+                minifyCharacterReferences: true
+            }, {}, {});
+
+            expect(result.html).toBe(input);
+            expect(parseFragment(String(result.html)).childNodes.map(node => node.nodeName))
+                .toStrictEqual(['#comment']);
+        });
+    }
+
+    it('should continue minifying safe comments after an unsafe one', () => {
+        const unsafe = '<!--[if IE]><div>--&gt;</div><![endif]-->';
+        return init(
+            unsafe + '<!--[if IE 8]><div>&copy;</div><![endif]-->',
+            unsafe + '<!--[if IE 8]><div>©</div><![endif]-->',
+            { minifyConditionalComments: true, minifyCharacterReferences: true }
         );
     });
 

@@ -847,6 +847,8 @@ pass, so it remains an opt-in there. The `max` preset enables it.
 
 #### Notes
 - Empty conditional comments and standalone `<!--<![endif]-->` markers are left untouched.
+- Hidden blocks are left untouched if minification would introduce `-->` or `--!>`
+  inside them, preventing hidden markup from becoming active in other browsers.
 - If the comment content includes an opening `<html>` without a closing tag, any auto-inserted
   `</html>` from the internal parse step is removed so it is not injected into the conditional block.
 
