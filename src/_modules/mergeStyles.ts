@@ -40,7 +40,7 @@ function normalizeStyleAttrs(attrs: PostHTML.NodeAttributes) {
         }
     }
 
-    return Object.fromEntries(normalized) as PostHTML.NodeAttributes;
+    return Object.fromEntries(normalized);
 }
 
 function normalizeStyleAttrsForKey(attrs: PostHTML.NodeAttributes) {
@@ -66,6 +66,65 @@ function extractStyleTextContent(node: PostHTML.Node) {
     }
 
     return extractTextContentFromNode(node);
+}
+
+function needsStyleBoundary(css: string) {
+    // Consume complete comments/strings or a single character. Stop on the
+    // first unfinished token, so malformed input cannot trigger repeated scans.
+    const tokens = /\/\*[\s\S]*?\*\/|"(?:\\[\s\S]|[^"\\\r\n\f])*"|'(?:\\[\s\S]|[^'\\\r\n\f])*'|[\s\S]/g;
+    const brackets: string[] = [];
+    let pendingRule = false;
+    let atRule = false;
+    let match: RegExpExecArray | null;
+    while ((match = tokens.exec(css)) !== null) {
+        const token = match[0];
+        if (token.length > 1 && token.startsWith('/*')) {
+            continue;
+        }
+
+        // Strings remain a token, so a trailing string isn't an empty sheet.
+        const char = token.length > 1 ? 'x' : token;
+        // Imports have position restrictions; namespaces affect the whole
+        // sheet. Keep escapes outside strings and legacy wrappers separate
+        // rather than implementing a full tokenizer (escaped at-rules included).
+        if (token.length === 1 && (/^["'\\]$/.test(char)
+            || /^(?:\/\*|@(?:import|namespace)\b|<!--|-->)/i.test(css.slice(match.index, match.index + 12)))) {
+            return true;
+        }
+
+        if (/[\t\n\f\r ]/.test(char)) {
+            continue;
+        }
+
+        if (!pendingRule && brackets.length === 0) {
+            pendingRule = true;
+            atRule = char === '@';
+        }
+
+        if ('([{'.includes(char)) {
+            brackets.push(char);
+        } else if (')]}'.includes(char)) {
+            if (brackets.pop() !== '([{'.charAt(')]}'.indexOf(char))) {
+                return true;
+            }
+
+            if (brackets.length === 0 && char === '}') {
+                pendingRule = false;
+            }
+        } else if (char === ';' && brackets.length === 0) {
+            // A semicolon terminates an at-rule, but not a qualified-rule
+            // prelude: "a;" could still consume the next sheet's first block.
+            if (!atRule) {
+                return true;
+            }
+
+            pendingRule = false;
+        }
+    }
+
+    // CSS repairs unfinished constructs at EOF. Concatenating another sheet
+    // removes that EOF and lets the unfinished construct swallow its rules.
+    return pendingRule || brackets.length !== 0;
 }
 
 // A <link rel="stylesheet"> pulls in external CSS at its position in the
@@ -164,11 +223,15 @@ function mergeStylesInScope(nodes: Array<PostHTMLNodeLike>, group: MergeGroup) {
             return;
         }
 
+        const styleContent = extractStyleTextContent(node);
+        if (needsStyleBoundary(styleContent)) {
+            flushGroup(group);
+            return;
+        }
+
         const styleKey = buildStyleKey(nodeAttrs);
 
         if (group.node && group.key === styleKey) {
-            const styleContent = extractStyleTextContent(node);
-
             group.node.content ??= [];
             group.node.content.push(' ' + styleContent);
             nodes[index] = ''; // Remove node

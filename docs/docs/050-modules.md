@@ -1064,6 +1064,8 @@ Skipped styles:
 - `<style scoped>...</style>`
 - `<style integrity>...</style>`
 - AMP boilerplate styles (`amp-boilerplate`, `amp4ads-boilerplate`, `amp4email-boilerplate`)
+- Styles containing `@import` or `@namespace`, which depend on stylesheet boundaries
+- Styles with unfinished CSS constructs, escapes outside strings or legacy HTML comment wrappers. These are kept separate conservatively so one stylesheet cannot consume or reinterpret another's rules.
 
 #### Source order is preserved
 

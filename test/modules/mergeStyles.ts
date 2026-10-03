@@ -319,4 +319,49 @@ describe('mergeStyles', () => {
             return init(html, html, options);
         });
     }
+
+    for (const css of [
+        '@import "theme.css"; a {}',
+        '@IMPORT url(theme.css);',
+        '@namespace url(http://www.w3.org/2000/svg); a {}',
+        '@namespace svg "http://www.w3.org/2000/svg"; svg|a {}',
+        '@im\\70ort "theme.css";',
+        '@name\\73pace "urn:test";',
+        'a { color: red',
+        'a {} /* unfinished comment',
+        'a { content: "unfinished string',
+        'a { color: red } b',
+        'a;',
+        '"selector"',
+        '@media (color) { a {}',
+        '@unknown foo(',
+        '@unknown [foo',
+        '@unknown foo',
+        'a { color: red } \\',
+        '<!-- a {} -->',
+        '/* unfinished '.repeat(1000)
+    ]) {
+        it(`should preserve stylesheet boundaries for ${JSON.stringify(css.slice(0, 80))}`, () => {
+            const plain = '<style>b { color: blue }</style>';
+            const guarded = `<style>${css}</style>`;
+            const html = plain + guarded + plain;
+            return init(html, html, options);
+        });
+    }
+
+    it('should continue merging ordinary CSS on both sides of a guarded sheet', () => {
+        return init(
+            '<style>a {}</style><style>b {}</style><style>@import "theme.css";</style>'
+            + '<style>c {}</style><style>d {}</style>',
+            '<style>a {} b {}</style><style>@import "theme.css";</style><style>c {} d {}</style>',
+            options
+        );
+    });
+
+    it('should merge complete strings, comments, nested rules and statement at-rules', () => {
+        const first = '@layer reset; @media (color) { a { content: "} /* @import \\"" } } /* tail */';
+        const second = 'b[data-label="]"] { background: url("image.png"); content: \'@namespace\' }';
+        return init(`<style>${first}</style><style>${second}</style>`,
+            `<style>${first} ${second}</style>`, options);
+    });
 });
