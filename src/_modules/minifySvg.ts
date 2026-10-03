@@ -1,5 +1,5 @@
 import { optionalImport } from '../helpers';
-import type { HtmlnanoModule } from '../types';
+import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 import type { Config as SvgoConfig, PluginConfig } from 'svgo';
 
 // Inline SVG IDs and definitions can be referenced by other SVGs, HTML, CSS, or JS.
@@ -23,6 +23,10 @@ const mod: HtmlnanoModule<SvgoConfig> = {
         const svgoOptionsWithDefaults = applySvgoDefaults(resolvedSvgoOptions);
 
         tree.match({ tag: 'svg' }, (node) => {
+            // SVGO parses/serializes XML, which can corrupt embedded HTML and
+            // turn escaped raw-text content into executable markup.
+            if (containsHtmlContent(node)) return node;
+
             const svgStr = tree.render(node, { closingSingleTag: 'slash', quoteAllAttributes: true });
 
             try {
@@ -66,6 +70,22 @@ const mod: HtmlnanoModule<SvgoConfig> = {
 };
 
 export default mod;
+
+function containsHtmlContent(node: PostHTMLNodeLike): boolean {
+    if (!node || typeof node !== 'object') return false;
+
+    const tag = node.tag?.toLowerCase();
+    if (tag === 'foreignobject') return true;
+
+    const content = Array.isArray(node.content) ? node.content : [node.content];
+    // SVG title/desc are also HTML integration points. PostHTML parses title
+    // markup as a string, so checking only for child nodes would miss it.
+    if ((tag === 'title' || tag === 'desc') && content.some(child => (
+        typeof child === 'string' ? child.includes('<') : child && typeof child === 'object'
+    ))) return true;
+
+    return content.some(child => child && containsHtmlContent(child));
+}
 
 function resolveSvgoOptions(svgoOptions: SvgoConfig | true | null | undefined): SvgoConfig {
     if (!svgoOptions || svgoOptions === true) {

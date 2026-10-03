@@ -3,7 +3,7 @@ import { init } from '../htmlnano.ts';
 import htmlnano from '../../dist/index.mjs';
 import safePreset from '../../dist/presets/safe.mjs';
 import maxPreset from '../../dist/presets/max.mjs';
-import { parse } from 'parse5';
+import { parse, serialize } from 'parse5';
 import type { DefaultTreeAdapterTypes } from 'parse5';
 import type { HtmlnanoOptions } from '../../src/types.ts';
 import type { Config as SvgoConfig, PluginInfo } from 'svgo';
@@ -44,7 +44,6 @@ describe('minifySvg', () => {
         <input/>
     </foreignObject>
   </svg>`;
-    const minifiedSvgContainsForeignObject = '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><foreignObject width="256" height="256"><input/></foreignObject></svg>';
 
     const sprite = '<symbol id="icon-sun" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4"/></symbol>';
     const sharedDefinitions = [
@@ -288,13 +287,38 @@ describe('minifySvg', () => {
     });
 
     // https://github.com/maltsev/htmlnano/issues/129
-    it('should work with <foreignObject>', () => {
-        return init(
-            svgContainsForeignObject,
-            minifiedSvgContainsForeignObject,
-            options
-        );
+    it('should preserve HTML inside <foreignObject>', async () => {
+        const { html } = await htmlnano.process(svgContainsForeignObject, {
+            ...options,
+            skipConfigLoading: true
+        }, {});
+
+        expect(serialize(parse(html))).toBe(serialize(parse(svgContainsForeignObject)));
     });
+
+    for (const plugins of [undefined, [], [{ name: 'nonexistent-plugin' }]] as (SvgoConfig['plugins'])[]) {
+        it(`should preserve embedded HTML with ${plugins === undefined ? 'default' : plugins.length ? 'invalid' : 'no'} plugins`, async () => {
+            const inputs = [
+                '<svg><foreignObject width="100" height="100"><div></div><span>after</span></foreignObject></svg><p>outside</p>',
+                '<svg><foreignObject width="100" height="100"><div> before <span> middle </span> after </div></foreignObject></svg>',
+                '<svg><foreignObject width="100" height="100"><script>const x="&quot;";</script><style></style><p>after</p></foreignObject></svg>',
+                '<svg><foreignObject width="100" height="100"><style>.x::after{content:"&lt;/style&gt;&lt;img src=x onerror=alert(1)&gt;"}</style><div class="x">x</div></foreignObject></svg>',
+                '<svg><desc><div></div><span>after</span></desc></svg>',
+                '<svg><title><span></span><span>after</span></title></svg>'
+            ];
+
+            for (const input of inputs) {
+                const { html } = await htmlnano.process(input, {
+                    minifySvg: { plugins },
+                    skipInternalWarnings: true,
+                    skipConfigLoading: true
+                }, {});
+
+                expect(serialize(parse(html))).toBe(serialize(parse(input)));
+                expect(parseElements(html).some(node => node.tagName === 'img')).toBe(false);
+            }
+        });
+    }
 
     // https://github.com/maltsev/htmlnano/issues/197
     it('shouldn\'t choke on svg errors', () => {
