@@ -284,6 +284,13 @@ describe('minifyConditionalComments', () => {
         );
     });
 
+    for (const condition of ['if IE 7', 'IF IE 7']) {
+        it(`should preserve nested revealed conditions with ${condition}`, () => {
+            const input = `<!--[if true]><![${condition}]><div>&copy;</div><![endif]><![endif]-->`;
+            return init(input, input, { minifyConditionalComments: true, minifyCharacterReferences: true });
+        });
+    }
+
     describe('safe preset evaluation', () => {
         for (const { name, input, expected } of evaluationFixtures) {
             it(name, async () => {

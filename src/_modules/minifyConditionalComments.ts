@@ -5,7 +5,7 @@ import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLNodeLike, PostHTMLTreeLik
 // Spec: https://docs.microsoft.com/en-us/previous-versions/windows/internet-explorer/ie-developer/compatibility/ms537512(v=vs.85)
 const CONDITIONAL_COMMENT_HIDDEN_REGEXP = /(<!--\[if\s+?[^<>[\]]+?]>)([\s\S]*?)(<!\[endif\]-->)/gm;
 const CONDITIONAL_COMMENT_REVEALED_REGEXP = /(<!--\[if\s+?[^<>[\]]+?\]><!-->)([\s\S]*?)(<!--<!\[endif\]-->)/gm;
-const CONDITIONAL_COMMENT_START_REGEXP = /<!--\[if\s/i;
+const CONDITIONAL_COMMENT_START_REGEXP = /<!(?:--)?\[if\s/i;
 
 // These elements contain literal text, not conditional comments. Noscript must
 // also be safe with scripting enabled, when browsers treat it as raw text.

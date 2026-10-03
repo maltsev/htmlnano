@@ -851,6 +851,8 @@ pass, so it remains an opt-in there. The `max` preset enables it.
   inside them, preventing hidden markup from becoming active in other browsers.
 - Comment-like text inside raw-text and RCDATA elements (such as `script`, `style`,
   `textarea`, and `title`), or after `plaintext`, is not processed as conditional HTML.
+- Blocks containing nested conditional wrappers are preserved rather than reparsed,
+  including nested downlevel-revealed `<![if ...]>` conditions.
 - If the comment content includes an opening `<html>` without a closing tag, any auto-inserted
   `</html>` from the internal parse step is removed so it is not injected into the conditional block.
 
