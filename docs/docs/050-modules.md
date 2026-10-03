@@ -593,6 +593,9 @@ and hexadecimal (`&#x2014;`) numeric references are decoded as well.
 #### Notes
 - The decoding is lossless: a reference is only decoded when the literal
   character is parsed back into exactly the same character in that context.
+- Carriage-return references (`&#13;` and `&#xD;`) are kept because literal
+  carriage returns are normalized to line feeds by the HTML parser. Decoding
+  also preserves nearby incomplete references and existing line breaks.
 - `&amp;` becomes a bare `&` unless that would create an [ambiguous
   ampersand](https://html.spec.whatwg.org/multipage/syntax.html#syntax-ambiguous-ampersand),
   i.e. unless the following text would turn it back into a character

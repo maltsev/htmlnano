@@ -183,15 +183,20 @@ type DecodeContext = {
 };
 
 function isDecodableCodePoint(codePoint: number): boolean {
-    // Reject out-of-range, surrogates, and noncharacters.
+    // Reject out-of-range code points and surrogates.
     if (!Number.isFinite(codePoint) || codePoint <= 0 || codePoint > 0x10FFFF) {
         return false;
     }
     if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
         return false;
     }
+    // Literal carriage returns are normalized to line feeds before parsing,
+    // whereas a carriage return emitted by a reference keeps its value.
+    if (codePoint === 0x0D) {
+        return false;
+    }
     // C0/C1 controls (except common whitespace) are unsafe to emit literally.
-    if (codePoint < 0x20 && codePoint !== 0x09 && codePoint !== 0x0A && codePoint !== 0x0C && codePoint !== 0x0D) {
+    if (codePoint < 0x20 && codePoint !== 0x09 && codePoint !== 0x0A && codePoint !== 0x0C) {
         return false;
     }
     if (codePoint >= 0x7F && codePoint <= 0x9F) {
@@ -211,7 +216,10 @@ function isDecodableText(text: string): boolean {
 
 /** Decodes the string the way a browser would decode it in the given context. */
 function decodeLikeParser(text: string, inAttribute: boolean): string {
-    return inAttribute ? decodeHTMLAttribute(text) : decodeHTML(text);
+    // Input-stream normalization happens before character reference decoding.
+    // A newly decoded LF must not combine with a preceding literal CR.
+    const normalized = text.replace(/\r\n?/g, '\n');
+    return inAttribute ? decodeHTMLAttribute(normalized) : decodeHTML(normalized);
 }
 
 function resolveReference(reference: string, decodeAll: boolean): string | null {

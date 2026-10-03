@@ -188,6 +188,29 @@ describe('minifyCharacterReferences', () => {
         );
     });
 
+    it('should preserve carriage-return references while decoding other references', () => {
+        return init(
+            '<p title="a&#13;b&#xD;\n&copy;">a&#13;b&#xD;\n&copy;</p>',
+            '<p title="a&#13;b&#xD;\n©">a&#13;b&#xD;\n©</p>',
+            options
+        );
+    });
+
+    for (const reference of ['&#10;', '&#xA;', '&NewLine;']) {
+        it(`should not merge ${reference} with a preceding literal carriage return`, () => {
+            const source = `<p title="a\r${reference}b">a\r${reference}b</p>`;
+            return init(source, source, maxOptions);
+        });
+    }
+
+    it('should decode line-feed references without a preceding carriage return', () => {
+        return init(
+            '<p title="a&#10;b&#xA;c&NewLine;d">a&#10;b&#xA;c&NewLine;d</p>',
+            '<p title="a\nb\nc\nd">a\nb\nc\nd</p>',
+            maxOptions
+        );
+    });
+
     it('should keep apostrophe references in JSON-ish attribute values', () => {
         // posthtml-render renders JSON-ish attribute values single-quoted
         return init(
