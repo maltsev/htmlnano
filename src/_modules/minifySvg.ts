@@ -1,4 +1,5 @@
 import { optionalImport } from '../helpers';
+import { decodeHTMLStrict, decodeXML } from 'entities';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 import type { Config as SvgoConfig, PluginConfig } from 'svgo';
 
@@ -28,6 +29,7 @@ const mod: HtmlnanoModule<SvgoConfig> = {
             if (containsHtmlContent(node)) return node;
 
             const svgStr = tree.render(node, { closingSingleTag: 'slash', quoteAllAttributes: true });
+            if (hasUnsafeNumericReferences(svgStr)) return node;
 
             try {
                 const result = svgo.optimize(svgStr, svgoOptionsWithDefaults);
@@ -70,6 +72,16 @@ const mod: HtmlnanoModule<SvgoConfig> = {
 };
 
 export default mod;
+
+function hasUnsafeNumericReferences(svg: string): boolean {
+    for (const [reference] of svg.matchAll(/&#(?:[xX][\da-fA-F]+|\d+);/g)) {
+        const xmlValue = decodeXML(reference);
+        // HTML remaps some XML code points (notably C1 controls). A literal CR
+        // is normalized to LF by HTML parsing, unlike a CR character reference.
+        if (xmlValue !== decodeHTMLStrict(reference) || xmlValue === '\r') return true;
+    }
+    return false;
+}
 
 function containsHtmlContent(node: PostHTMLNodeLike): boolean {
     if (!node || typeof node !== 'object') return false;

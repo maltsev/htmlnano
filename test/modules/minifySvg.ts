@@ -337,6 +337,28 @@ describe('minifySvg', () => {
         );
     });
 
+    it('should preserve numeric references with different HTML and XML meanings', async () => {
+        const input = '<svg><text data-value="&#13; &#x0D; &#128; &#x80; &#xD800;">&#13; &#x0D; &#128; &#x80; &#xD800;</text></svg>';
+
+        for (const plugins of [undefined, [], [{ name: 'nonexistent-plugin' }]] as (SvgoConfig['plugins'])[]) {
+            const { html } = await htmlnano.process(input, {
+                minifySvg: { plugins },
+                skipInternalWarnings: true,
+                skipConfigLoading: true
+            }, {});
+
+            expect(serialize(parse(html))).toBe(serialize(parse(input)));
+        }
+    });
+
+    it('should still minify SVGs with ordinary numeric references', () => {
+        return init(
+            '<svg><text fill="#ff0000">&#65; &#x1F600;</text></svg>',
+            '<svg><text fill="red">A 😀</text></svg>',
+            options
+        );
+    });
+
     it('should return original svg and report non-parser errors', async () => {
         const input = '<svg xmlns="http://www.w3.org/2000/svg"><path d=""/></svg>';
         const originalConsoleError = console.error;
