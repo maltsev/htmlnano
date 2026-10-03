@@ -156,6 +156,32 @@ function runPurgecss(tree: PostHTMLTreeLike, css: string, userOptions: Partial<P
         });
 }
 
+function resolvePurgecssOptions(tree: PostHTMLTreeLike, userOptions: Partial<PurgeCSSOptions>): Partial<PurgeCSSOptions> {
+    if (!userOptions.keyframes && !userOptions.fontFace && !userOptions.variables) {
+        return userOptions;
+    }
+
+    let styleCount = 0;
+    let hasInlineStyles = false;
+    tree.walk((node) => {
+        // Include protected styles too: they can refer to definitions in another block.
+        if (node.tag?.toLowerCase() === 'style' && isCssStyleType(node)) {
+            styleCount += 1;
+        }
+        if (Object.entries(node.attrs ?? {}).some(([name, value]) => name.toLowerCase() === 'style' && typeof value === 'string' && value.trim())) {
+            hasInlineStyles = true;
+        }
+        return node;
+    });
+
+    // Each style block is purged separately. Resource usage in another block or
+    // a style attribute is invisible to PurgeCSS, so keep those definitions.
+    if (styleCount > 1 || hasInlineStyles) {
+        return { ...userOptions, keyframes: false, fontFace: false, variables: false };
+    }
+    return userOptions;
+}
+
 export interface RemoveUnusedCssOptions {
     tool?: 'purgeCSS' | 'uncss';
     [key: string]: unknown;
@@ -174,7 +200,9 @@ const mod: HtmlnanoModule<RemoveUnusedCssOptions> = {
 
         const resolvedOptions = resolveUserOptions(userOptions);
         const tool = resolvedOptions.tool ?? 'purgeCSS';
-        const toolOptions = stripToolOption(resolvedOptions);
+        const toolOptions = tool === 'purgeCSS'
+            ? resolvePurgecssOptions(tree, stripToolOption(resolvedOptions))
+            : stripToolOption(resolvedOptions);
 
         tree.walk((node) => {
             if (isStyleNode(node) && isCssStyleType(node)) {

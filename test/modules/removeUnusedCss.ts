@@ -304,6 +304,41 @@ describe('removeUnusedCss (purgeCSS)', function () {
         );
     });
 
+    const resourceOptions = {
+        removeUnusedCss: {
+            tool: 'purgeCSS' as const,
+            keyframes: true,
+            fontFace: true,
+            variables: true
+        }
+    };
+    const definitions = '@keyframes spin{to{opacity:0}}@font-face{font-family:Foo;src:url(foo.woff)}:root{--color:red}';
+    const declarations = 'animation:spin 1s;font-family:Foo;color:var(--color)';
+
+    it('should preserve definitions used in another style block', () => {
+        return init(
+            `<style>${definitions}.unused{color:blue}</style><style>div{${declarations}}</style><div></div>`,
+            `<style>${definitions}</style><style>div{${declarations}}</style><div></div>`,
+            resourceOptions
+        );
+    });
+
+    it('should preserve definitions used in style attributes', () => {
+        return init(
+            `<style>${definitions}.unused{color:blue}</style><div style="${declarations}"></div>`,
+            `<style>${definitions}</style><div style="${declarations}"></div>`,
+            resourceOptions
+        );
+    });
+
+    it('should still remove unused definitions in a single style block', () => {
+        return init(
+            `<style>${definitions}@keyframes unused{to{opacity:1}}@font-face{font-family:Unused;src:url(unused.woff)}:root{--unused:blue}div{${declarations}}</style><div></div>`,
+            `<style>${definitions}:root{}div{${declarations}}</style><div></div>`,
+            resourceOptions
+        );
+    });
+
     it('should skip non-css style types', () => {
         const lessHtml = '<style type="text/less">.unused{color:red}</style><div></div>';
 
