@@ -128,6 +128,12 @@ const htmlSpecialTags = new Set([
  * content is parsed with XML-ish rules, so every end tag has to stay.
  */
 const foreignContentTags = new Set(['svg', 'math']);
+// PostHTML may parse apparent elements where browsers see only literal text.
+// Noscript content must also stay unchanged when scripting is enabled.
+const textContentTags = new Set([
+    'script', 'style', 'textarea', 'title', 'xmp', 'iframe',
+    'noembed', 'noframes', 'noscript'
+]);
 
 interface OmissionContext {
     /** Nodes whose end tag is not rendered anymore. */
@@ -140,6 +146,8 @@ interface OmissionContext {
     removeStartTags: boolean;
     /** Set once an end tag has actually been omitted on its own. */
     usedCloseAs: boolean;
+    /** Plaintext consumes the rest of the document, including apparent tags. */
+    inPlaintext: boolean;
 }
 
 function normalizeOptions(moduleOptions: Partial<RemoveOptionalTagsConfig>): NormalizedOptions {
@@ -452,9 +460,16 @@ function canOmitStartTag(
 
 function removeOptionalTagsFrom(nodes: PostHTMLNodeLike[], parent: PostHTML.Node | null, context: OmissionContext) {
     nodes.forEach((node, index) => {
+        if (context.inPlaintext) return;
         if (typeof node === 'string') return;
 
-        const tagName = node.tag;
+        const tagName = typeof node.tag === 'string' ? node.tag.toLowerCase() : node.tag;
+
+        if (tagName === 'plaintext') {
+            context.inPlaintext = true;
+            return;
+        }
+        if (typeof tagName === 'string' && (foreignContentTags.has(tagName) || textContentTags.has(tagName))) return;
 
         /*
          * A node without a tag renders as its content only. posthtml-include and
@@ -484,6 +499,14 @@ function removeOptionalTagsFrom(nodes: PostHTMLNodeLike[], parent: PostHTML.Node
         const isEndTagOmittable = optionalEndTags.has(tagName)
             && canOmitEndTag(tagName, nextNode, parent, context, isStartTagOmittable);
 
+        if (node.content && node.content.length) {
+            removeOptionalTagsFrom(node.content, node, context);
+        }
+
+        // Ancestor end tags after plaintext are literal text too. Decide on
+        // omission after visiting children so those tags remain untouched.
+        if (context.inPlaintext) return;
+
         if (isStartTagOmittable && isEndTagOmittable) {
             omitTag(node);
             context.endTagOmittedNodes.add(node);
@@ -491,10 +514,6 @@ function removeOptionalTagsFrom(nodes: PostHTMLNodeLike[], parent: PostHTML.Node
             (node as OptionalTagNode).closeAs = 'default';
             context.usedCloseAs = true;
             context.endTagOmittedNodes.add(node);
-        }
-
-        if (node.content && node.content.length && !foreignContentTags.has(tagName)) {
-            removeOptionalTagsFrom(node.content, node, context);
         }
     });
 }
@@ -533,7 +552,8 @@ function removeOptionalTags(
         canOmitEndTagAlone: closingSingleTag === undefined || closingSingleTag === 'closeAs',
         isNoQuirksMode: isNoQuirksDocument(tree),
         removeStartTags: normalizedOptions.removeStartTags,
-        usedCloseAs: false
+        usedCloseAs: false,
+        inPlaintext: false
     };
 
     removeOptionalTagsFrom(tree, null, context);

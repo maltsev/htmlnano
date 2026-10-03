@@ -1,6 +1,7 @@
 // this file has trailing whitespaces that should be kept
 
 import { expect } from 'expect';
+import { parse, parseFragment } from 'parse5';
 import posthtml from 'posthtml';
 import htmlnano from '../../dist/index.mjs';
 import safePreset from '../../dist/presets/safe.mjs';
@@ -12,6 +13,35 @@ describe('removeOptionalTags', () => {
     const options = {
         removeOptionalTags: true
     };
+
+    it('preserves apparent optional tags in literal text content', async () => {
+        for (const tag of ['script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes', 'noscript', 'IFRAME']) {
+            const input = `<${tag}><ul><li>one</li><li>two</li></ul><body>text</body></${tag}>`;
+            const result = await htmlnano.process(input, options, {});
+
+            expect(result.html).toBe(input);
+            expect(parseFragment(result.html)).toEqual(parseFragment(input));
+        }
+    });
+
+    it('preserves all apparent tags after plaintext, including ancestor end tags', async () => {
+        const input = '<ul><li>before</li></ul><html><body><div><plaintext></plaintext>'
+            + '<ul><li>literal</li></ul></div></body></html><ul><li>after</li></ul>';
+        const expected = input.replace('<li>before</li>', '<li>before');
+        const result = await htmlnano.process(input, options, {});
+
+        expect(result.html).toBe(expected);
+        expect(parse(result.html)).toEqual(parse(input));
+    });
+
+    it('does not treat plaintext inside literal or foreign content as a parsing boundary', () => {
+        const input = '<IFRAME><plaintext></plaintext><ul><li>literal</li></ul></IFRAME>'
+            + '<SVG><plaintext></plaintext><ul><li>foreign</li></ul></SVG>'
+            + '<ul><li>after</li></ul>';
+        const expected = input.replace('<li>after</li>', '<li>after');
+
+        return init(input, expected, options);
+    });
 
     it('shouldn\'t omit an optional start tag if the element has attributes', () => {
         const input = `
