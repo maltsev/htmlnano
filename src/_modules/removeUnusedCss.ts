@@ -44,6 +44,10 @@ function processStyleNodeUnCSS(html: string, styleNode: PostHTML.Node, uncssOpti
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- uncss callback uses untyped args
 function runUncss(html: string, css: string, userOptions: object, uncss: (...args: any[]) => void) {
+    // An empty CDATA wrapper yields an empty raw string, which uncss rejects.
+    if (css.trim().length === 0) {
+        return Promise.resolve('');
+    }
     if (typeof userOptions !== 'object') {
         userOptions = {};
     }

@@ -136,6 +136,10 @@ describe('removeUnusedCss (uncss)', function () {
         );
     });
 
+    it('should remove empty CDATA styles without rejecting', () => {
+        return init('<style><![CDATA[]]></style><div></div>', '<div></div>', options);
+    });
+
     it('should skip non-css style types', () => {
         const lessHtml = '<style type="text/less">.unused{color:red}</style><div></div>';
 
@@ -337,6 +341,10 @@ describe('removeUnusedCss (purgeCSS)', function () {
             `<style>${definitions}:root{}div{${declarations}}</style><div></div>`,
             resourceOptions
         );
+    });
+
+    it('should remove empty CDATA styles without rejecting', () => {
+        return init('<style><![CDATA[]]></style><div></div>', '<div></div>', options);
     });
 
     it('should skip non-css style types', () => {
