@@ -63,6 +63,13 @@ const mod: HtmlnanoModule<MinifyHtmlTemplateOptions> = {
 
             const promise = processHtml(rawContent, innerOptions, {}, {})
                 .then((result) => {
+                    // Script data ignores HTML attribute quotes. Decoding a
+                    // reference there can close the container or enter the
+                    // double-escaped state and swallow its closing tag.
+                    if (node.tag?.toLowerCase() === 'script'
+                        && /<\/script(?=[\t\n\f\r />])|<!--[\s\S]*<script(?=[\t\n\f\r />])/i.test(result.html)) {
+                        return;
+                    }
                     node.content = [result.html];
                 });
 

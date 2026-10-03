@@ -1,5 +1,8 @@
 import { init } from '../htmlnano.ts';
 import type { HtmlnanoOptions } from '../../src/types.js';
+import { expect } from 'expect';
+import { parseFragment } from 'parse5';
+import { process as processHtml } from '../../dist/index.mjs';
 
 const scriptTypes = [
     'text/html',
@@ -16,6 +19,32 @@ const scriptTypes = [
 ];
 
 describe('minifyHtmlTemplate', () => {
+    for (const payload of [
+        '&lt;/ScRiPt&gt;&lt;img src=x onerror=alert(1)&gt;',
+        '&lt;/script&#9;&gt;&lt;img src=x onerror=alert(1)&gt;',
+        '&lt;/script/&gt;&lt;img src=x onerror=alert(1)&gt;',
+        '&lt;!--&lt;ScRiPt&gt;'
+    ]) {
+        it(`should preserve script templates when decoding would change script parsing: ${payload}`, async () => {
+            const html = `<SCRIPT type="text/html"><div title="${payload}"> x </div></SCRIPT><p>after</p>`;
+            const result = await processHtml(html, {
+                minifyHtmlTemplate: true,
+                minifyCharacterReferences: true
+            }, {});
+
+            expect(result.html).toBe(html);
+            expect(parseFragment(result.html)).toEqual(parseFragment(html));
+        });
+    }
+
+    it('should still decode harmless references inside script templates', () => {
+        return init(
+            '<script type="text/html"><div title="&lt;/scripted&gt;">&copy;</div></script>',
+            '<script type="text/html"><div title="</scripted>">©</div></script>',
+            { minifyHtmlTemplate: true, minifyCharacterReferences: true }
+        );
+    });
+
     it('should minify script templates using built-in rules', () => {
         return init(
             `<script type="Text/X-Handlebars-Template; charset=utf-8">

@@ -1444,6 +1444,7 @@ htmlnano.process(html, {
 - Rules are objects: `{ tag, attrs? }`.
 - Attribute name matching is case-insensitive. For `type`, matching ignores MIME parameters and casing.
 - Any tag with an `integrity` attribute is skipped, and `<script src="...">` is not processed.
+- Script template content is preserved if minification would introduce a closing script tag or a double-escaped script sequence.
 - The actual changes depend on the enabled modules (for example `collapseWhitespace`).
 
 #### Example
