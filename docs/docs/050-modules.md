@@ -198,6 +198,9 @@ to collapse additional, AMP-specific boolean attributes:
 ```
 When `amphtml` is enabled, AMP boolean attributes are collapsed when their
 value is empty, `true`, or matches the attribute name.
+Native `input[placeholder]` and `textarea[placeholder]` text and nonempty AMP
+`lightbox` group names are preserved. Consent-policy values such as
+`data-block-on-consent="_auto_reject"` are also preserved.
 
 #### Side effects
 This module could break your styles or JS if you use selectors with attributes:

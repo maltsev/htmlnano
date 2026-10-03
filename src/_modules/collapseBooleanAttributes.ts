@@ -92,7 +92,6 @@ const amphtmlBooleanAttributes = new Set([
     'first',
     'fullscreen',
     'inline',
-    'lightbox',
     'noaudio',
     'noautoplay',
     'noloading',
@@ -193,6 +192,8 @@ const mod: HtmlnanoModule<CollapseBooleanAttributesOptions> = {
                 if (
                     moduleOptions.amphtml
                     && amphtmlBooleanAttributes.has(attrNameLower)
+                    // Native placeholders contain text, even in AMP documents.
+                    && !(attrNameLower === 'placeholder' && (tagName === 'input' || tagName === 'textarea'))
                     && (attrValue === '' || attrValueLower === 'true' || attrValueLower === attrNameLower)
                 ) {
                     newAttrs[attrName] = true;

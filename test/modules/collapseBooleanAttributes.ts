@@ -61,6 +61,53 @@ describe('collapseBooleanAttributes', () => {
         );
     });
 
+    for (const [name, ampOptions] of [
+        ['module', { collapseBooleanAttributes: ampSafePreset.collapseBooleanAttributes }],
+        ['ampSafe', ampSafePreset]
+    ] as const) {
+        for (const value of ['true', 'TRUE', 'placeholder']) {
+            it(`${name} preserves native placeholder text "${value}" in AMP mode`, () => {
+                return initIdempotent(
+                    `<input placeholder="${value}"><textarea placeholder="${value}"></textarea>`,
+                    name === 'module'
+                        ? `<input placeholder="${value}"><textarea placeholder="${value}"></textarea>`
+                        : `<input placeholder=${value}><textarea placeholder=${value}></textarea>`,
+                    ampOptions
+                );
+            });
+        }
+
+        for (const value of ['true', 'TRUE', 'lightbox']) {
+            it(`${name} preserves AMP lightbox group "${value}"`, () => {
+                return initIdempotent(
+                    `<amp-img lightbox="${value}"></amp-img>`,
+                    name === 'module' ? `<amp-img lightbox="${value}"></amp-img>` : `<amp-img lightbox=${value}></amp-img>`,
+                    ampOptions
+                );
+            });
+        }
+
+        for (const value of ['_auto_reject', '_till_accepted', '_till_responded']) {
+            it(`${name} preserves the AMP consent policy "${value}"`, () => {
+                return initIdempotent(
+                    `<amp-analytics data-block-on-consent="${value}"></amp-analytics>`,
+                    name === 'module'
+                        ? `<amp-analytics data-block-on-consent="${value}"></amp-analytics>`
+                        : `<amp-analytics data-block-on-consent=${value}></amp-analytics>`,
+                    ampOptions
+                );
+            });
+        }
+    }
+
+    it('should still collapse AMP placeholder markers and empty native placeholders', () => {
+        return initIdempotent(
+            '<div placeholder="true"></div><input placeholder=""><textarea placeholder=""></textarea>',
+            '<div placeholder></div><input placeholder><textarea placeholder></textarea>',
+            { collapseBooleanAttributes: ampSafePreset.collapseBooleanAttributes }
+        );
+    });
+
     it('should not collapse A-Frame visible attribute', () => {
         return init(
             '<a-entity visible="false"></a-entity>',
@@ -123,6 +170,11 @@ describe('collapseBooleanAttributes', () => {
             '<script src="example-framework.js" crossorigin="use-credentials"></script>',
             options
         );
+    });
+
+    it('should preserve case variants and encoded credentialed CORS values', () => {
+        const input = '<script crossorigin="USE-CREDENTIALS"></script><img crossorigin="use&#45;credentials">';
+        return initIdempotent(input, input, options);
     });
 
     it('should remove preload="auto" from <audio> & <video>', () => {
