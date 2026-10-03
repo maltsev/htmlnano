@@ -232,7 +232,11 @@ function mergeStylesInScope(nodes: Array<PostHTMLNodeLike>, group: MergeGroup) {
         const styleKey = buildStyleKey(nodeAttrs);
 
         if (group.node && group.key === styleKey) {
-            group.node.content ??= [];
+            // PostHTML plugins can also supply text as a string, not an array.
+            if (!Array.isArray(group.node.content)) {
+                group.node.content = [extractStyleTextContent(group.node)];
+            }
+
             group.node.content.push(' ' + styleContent);
             nodes[index] = ''; // Remove node
             return;
@@ -241,7 +245,6 @@ function mergeStylesInScope(nodes: Array<PostHTMLNodeLike>, group: MergeGroup) {
         // A <style> with different group attributes is still a stylesheet
         // source at this position, so it ends the previous group before
         // starting a new one.
-        node.content = node.content || [];
         group.key = styleKey;
         group.node = node;
     });

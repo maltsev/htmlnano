@@ -364,4 +364,24 @@ describe('mergeStyles', () => {
         return init(`<style>${first}</style><style>${second}</style>`,
             `<style>${first} ${second}</style>`, options);
     });
+
+    it('should handle string content supplied by an earlier PostHTML plugin', () => {
+        return init(
+            '<style>a {}</style><style>b {}</style>',
+            '<style>a {} b {}</style>',
+            {
+                custom: [(tree) => {
+                    tree.walk((node) => {
+                        if (node.tag === 'style' && Array.isArray(node.content)) {
+                            node.content = node.content.filter(child => typeof child === 'string').join('') as unknown as typeof node.content;
+                        }
+
+                        return node;
+                    });
+                    return tree;
+                }],
+                ...options
+            }
+        );
+    });
 });
