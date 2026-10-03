@@ -1,4 +1,5 @@
 import type PostHTML from 'posthtml';
+import { decodeHTMLAttribute } from 'entities';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 import { extractTextContentFromNode } from '../helpers';
 import { normalizeAttrsForKey } from './helpers/normalizeAttrsForKey';
@@ -14,9 +15,30 @@ function normalizeAsyncAttr(attrs: PostHTML.NodeAttributes) {
 }
 
 function getScriptType(attrs: PostHTML.NodeAttributes) {
-    const type = attrs.type || 'text/javascript';
+    if ('type' in attrs) {
+        const type = typeof attrs.type === 'string' ? attrs.type : '';
+        // Only an actually empty type defaults to JavaScript. Whitespace alone
+        // becomes a data block, and type takes precedence over language.
+        return type === ''
+            ? 'text/javascript'
+            : type.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '').toLowerCase();
+    }
 
-    return typeof type === 'string' ? type.toLowerCase() : 'text/javascript';
+    return attrs.language ? `text/${attrs.language}`.toLowerCase() : 'text/javascript';
+}
+
+function normalizeScriptAttrs(attrs: PostHTML.NodeAttributes) {
+    const normalized = Object.create(null) as PostHTML.NodeAttributes;
+
+    for (const [name, value] of Object.entries(attrs)) {
+        const normalizedName = name.replace(/[A-Z]/g, letter => letter.toLowerCase());
+        // HTML keeps the first attribute when names differ only in ASCII case.
+        if (!(normalizedName in normalized)) {
+            normalized[normalizedName] = typeof value === 'string' ? decodeHTMLAttribute(value) : value;
+        }
+    }
+
+    return normalized;
 }
 
 function isMergeableScriptType(type: string) {
@@ -69,7 +91,7 @@ function mergeScriptsInScope(nodes: PostHTMLNodeLike[]) {
             return;
         }
 
-        if (typeof node !== 'object' || node.tag !== 'script') {
+        if (typeof node !== 'object' || (node.tag || '').toLowerCase() !== 'script') {
             previousScript = null;
             previousKey = null;
 
@@ -84,8 +106,8 @@ function mergeScriptsInScope(nodes: PostHTMLNodeLike[]) {
             return;
         }
 
-        const nodeAttrs = node.attrs || {};
-        normalizeAsyncAttr(nodeAttrs);
+        normalizeAsyncAttr(node.attrs || {});
+        const nodeAttrs = normalizeScriptAttrs(node.attrs || {});
         const scriptType = getScriptType(nodeAttrs);
         if ('src' in nodeAttrs || 'integrity' in nodeAttrs || !isMergeableScriptType(scriptType)) {
             previousScript = null;

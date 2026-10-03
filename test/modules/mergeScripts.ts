@@ -150,6 +150,55 @@ describe('mergeScripts', () => {
         );
     });
 
+    for (const attrs of [
+        'SRC="external.js"', 'SrC=""', 'INTEGRITY="hash"',
+        'TYPE="module"', 'TYPE="application/json"', 'language="vbscript"',
+        'TYPE="module" type="text/javascript"', 'type="&#32;" language="javascript"'
+    ]) {
+        it(`should preserve scripts with ${attrs}`, () => {
+            const html = `<script ${attrs}>foo()</script><script ${attrs}>bar()</script>`;
+            return init(html, html, options);
+        });
+    }
+
+    it('should match attribute names regardless of ASCII case', () => {
+        return init(
+            '<script NoNcE="trusted" TYPE=" TEXT/JAVASCRIPT ">foo()</script>'
+            + '<SCRIPT nonce="trusted">bar()</SCRIPT>',
+            '<SCRIPT nonce="trusted">foo();bar()</SCRIPT>',
+            options
+        );
+    });
+
+    it('should preserve the first of case-insensitive duplicate nonce attributes', () => {
+        const html = '<script NONCE="untrusted" nonce="trusted">foo()</script>'
+            + '<script nonce="trusted">bar()</script>';
+        return init(html, html, options);
+    });
+
+    it('should keep nonce-bearing scripts separate from scripts without a nonce', () => {
+        const html = '<script NONCE="trusted">foo()</script><script>bar()</script>';
+        return init(html, html, options);
+    });
+
+    it('should respect an explicit empty type over a non-JavaScript language', () => {
+        return init(
+            '<script type="" language="vbscript">foo()</script>'
+            + '<script type="text/javascript" language="vbscript">bar()</script>',
+            '<script type="text/javascript" language="vbscript">foo();bar()</script>',
+            options
+        );
+    });
+
+    it('should match character references in type and nonce values', () => {
+        return init(
+            '<script type="text/java&#115;cript" nonce="trus&#116;ed">foo()</script>'
+            + '<script nonce="trusted">bar()</script>',
+            '<script nonce="trusted">foo();bar()</script>',
+            options
+        );
+    });
+
     it('should keep nomodule scripts separate from default scripts', () => {
         return init(
             '<script>window.foo = 1</script><script nomodule>window.bar = 2</script><script nomodule>window.baz = 3</script>',

@@ -1140,6 +1140,7 @@ The merged content is appended into the last script in the group and the earlier
 - Scripts with `src` or `integrity`, scripts with different attributes or types, and intervening markup break a merge group, so code on each side stays separate. Groups never cross parent boundaries.
 - Scripts inside `<noscript>`, `<template>`, `<svg>`, or `<math>` are left untouched. These elements also break the surrounding merge group.
 - Boolean attributes (`async`, `defer`, `nomodule`) are normalized and treated as present, so `defer` and `defer="defer"` match.
+- Tag and attribute names are compared without ASCII case distinctions, and attribute character references are decoded for comparison. The first attribute wins when names are duplicated with different casing. Script type detection follows the [HTML rules for `type` and legacy `language`](https://html.spec.whatwg.org/multipage/scripting.html#prepare-the-script-element).
 - Scripts are separated by `nonce` value, by `nomodule`, and by `async`/`defer` differences.
 - A missing trailing semicolon is added when concatenating. If a script ends with a line comment, the merger inserts `\n;` before the next script to avoid comment swallowing.
 
