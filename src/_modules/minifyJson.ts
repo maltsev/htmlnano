@@ -31,14 +31,19 @@ const mod: HtmlnanoModule = {
                         return content;
                     }
 
-                    // Re-escape `<` as `<` after stringifying. `JSON.stringify`
-                    // emits `<` and `/` literally, so round-tripping a payload that
-                    // relied on `<` escaping (e.g. Nuxt/Next.js/JSON-LD data
-                    // containing markup) would otherwise produce a literal `</script>`
-                    // that terminates the containing element and injects live DOM.
-                    // `<` and `<` are the same character to a JSON parser, so the
-                    // parsed value is unchanged and markup-free payloads are byte-identical.
-                    return [JSON.stringify(JSON.parse(jsonContent)).replace(/</g, '\\u003C')];
+                    // Validate without serializing the parsed value: round-tripping
+                    // numbers can lose precision, overflow to null or erase -0,
+                    // and round-tripping objects drops duplicate keys.
+                    JSON.parse(jsonContent);
+
+                    // Match complete strings before whitespace so their contents
+                    // stay intact. Only strings can safely be round-tripped to
+                    // shorten unnecessary escapes. Escape `<` to prevent script
+                    // breakout and HTML's comment/double-escaped script states.
+                    const minified = jsonContent.replace(/"(?:[^"\\]|\\[\s\S])*"|[\t\n\r ]+/g, (token) => {
+                        return token[0] === '"' ? JSON.stringify(JSON.parse(token)) : '';
+                    });
+                    return [minified.replace(/</g, '\\u003C')];
                 } catch {
                     // Invalid JSON
                 }

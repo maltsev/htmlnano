@@ -1389,6 +1389,8 @@ Minifies JSON inside `<script>` tags whose `type` ends in `/json` or `+json` (ca
 - MIME parameters are allowed (`application/json; charset=utf-8`) and casing is ignored.
 - Tags with `integrity` are skipped to preserve SRI safety.
 - Invalid JSON is left unchanged.
+- Number literals, duplicate keys and member order are preserved; whitespace outside strings and unnecessary string escapes are removed.
+- Less-than signs in JSON strings are escaped as `\u003C` to prevent the payload from closing the script or changing HTML parsing.
 - JSON-like suffixes such as `application/jsonp` are not considered JSON and are skipped.
 
 #### Example
