@@ -278,6 +278,21 @@ describe('minifyJs', () => {
         );
     });
 
+    for (const code of [
+        'var x = "// <![CDATA["; var y = "// ]]>";',
+        'var x = "/* <![CDATA[ */"; var y = "/* ]]> */";',
+        'var x = `// <![CDATA[\ntext\n// ]]>`;'
+    ]) {
+        it(`should preserve CDATA markers inside JavaScript literals: ${code}`, async () => {
+            const result = await processHtml(`<script>${code}</script>`, options, {});
+            const fragment = parseFragment(result.html);
+            const script = fragment.childNodes[0] as DefaultTreeAdapterTypes.Element;
+            const minifiedCode = (script.childNodes[0] as DefaultTreeAdapterTypes.TextNode).value;
+            expect(runInNewContext(`${minifiedCode}; [x, typeof y === 'undefined' ? null : y]`))
+                .toEqual(runInNewContext(`${code}; [x, typeof y === 'undefined' ? null : y]`));
+        });
+    }
+
     it('should switch to single quotes when an on* handler contains double quotes', () => {
         return init(
             `<a href="#" onclick='alert("hi")'>x</a>`,

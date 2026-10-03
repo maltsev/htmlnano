@@ -1352,7 +1352,8 @@ htmlnano.process(html, { minifyJs: { format: { comments: 'some' } } }, htmlnano.
   minification and escaped for HTML afterward. Invalid handlers are preserved. For handlers, `module`,
   `toplevel` (including nested compressor/mangler options), and `enclose` are disabled to preserve their
   implicit parameters and execution context; nested functions can still be compressed and mangled.
-- CDATA wrappers inside `<script>` in SVG are preserved; the inner JS is minified and re-wrapped.
+- CDATA wrappers in boundary comments inside `<script>` in SVG are preserved; the inner JS is minified
+  and re-wrapped. CDATA markers inside JavaScript strings and template literals are left intact.
 - For AMP documents, inline handlers like `on="tap:..."` are not modified when using the AMP-safe preset.
 
 

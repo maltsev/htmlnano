@@ -83,12 +83,14 @@ function getScriptType(attrs: PostHTML.NodeAttributes) {
 }
 
 function stripCdata(js: string) {
-    const leftStrippedJs = js.replace(/\/\/\s*<!\[CDATA\[/, '').replace(/\/\*\s*<!\[CDATA\[\s*\*\//, '');
+    // Recognize only boundary comments, never markers inside strings or
+    // template literals. Line wrappers must end at the line boundary.
+    const leftStrippedJs = js.replace(/^\/\/[\t ]*<!\[CDATA\[[\t ]*(?:\r\n?|\n)/, '').replace(/^\/\*\s*<!\[CDATA\[\s*\*\//, '');
     if (leftStrippedJs === js) {
         return js;
     }
 
-    const strippedJs = leftStrippedJs.replace(/\/\/\s*\]\]>/, '').replace(/\/\*\s*\]\]>\s*\*\//, '');
+    const strippedJs = leftStrippedJs.replace(/(?:^|[\r\n])[\t ]*\/\/[\t ]*\]\]>$/, '').replace(/\/\*\s*\]\]>\s*\*\/$/, '');
     return leftStrippedJs === strippedJs ? js : strippedJs;
 }
 
