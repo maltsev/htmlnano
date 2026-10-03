@@ -68,7 +68,7 @@ function collapseWhitespace(tree: PostHTMLTreeLike | Array<PostHTML.Node | strin
             if (collapseType === 'all') {
                 node = collapseAllWhitespaces(node, tree, index, parent);
             } else {
-                const parentNodeTag = parent?.node.tag;
+                const parentNodeTag = parent?.node.tag?.toLowerCase();
                 const isTopLevel = parentNodeTag == null || parentNodeTag === 'html' || parentNodeTag === 'head';
                 const shouldTrim = (
                     isTopLevel
@@ -82,7 +82,8 @@ function collapseWhitespace(tree: PostHTMLTreeLike | Array<PostHTML.Node | strin
                 node = collapseRedundantWhitespaces(node, collapseType, shouldTrim, parent, prevNode, nextNode);
             }
         } else if (node.tag) {
-            const isAllowCollapseWhitespace = !noWhitespaceCollapseElements.has(node.tag)
+            const tag = node.tag.toLowerCase();
+            const isAllowCollapseWhitespace = !noWhitespaceCollapseElements.has(tag)
                 && !hasWhitespacePreservingStyle(node);
             if (isAllowCollapseWhitespace && node.content?.length) {
                 /*
@@ -91,7 +92,7 @@ function collapseWhitespace(tree: PostHTMLTreeLike | Array<PostHTML.Node | strin
                  * boundaries the children inherit are the element's own ones,
                  * closed off as soon as a non-inline element is reached.
                  */
-                const isInlineContent = collapseType === 'all' && noTrimWhitespacesInsideElements.has(node.tag);
+                const isInlineContent = collapseType === 'all' && noTrimWhitespacesInsideElements.has(tag);
 
                 node.content = collapseWhitespace(node.content, options, collapseType, {
                     node,
@@ -139,14 +140,14 @@ function collapseRedundantWhitespaces(
         if (
             typeof parent !== 'object'
             || !parent?.node.tag
-            || !noTrimWhitespacesInsideElements.has(parent.node.tag)
+            || !noTrimWhitespacesInsideElements.has(parent.node.tag.toLowerCase())
         ) {
             if (
                 // It is the first child node of the parent
                 !prevNode
                 // It is not the first child node, and prevNode not a text node, and prevNode is safe to trim around
                 || (
-                    typeof prevNode === 'object' && prevNode.tag && !noTrimWhitespacesArroundElements.has(prevNode.tag))
+                    typeof prevNode === 'object' && prevNode.tag && !noTrimWhitespacesArroundElements.has(prevNode.tag.toLowerCase()))
             ) {
                 text = text.replace(startsWithWhitespacePattern, NONE);
             } else {
@@ -174,7 +175,7 @@ function collapseRedundantWhitespaces(
             }
             if (
                 !nextNode
-                || typeof nextNode === 'object' && nextNode.tag && !noTrimWhitespacesArroundElements.has(nextNode.tag)
+                || typeof nextNode === 'object' && nextNode.tag && !noTrimWhitespacesArroundElements.has(nextNode.tag.toLowerCase())
             ) {
                 text = text.replace(endsWithWhitespacePattern, NONE);
             }
@@ -259,7 +260,7 @@ function isRenderedSpaceBefore(tree: ArrayLike<PostHTMLNodeLike>, index: number,
  * separator.
  */
 function endsWithRenderedWhitespace(node: PostHTML.Node): boolean {
-    if (typeof node.tag === 'string' && noWhitespaceCollapseElements.has(node.tag)) {
+    if (typeof node.tag === 'string' && noWhitespaceCollapseElements.has(node.tag.toLowerCase())) {
         return false;
     }
 
@@ -308,7 +309,7 @@ function isRenderedSpaceAfter(tree: ArrayLike<PostHTMLNodeLike>, index: number, 
  */
 function isInlineNode(node: PostHTML.Node) {
     if (typeof node.tag !== 'string') return true;
-    return noTrimWhitespacesArroundElements.has(node.tag);
+    return noTrimWhitespacesArroundElements.has(node.tag.toLowerCase());
 }
 
 /*
@@ -318,14 +319,15 @@ function isInlineNode(node: PostHTML.Node) {
  * the recursion into `node.content` is what collapses descendant whitespace.
  */
 function hasWhitespacePreservingStyle(node: PostHTML.Node) {
-    const style = node.attrs?.style;
+    const styleAttribute = Object.keys(node.attrs ?? {}).find(name => name.toLowerCase() === 'style');
+    const style = styleAttribute === undefined ? undefined : node.attrs?.[styleAttribute];
     return typeof style === 'string' && whitespacePreservingStylePattern.test(style);
 }
 
 function isTrimmableAroundNode(node: PostHTML.Node | string | undefined) {
     if (!node) return true;
     if (typeof node === 'string') return isComment(node);
-    return typeof node.tag === 'string' && !noTrimWhitespacesArroundElements.has(node.tag);
+    return typeof node.tag === 'string' && !noTrimWhitespacesArroundElements.has(node.tag.toLowerCase());
 }
 
 function isCommentNode(node: PostHTML.Node | string | undefined) {

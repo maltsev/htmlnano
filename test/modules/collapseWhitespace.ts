@@ -51,6 +51,39 @@ describe('collapseWhitespace', () => {
                 </html> `;
 
     for (const collapseType of ['all', 'aggressive', 'conservative'] as const) {
+        context(`case-insensitive names in ${collapseType} mode`, () => {
+            const options: HtmlnanoOptions = { collapseWhitespace: collapseType };
+
+            for (const tag of ['SCRIPT', 'StYlE', 'PRE', 'TeXtArEa', 'TEMPLATE']) {
+                it(`preserves whitespace inside <${tag}>`, () => {
+                    const input = `<${tag}>  a\n  b  </${tag}>`;
+
+                    return init(input, input, options);
+                });
+            }
+
+            it('preserves script line breaks that affect automatic semicolon insertion', () => {
+                const input = '<ScRiPt>function check() { return\n  dangerous(); }</ScRiPt>';
+
+                return init(input, input, options);
+            });
+
+            it('preserves the subtree of an element with a mixed-case style attribute', () => {
+                const input = '<DIV StYlE="white-space:pre">  a\n <SPAN>  b  </SPAN> </DIV>';
+
+                return init(input, input, options);
+            });
+
+            it('uses the same whitespace boundaries for lowercase and uppercase inline tags', () => {
+                const input = '<p>a<EM> b </EM>c <B>d </B><I> e</I></p>';
+                const expected = collapseType === 'all'
+                    ? '<p>a<EM> b </EM>c <B>d </B><I>e</I></p>'
+                    : input;
+
+                return init(input, expected, options);
+            });
+        });
+
         context(`non-ASCII whitespace in ${collapseType} mode`, () => {
             const options: HtmlnanoOptions = { collapseWhitespace: collapseType };
 
