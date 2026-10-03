@@ -784,6 +784,10 @@ Empty elements are defined as elements with no child elements and no text conten
 Whitespace is text content and is preserved because it can separate inline content or be significant in preformatted text.
 Text joined across a removed element is escaped when necessary to avoid creating
 new markup or changing a character reference.
+Comment-looking content in text-only elements such as `script`, `style`, `title`
+and `textarea` is literal text. Their contents are preserved, as are those of
+`noscript` (which is text with scripting enabled), SVG and MathML subtrees, and
+everything from a `plaintext` start tag to the end of the document.
 Void elements (like `<img>` or `<br>`) are never removed, and neither are elements that
 keep doing their job while empty, whatever `removeWithAttributes` says:
 

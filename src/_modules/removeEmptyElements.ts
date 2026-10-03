@@ -38,6 +38,17 @@ const voidElements = new Set([
     'wbr'
 ]);
 
+// PostHTML can parse apparent child elements inside browser text-only content.
+// Noscript must preserve its literal content when scripting is enabled, too.
+const textElements = new Set([
+    'script', 'style', 'textarea', 'title', 'xmp', 'iframe',
+    'noembed', 'noframes', 'noscript'
+]);
+
+// Empty SVG and MathML nodes can draw shapes or hold an operand position.
+// Their content does not follow HTML's rules for removable empty elements.
+const foreignContentElements = new Set(['svg', 'math']);
+
 /**
  * Attributes that only affect how an element looks, never what it means: an
  * element carrying nothing but those is safe to drop as far as meaning, forms
@@ -129,11 +140,7 @@ function isCustomElement(tag: string) {
     return tag.includes('-');
 }
 
-function isIgnorableText(text: string) {
-    return text === '' || isComment(text);
-}
-
-function isEmptyContent(content?: PostHTML.Node['content']) {
+function isEmptyContent(content: PostHTML.Node['content'], ignoreComments: boolean) {
     if (!content) {
         return true;
     }
@@ -143,7 +150,8 @@ function isEmptyContent(content?: PostHTML.Node['content']) {
         return true;
     }
 
-    return contentArray.every(child => typeof child === 'string' && isIgnorableText(child));
+    return contentArray.every(child => typeof child === 'string'
+        && (child === '' || ignoreComments && isComment(child)));
 }
 
 function shouldRemoveNode(node: PostHTML.Node, options: NormalizedOptions) {
@@ -169,14 +177,19 @@ function shouldRemoveNode(node: PostHTML.Node, options: NormalizedOptions) {
         return false;
     }
 
-    return isEmptyContent(node.content);
+    return isEmptyContent(node.content, !textElements.has(tag));
 }
 
-function pruneNodes(nodes: PostHTMLNodeLike[], options: NormalizedOptions) {
+function pruneNodes(nodes: PostHTMLNodeLike[], options: NormalizedOptions, state: { inPlaintext: boolean }) {
     const result: PostHTMLNodeLike[] = [];
     let removedElement = false;
 
     for (const node of nodes) {
+        if (state.inPlaintext) {
+            result.push(node);
+            continue;
+        }
+
         if (typeof node === 'string') {
             const previous = result[result.length - 1];
             if (removedElement && typeof previous === 'string') {
@@ -187,9 +200,19 @@ function pruneNodes(nodes: PostHTMLNodeLike[], options: NormalizedOptions) {
             continue;
         }
 
-        if (node.content) {
+        const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+        if (tag === 'plaintext' || foreignContentElements.has(tag)) {
+            // Plaintext consumes everything to EOF, including apparent closing
+            // tags and ancestor siblings in PostHTML's tree.
+            if (tag === 'plaintext') state.inPlaintext = true;
+            removedElement = false;
+            result.push(node);
+            continue;
+        }
+
+        if (node.content && !textElements.has(tag)) {
             const contentArray = Array.isArray(node.content) ? node.content : [node.content];
-            node.content = pruneNodes(contentArray, options);
+            node.content = pruneNodes(contentArray, options, state);
         }
 
         if (shouldRemoveNode(node, options)) {
@@ -207,7 +230,7 @@ function pruneNodes(nodes: PostHTMLNodeLike[], options: NormalizedOptions) {
 const mod: HtmlnanoModule<RemoveEmptyElementsConfig> = {
     default(tree, _options, moduleOptions) {
         const normalizedOptions = normalizeOptions(moduleOptions);
-        const pruned = pruneNodes(tree, normalizedOptions);
+        const pruned = pruneNodes(tree, normalizedOptions, { inPlaintext: false });
         tree.splice(0, tree.length, ...pruned);
         return tree;
     }

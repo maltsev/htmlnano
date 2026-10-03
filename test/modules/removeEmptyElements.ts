@@ -1,8 +1,52 @@
 import { expect } from 'expect';
+import type { HtmlnanoOptions } from '../../src/types';
 import htmlnano from '../../dist/index.mjs';
 import { init, initIdempotent } from '../htmlnano.ts';
 
 describe('removeEmptyElements', () => {
+    const removalModes: NonNullable<HtmlnanoOptions['removeEmptyElements']>[] = [
+        true,
+        { removeWithAttributes: 'presentational' },
+        { removeWithAttributes: ['class'] },
+        { removeWithAttributes: true }
+    ];
+
+    it('should keep comment-looking text and apparent empty descendants in text elements', async () => {
+        const tags = ['script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes', 'noscript'];
+        const html = tags.map(tag => `<${tag}><!-- literal --><span></span></${tag}>`).join('')
+            + '<script><!--\nwindow.ran = true;\n//--></script>';
+        for (const removeEmptyElements of removalModes) {
+            await init(html + '<span></span>', html, { removeEmptyElements });
+        }
+    });
+
+    it('should preserve everything after plaintext, including apparent ancestor siblings', async () => {
+        const html = '<div><plaintext></plaintext><span></span></div><b></b>';
+        for (const removeEmptyElements of removalModes) {
+            await init('<i></i>' + html, html, { removeEmptyElements });
+        }
+    });
+
+    it('should not treat plaintext inside another text element as a parsing boundary', () => {
+        const html = '<IFRAME><plaintext></plaintext><span></span></IFRAME>';
+        return init(html + '<b></b>', html, { removeEmptyElements: true });
+    });
+
+    it('should still remove truly empty text elements', () => {
+        return init('<div>text<script></script><style></style><title></title></div>', '<div>text</div>', {
+            removeEmptyElements: true
+        });
+    });
+
+    it('should preserve SVG and MathML subtrees in every removal mode', async () => {
+        const html = '<svg><path d="M0 0h8v8H0z"></path><g class="icon"></g></svg>'
+            + '<math><mfrac><mi></mi><mi>x</mi></mfrac><mspace width="1em"></mspace></math>'
+            + '<SVG></SVG><math></math>';
+        for (const removeEmptyElements of removalModes) {
+            await init(html + '<span></span>', html, { removeEmptyElements });
+        }
+    });
+
     it('should not create markup or character references across removed elements', async () => {
         const cases = [
             ['<<span></span><b></b>img src=x onerror=alert(1)>', '&lt;img src=x onerror=alert(1)>'],
