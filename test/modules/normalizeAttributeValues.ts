@@ -24,9 +24,8 @@ describe('normalizeAttributeValues', () => {
             // attribute on specific tag
             init(
                 '<button type="example"></button><input type="example">',
-                // button has invalid default value for submit
-                // while input's invalid default value is ignored in out implementation
-                '<button type="submit"></button><input type="example">',
+                // Buttons use the Auto state; input defaults are not rewritten.
+                '<button type=""></button><input type="example">',
                 options
             ),
             // make sure case normalization is applied before invalid value default
@@ -172,6 +171,22 @@ describe('normalizeAttributeValues', () => {
         return initIdempotent(
             '<object type="multipart/form-data; boundary=CaseSensitive"></object><link type="TEXT/CSS"><style type=" TEXT/CSS "></style><input step="ANY">',
             '<object type="multipart/form-data; boundary=CaseSensitive"></object><link type="text/css"><style type=" text/css "></style><input step="any">',
+            options
+        );
+    });
+
+    it('keeps invalid and empty button types in the Auto state', () => {
+        return initIdempotent(
+            '<button type="invalid" command="show-modal" commandfor="dialog">Open</button><button type=""></button><button type></button>',
+            '<button type="" command="show-modal" commandfor="dialog">Open</button><button type=""></button><button type=""></button>',
+            options
+        );
+    });
+
+    it('preserves inherited autocapitalization for empty values', () => {
+        return initIdempotent(
+            '<form autocapitalize="OFF"><input autocapitalize=""><textarea autocapitalize></textarea><input autocapitalize="invalid"><input autocapitalize=" OFF "></form>',
+            '<form autocapitalize="off"><input autocapitalize=""><textarea autocapitalize=""></textarea><input autocapitalize="sentences"><input autocapitalize="sentences"></form>',
             options
         );
     });

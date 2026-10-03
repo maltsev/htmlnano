@@ -20,6 +20,8 @@ Surrounding ASCII whitespace is trimmed only for token lists, charset labels, an
 nonempty script types. Whitespace-only script types remain inactive data blocks.
 Outside the enumerated defaults, values containing character references and MIME
 types containing parameters are preserved to avoid changing case-sensitive data.
+Invalid button types become the empty Auto state, preserving command behavior.
+Empty `autocapitalize` values are kept so they can inherit the form's setting.
 
 #### Example
 
@@ -36,7 +38,7 @@ Minified:
 ```html
 <form method="get"></form>
 <img loading="eager">
-<button type="submit"></button>
+<button type=""></button>
 ```
 
 ### removeEmptyAttributes

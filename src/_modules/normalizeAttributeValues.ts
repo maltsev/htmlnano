@@ -74,8 +74,9 @@ const invalidValueDefault: Record<string, { tag: null | string[]; default: strin
     },
     type: {
         tag: ['button'],
-        default: 'submit',
-        valid: ['submit', 'reset', 'button']
+        // The Auto state also supports command buttons and buttons inside select.
+        default: '',
+        valid: ['', 'submit', 'reset', 'button']
     },
     wrap: {
         tag: ['textarea'],
@@ -99,7 +100,8 @@ const invalidValueDefault: Record<string, { tag: null | string[]; default: strin
     autocapitalize: {
         tag: null,
         default: 'sentences',
-        valid: ['none', 'off', 'on', 'sentences', 'words', 'characters']
+        // Empty values inherit the form's hint rather than selecting Sentences.
+        valid: ['', 'none', 'off', 'on', 'sentences', 'words', 'characters']
     },
     // https://html.spec.whatwg.org/#the-marquee-element
     behavior: {
