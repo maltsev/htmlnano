@@ -501,7 +501,7 @@ Processed:
 
 ### collapseWhitespace
 Collapses redundant white spaces (including new lines).
-It doesn’t affect white spaces in the elements `<style>`, `<textarea>`, `<script>`, `<pre>`, and `<template>`.
+It doesn’t affect white spaces in the elements `<style>`, `<textarea>`, `<script>`, `<pre>`, `<template>`, or the legacy preformatted elements `<listing>`, `<plaintext>`, and `<xmp>`.
 
 #### Options
 - `conservative` — collapses all redundant whitespace to 1 space (default). Whitespace around inline elements (like `<a>`, `<span>`, `<code>`) is preserved when possible.
@@ -514,6 +514,7 @@ It doesn’t affect white spaces in the elements `<style>`, `<textarea>`, `<scri
 - Comments are preserved, but whitespace around them can be collapsed depending on the option.
 - Template content is left untouched.
 - Element and attribute names are matched case-insensitively, so uppercase or mixed-case markup receives the same whitespace protection.
+- Character references in inline styles are decoded for the whitespace-preservation check. Whitespace inside a protected element does not replace a separator outside it.
 - Elements carrying an inline `white-space` style that preserves whitespace (`white-space: pre`, `pre-wrap`, `pre-line`, or `break-spaces`) are treated like `<pre>`: their content and their whole subtree are left untouched, so layout is not broken. The check is a simple regexp on the `style` attribute value (no full CSS parsing), and `pre-line` (which technically collapses spaces but keeps newlines) is treated as fully protected as the conservative choice.
 
 #### Notes on `all`

@@ -1,4 +1,5 @@
 import type PostHTML from 'posthtml';
+import { decodeHTMLAttribute } from 'entities';
 import { isComment } from '../helpers';
 import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLNodeLike, PostHTMLTreeLike } from '../types';
 
@@ -6,6 +7,9 @@ const noWhitespaceCollapseElements = new Set([
     'script',
     'style',
     'pre',
+    'listing',
+    'plaintext',
+    'xmp',
     'textarea',
     'template'
 ]);
@@ -156,10 +160,8 @@ function collapseRedundantWhitespaces(
                 // but previous node ends with a whitespace
                     typeof prevNode === 'object' && prevNode.content
                 ) {
-                    const prevNodeLastContent = prevNode.content[prevNode.content.length - 1];
                     if (
-                        typeof prevNodeLastContent === 'string'
-                        && endsWithWhitespacePattern.test(prevNodeLastContent)
+                        endsWithRenderedWhitespace(prevNode)
                         && (
                             !nextNode // either the current node is the last child of the parent
                             || (
@@ -321,7 +323,7 @@ function isInlineNode(node: PostHTML.Node) {
 function hasWhitespacePreservingStyle(node: PostHTML.Node) {
     const styleAttribute = Object.keys(node.attrs ?? {}).find(name => name.toLowerCase() === 'style');
     const style = styleAttribute === undefined ? undefined : node.attrs?.[styleAttribute];
-    return typeof style === 'string' && whitespacePreservingStylePattern.test(style);
+    return typeof style === 'string' && whitespacePreservingStylePattern.test(decodeHTMLAttribute(style));
 }
 
 function isTrimmableAroundNode(node: PostHTML.Node | string | undefined) {

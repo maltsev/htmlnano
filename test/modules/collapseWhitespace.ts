@@ -51,6 +51,38 @@ describe('collapseWhitespace', () => {
                 </html> `;
 
     for (const collapseType of ['all', 'aggressive', 'conservative'] as const) {
+        context(`protected whitespace in ${collapseType} mode`, () => {
+            const options: HtmlnanoOptions = { collapseWhitespace: collapseType };
+
+            for (const tag of ['listing', 'LiStInG', 'plaintext', 'xmp', 'XMP']) {
+                it(`preserves preformatted text inside <${tag}>`, () => {
+                    const input = `<${tag}>  a\n  b  </${tag}>`;
+
+                    return init(input, input, options);
+                });
+            }
+
+            it('preserves preformatted descendants of listing', () => {
+                const input = '<listing>  <code>  a\n  b  </code>  </listing>';
+
+                return init(input, input, options);
+            });
+
+            it('recognizes character references in whitespace-preserving styles', () => {
+                const input = '<span style="white&#45;space:&#112;re">  a\n  b  </span>';
+
+                return init(input, input, options);
+            });
+
+            for (const element of ['<textarea>x </textarea>', '<span style="white-space:pre">x </span>', '<b><span style="white-space:pre">x </span></b>']) {
+                it(`keeps the outside separator after ${element}`, () => {
+                    const input = `<p>a${element} b</p><p>a${element} <i>b</i></p>`;
+
+                    return init(input, input, options);
+                });
+            }
+        });
+
         context(`case-insensitive names in ${collapseType} mode`, () => {
             const options: HtmlnanoOptions = { collapseWhitespace: collapseType };
 
