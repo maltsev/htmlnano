@@ -89,6 +89,29 @@ describe('removeAttributeQuotes', () => {
         );
     });
 
+    for (const removeAttributeQuotes of [true, { force: true }] as const) {
+        it(`keeps required XML quotes with ${JSON.stringify(removeAttributeQuotes)}`, () => {
+            const xml = '<root value="safe" empty=""><child value="other"></child></root>';
+            return initIdempotent(xml, xml, { removeAttributeQuotes }, { xmlMode: true });
+        });
+    }
+
+    it('preserves all HTML whitespace and delimiters inside attribute values', () => {
+        const values = ['a b', 'a\tb', 'a\nb', 'a\fb', 'a\rb', 'a"b', 'a\'b', 'a`b', 'a=b', 'a<b', 'a>b'];
+        const html = '<div' + values.map((value, index) => ` data-${index}="${value.replace(/"/g, '&quot;')}"`).join('') + '></div>';
+
+        return initIdempotent(html, html, { removeAttributeQuotes: true });
+    });
+
+    it('separates unquoted URL values from a self-closing slash', () => {
+        return initIdempotent(
+            '<img src="/images/icon/" />',
+            '<img src=/images/icon/ />',
+            { removeAttributeQuotes: true },
+            { closingSingleTag: 'slash' }
+        );
+    });
+
     it('force:true should override a user-provided quoteAllAttributes:true', () => {
         const forceOptions = { ...safePreset, removeAttributeQuotes: { force: true } } as HtmlnanoOptions;
 

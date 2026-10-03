@@ -1029,6 +1029,8 @@ Remove quotes around attributes when possible, see
 This module is enabled by the `safe` preset, inherited by `ampSafe`, and remains
 enabled in `max`. It only removes quotes when the PostHTML renderer considers
 them optional and its configuration permits unquoted attributes.
+In PostHTML's `xmlMode`, this module leaves quoting options unchanged, even
+with `force: true`, because XML requires quotes around attribute values.
 
 #### Options
 - `force` — if `true`, forces `quoteAllAttributes` to `false` even when other PostHTML options or plugins set it to `true`.

@@ -11,6 +11,10 @@ type RemoveAttributeQuotesOptions = {
 /** Disable quoteAllAttributes while not overriding the configuration */
 const mod: HtmlnanoModule<RemoveAttributeQuotesOptions> = {
     default: function removeAttributeQuotes(tree, _options, moduleOptions) {
+        // XML requires quoted values, including empty ones. `force` only
+        // overrides HTML rendering preferences, not the document syntax.
+        if (tree.options?.xmlMode) return tree;
+
         tree.options ??= {};
 
         if (moduleOptions && typeof moduleOptions === 'object' && moduleOptions.force) {
