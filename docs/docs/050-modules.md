@@ -434,9 +434,10 @@ However it will improve the compression ratio of gzip/brotli used in HTTP compre
 - `true`: Alias for `alphabetical`.
 - `false`: Disable the module.
 
-Frequency sorting preserves the original attribute name casing (for example `viewBox` stays `viewBox`)
-and uses alphabetical ordering on lowercased attribute names to break ties.
-When attribute names collide by case, the first occurrence wins.
+Both sorting modes preserve attribute names and values, and keep case variants in their original
+relative order. This preserves HTML's first-duplicate behavior and retains distinct attributes in XML mode.
+Alphabetical sorting compares lowercased attribute names. Frequency sorting counts lowercased
+attribute names across the document and uses alphabetical ordering to break ties.
 
 #### Example
 

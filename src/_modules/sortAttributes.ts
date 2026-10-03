@@ -1,13 +1,10 @@
-import type { HtmlnanoModule, PostHTMLTreeLike, SortAttributesOption } from '../types';
-import {
-    resolveSortType
-
-} from './helpers/sortAttributesShared';
+import type { HtmlnanoModule, PostHTMLTreeLike, SortAttributesOption } from '../types.js';
+import { resolveSortType } from './helpers/sortAttributesShared.js';
 
 class AttributeTokenChain {
     /** <attr, frequency> */
     freqData = new Map<string, number>();
-    sortOrder: string[] | null = null;
+    sortOrder: Map<string, number> | null = null;
 
     addFromNodeAttrs(nodeAttrs: Record<string, string | void>) {
         Object.keys(nodeAttrs).forEach((attrName) => {
@@ -30,47 +27,26 @@ class AttributeTokenChain {
             return a[0].localeCompare(b[0]);
         });
 
-        this.sortOrder = _sortOrder.map(i => i[0]);
+        this.sortOrder = new Map(_sortOrder.map(([attrName], index) => [attrName, index]));
     }
 
     sortFromNodeAttrs(nodeAttrs: Record<string, string | void>) {
-        const newAttrs: Record<string, string | void> = {};
-
-        // Convert node.attrs attrName into lower case while preserving originals.
-        const loweredNodeAttrs: Record<string, { name: string; value: string | void }> = {};
-        Object.entries(nodeAttrs).forEach(([attrName, attrValue]) => {
-            const attrNameLower = attrName.toLowerCase();
-            if (!loweredNodeAttrs[attrNameLower]) {
-                loweredNodeAttrs[attrNameLower] = { name: attrName, value: attrValue };
-            }
-        });
-
         if (!this.sortOrder) {
             this.createSortOrder();
         }
 
-        const seen = new Set<string>();
-
-        this.sortOrder!.forEach((attrNameLower) => {
-            // The attrName inside "sortOrder" has been lowered
-            const originalAttr = loweredNodeAttrs[attrNameLower];
-            if (originalAttr != null) {
-                newAttrs[originalAttr.name] = originalAttr.value;
-                seen.add(attrNameLower);
-            }
-        });
-
-        Object.entries(loweredNodeAttrs).forEach(([attrNameLower, originalAttr]) => {
-            if (!seen.has(attrNameLower)) {
-                newAttrs[originalAttr.name] = originalAttr.value;
-            }
-        });
-
-        return newAttrs;
+        const sortOrder = this.sortOrder!;
+        // Stable sorting preserves case variants and their original relative order.
+        // Object.fromEntries also safely creates own properties such as __proto__.
+        return Object.fromEntries(
+            Object.entries(nodeAttrs).sort(([attrA], [attrB]) =>
+                sortOrder.get(attrA.toLowerCase())! - sortOrder.get(attrB.toLowerCase())!
+            )
+        );
     }
 }
 
-/** Sort attibutes */
+/** Sort attributes */
 const mod: HtmlnanoModule<boolean | SortAttributesOption> = {
     default(tree, options, moduleOptions) {
         const sortType = resolveSortType(moduleOptions);
@@ -96,8 +72,11 @@ function sortAttributesInAlphabeticalOrder(tree: PostHTMLTreeLike) {
             return node;
         }
 
+        // Case variants must compare equally: HTML keeps the first duplicate.
         node.attrs = Object.fromEntries(
-            Object.entries(node.attrs).sort(([attrA], [attrB]) => attrA.localeCompare(attrB))
+            Object.entries(node.attrs).sort(([attrA], [attrB]) =>
+                attrA.toLowerCase().localeCompare(attrB.toLowerCase())
+            )
         );
 
         return node;

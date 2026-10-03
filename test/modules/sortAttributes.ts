@@ -1,6 +1,53 @@
-import { init } from '../htmlnano.ts';
+import { expect } from 'expect';
+import posthtml from 'posthtml';
+import htmlnano from '../../dist/index.mjs';
+import { init, initIdempotent } from '../htmlnano.ts';
 
 describe('sortAttributes', () => {
+    for (const sortType of ['alphabetical', 'frequency'] as const) {
+        it(`${sortType} preserves the first duplicate URL attribute`, () => {
+            return initIdempotent(
+                '<a title="link" HREF="/safe" href="javascript:alert(1)"></a><a title="link" href="/safe" HREF="javascript:alert(1)"></a>',
+                '<a HREF="/safe" href="javascript:alert(1)" title="link"></a><a href="/safe" HREF="javascript:alert(1)" title="link"></a>',
+                { sortAttributes: sortType }
+            );
+        });
+
+        it(`${sortType} does not expose an executable duplicate script type`, () => {
+            return initIdempotent(
+                '<script src="app.js" TYPE="application/json" type="text/javascript"></script>',
+                sortType === 'alphabetical'
+                    ? '<script src="app.js" TYPE="application/json" type="text/javascript"></script>'
+                    : '<script TYPE="application/json" type="text/javascript" src="app.js"></script>',
+                { sortAttributes: sortType }
+            );
+        });
+
+        it(`${sortType} preserves case-sensitive XML attribute names and values`, () => {
+            return initIdempotent(
+                '<svg z="" viewBox="first" viewbox="second" VIEWBOX="third" a="&amp;"></svg>',
+                sortType === 'alphabetical'
+                    ? '<svg a="&amp;" viewBox="first" viewbox="second" VIEWBOX="third" z=""></svg>'
+                    : '<svg viewBox="first" viewbox="second" VIEWBOX="third" a="&amp;" z=""></svg>',
+                { sortAttributes: sortType },
+                { xmlMode: true }
+            );
+        });
+
+        it(`${sortType} safely preserves attributes named after Object prototype properties`, async () => {
+            // Supply an AST because PostHTML's parser drops __proto__ before plugins run.
+            const attrs = Object.fromEntries([
+                ['valueOf', 'value'], ['toString', 'string'], ['hasOwnProperty', 'own'],
+                ['constructor', 'ctor'], ['__proto__', 'proto'], ['z', undefined], ['a', '']
+            ]);
+            const result = await posthtml([htmlnano({ sortAttributes: sortType }, {})])
+                .process([{ tag: 'div', attrs }], { skipParse: true });
+
+            expect(result.tree[0]).toStrictEqual({ tag: 'div', attrs });
+            expect(result.html).toBe('<div __proto__="proto" a="" constructor="ctor" hasOwnProperty="own" toString="string" valueOf="value"></div>');
+        });
+    }
+
     it('alphabetical', () => {
         return init(
             '<input type="text" class="form-control" name="testInput" autofocus="" autocomplete="off" id="testId">',
