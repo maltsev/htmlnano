@@ -72,11 +72,6 @@ const missingValueDefaultAttributes: Record<string, Record<string, string | ((at
         type: 'text'
     },
 
-    button: {
-        // https://html.spec.whatwg.org/multipage/form-elements.html#attr-button-type
-        type: 'submit'
-    },
-
     script: {
         language: 'javascript',
         // https://html.spec.whatwg.org/#fetch-priority-attributes
@@ -160,6 +155,36 @@ const tagsHaveMissingValueDefaultAttributes = new Set(Object.keys(missingValueDe
 
 /** Removes redundant attributes */
 const mod: HtmlnanoModule = {
+    default(tree) {
+        // Attribute handlers have no parent context. Walk parents before their
+        // children to retain submit types on buttons directly inside select.
+        const selectButtons = new WeakSet<object>();
+        tree.walk((node) => {
+            if (!node || typeof node !== 'object') return node;
+
+            if (node.tag === 'select' && Array.isArray(node.content)) {
+                for (const child of node.content) {
+                    if (typeof child === 'object' && child !== null && child.tag === 'button') {
+                        selectButtons.add(child);
+                    }
+                }
+            }
+
+            // The missing type defaults to Auto, which is a submit button only
+            // outside select and when neither command attribute is present.
+            // https://html.spec.whatwg.org/multipage/form-elements.html#attr-button-type
+            if (node.tag === 'button' && node.attrs && !selectButtons.has(node)
+                && !hasAttr(node.attrs, 'command') && !hasAttr(node.attrs, 'commandfor')) {
+                const typeEntry = findAttrEntry(node.attrs, 'type');
+                if (typeEntry && normalizeAttrValue(typeEntry.value) === 'submit') {
+                    delete node.attrs[typeEntry.name];
+                }
+            }
+
+            return node;
+        });
+        return tree;
+    },
     onAttrs() {
         return (attrs, node) => {
             if (!node.tag) return attrs;

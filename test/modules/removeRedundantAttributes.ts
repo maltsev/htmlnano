@@ -38,6 +38,30 @@ describe('removeRedundantAttributes', () => {
         );
     });
 
+    it('should preserve submit type on buttons with command attributes, even empty ones', () => {
+        return Promise.all(['command="show-modal"', 'commandfor="dialog"', 'command=""', 'commandfor', 'commandfor=""'].map((attr) => {
+            const html = `<form><button type="submit" ${attr}>Submit</button></form>`;
+            const renderedAttr = attr.includes('=') ? attr : `${attr}=""`;
+            return initIdempotent(html, `<form><button type="submit" ${renderedAttr}>Submit</button></form>`, options);
+        }));
+    });
+
+    it('should preserve submit type on buttons directly inside select', () => {
+        const html = '<select><button type="submit"><selectedcontent></selectedcontent></button><option>One</option></select>';
+        // htmlparser2's HTML mode does not yet keep customizable-select buttons
+        // inside select. XML mode supplies the intended parent/child structure.
+        return initIdempotent(html, html, options, { xmlMode: true });
+    });
+
+    it('should still remove submit type from ordinary buttons', () => {
+        return initIdempotent(
+            '<form><button type="SUBMIT" popovertarget="hint">Submit</button></form><select><option><button type="submit">Submit</button></option></select>',
+            '<form><button popovertarget="hint">Submit</button></form><select><option><button>Submit</button></option></select>',
+            options,
+            { xmlMode: true }
+        );
+    });
+
     it('should remove language="javascript" and type="text/javascript" from <script>', () => {
         return init(
             '<script language="javascript" type="text/javascript"></script>',

@@ -109,7 +109,7 @@ Minified:
 Removes redundant attributes from tags when they match HTML defaults:
 - `method="get"` from `<form>`
 - `type="text"` from `<input>`
-- `type="submit"` from `<button>`
+- `type="submit"` from `<button>` without `command` or `commandfor`, unless it is directly inside `<select>`
 - `language="javascript"` and redundant JS `type` values from `<script>`
 - `charset` from inline `<script>` (only when `src` is not present)
 - `media="all"` from `<style>` and `<link>`
