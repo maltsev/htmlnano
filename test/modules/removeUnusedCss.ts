@@ -1,5 +1,5 @@
 import { expect } from 'expect';
-import { init } from '../htmlnano.ts';
+import { init, initWithPostHtmlOptions } from '../htmlnano.ts';
 
 // The warning is printed only once per process, so these tests have to run before
 // any other test that uses `tool: 'uncss'`.
@@ -241,6 +241,65 @@ describe('removeUnusedCss (purgeCSS)', function () {
         return init(
             newlineHtml,
             '<div class="a\nb"><style>.a{color:red}.b{color:blue}</style></div>',
+            options
+        );
+    });
+
+    it('should retain attribute selectors, including boolean and case-insensitive attributes', () => {
+        return init(
+            '<style>[disabled]{color:red}[data-state="READY" i]{color:blue}[type="TEXT"]{margin:0}[missing]{color:green}</style><input disabled data-state="ready" type="text">',
+            '<style>[disabled]{color:red}[data-state="READY" i]{color:blue}[type="TEXT"]{margin:0}</style><input disabled="" data-state="ready" type="text">',
+            options
+        );
+    });
+
+    it('should decode character references in classes and IDs', () => {
+        return init(
+            '<style>.a{color:red}.b{color:blue}#a\\&b{margin:0}.unused{color:green}</style><div class="a&#32;b" id="a&amp;b"></div>',
+            '<style>.a{color:red}.b{color:blue}#a\\&b{margin:0}</style><div class="a&#32;b" id="a&amp;b"></div>',
+            options
+        );
+    });
+
+    it('should not decode attributes twice when the parser decodes entities', () => {
+        return initWithPostHtmlOptions(
+            '<style>.a\\&copy\\;{color:red}.unused{color:blue}</style><div class="a&amp;copy;"></div>',
+            '<style>.a\\&copy\\;{color:red}</style><div class="a&copy;"></div>',
+            options,
+            { decodeEntities: true }
+        );
+    });
+
+    it('should use only ASCII whitespace to split classes and keep IDs intact', () => {
+        return init(
+            '<style>.a\\a0 b{color:red}#a\\ b{margin:0}.a{color:blue}#b{color:green}</style><div class="a&nbsp;b" id="a b"></div>',
+            '<style>.a\\a0 b{color:red}#a\\ b{margin:0}</style><div class="a&nbsp;b" id="a b"></div>',
+            options
+        );
+    });
+
+    it('should retain selectors for omitted document elements', () => {
+        return init(
+            '<style>html body div{color:red}head{margin:0}.unused{color:blue}</style><div></div>',
+            '<style>html body div{color:red}head{margin:0}</style><div></div>',
+            options
+        );
+    });
+
+    it('should handle large class lists without exceeding the argument limit', () => {
+        const classes = 'a '.repeat(150000);
+        return init(
+            `<style>.a{color:red}.unused{color:blue}</style><div class="${classes}"></div>`,
+            `<style>.a{color:red}</style><div class="${classes}"></div>`,
+            options
+        );
+    });
+
+    it('should not execute scripts while extracting selectors', () => {
+        const script = '<script>document.querySelector("div").className="unused"</script>';
+        return init(
+            `<style>.a{color:red}.unused{color:blue}</style><div class="a"></div>${script}`,
+            `<style>.a{color:red}</style><div class="a"></div>${script}`,
             options
         );
     });

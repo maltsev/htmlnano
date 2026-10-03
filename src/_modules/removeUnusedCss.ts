@@ -1,7 +1,8 @@
 import type PostHTML from 'posthtml';
+import { decodeHTMLAttribute } from 'entities';
 import { extractCssFromStyleNode, isCssStyleType, isStyleNode, optionalImport, stripCssCdata, wrapCssCdata } from '../helpers';
 import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLTreeLike } from '../types';
-import type { Options as PurgeCSSOptions } from 'purgecss';
+import type { ExtractorResultDetailed, Options as PurgeCSSOptions } from 'purgecss';
 
 // These options must be set and shouldn't be overriden to ensure uncss doesn't look at linked stylesheets.
 const uncssOptions = {
@@ -62,28 +63,56 @@ function runUncss(html: string, css: string, userOptions: object, uncss: (...arg
     });
 }
 
-const purgeFromHtml = function (tree: PostHTMLTreeLike) {
-    // content is not used as we can directly used the parsed HTML,
-    // making the process faster
-    const selectors: string[] = [];
+function purgeFromHtml(tree: PostHTMLTreeLike): ExtractorResultDetailed {
+    const classes = new Set<string>();
+    const ids = new Set<string>();
+    const tags = new Set<string>();
+    const attributeNames = new Set<string>();
+
+    if (!tree.options?.xmlMode) {
+        // Browsers create these elements even when their tags are omitted.
+        for (const tag of ['html', 'head', 'body']) {
+            tags.add(tag);
+        }
+    }
 
     tree.walk((node) => {
-        const classes = getSelectorTokens(node.attrs && node.attrs.class);
-        const ids = getSelectorTokens(node.attrs && node.attrs.id);
-        selectors.push(...classes, ...ids);
+        for (const [name, rawValue] of Object.entries(node.attrs ?? {})) {
+            const attributeName = tree.options?.xmlMode ? name : name.toLowerCase();
+            attributeNames.add(attributeName);
+            if (typeof rawValue !== 'string') {
+                continue;
+            }
+            const value = tree.options?.decodeEntities ? rawValue : decodeHTMLAttribute(rawValue);
+            if (attributeName === 'class') {
+                // HTML class tokens use ASCII whitespace, not JavaScript's broader \s.
+                for (const className of value.split(/[\t\n\f\r ]+/).filter(Boolean)) {
+                    classes.add(className);
+                }
+            } else if (attributeName === 'id') {
+                // An ID is one value, including any whitespace in it.
+                ids.add(value);
+            }
+        }
         if (node.tag) {
-            selectors.push(node.tag);
+            tags.add(node.tag);
         }
         return node;
     });
 
-    return () => selectors;
-};
+    return {
+        attributes: { names: [...attributeNames], values: [] },
+        classes: [...classes],
+        ids: [...ids],
+        tags: [...tags],
+        undetermined: []
+    };
+}
 
-function processStyleNodePurgeCSS(tree: PostHTMLTreeLike, styleNode: PostHTML.Node, purgecssOptions: object, purgecss: typeof import('purgecss'), extractor: () => string[]) {
+function processStyleNodePurgeCSS(tree: PostHTMLTreeLike, styleNode: PostHTML.Node, purgecssOptions: object, purgecss: typeof import('purgecss'), selectors: ExtractorResultDetailed) {
     const css = extractCssFromStyleNode(styleNode)!;
     const { strippedCss, isCdataWrapped } = stripCssCdata(css);
-    return runPurgecss(tree, strippedCss, purgecssOptions, purgecss, extractor)
+    return runPurgecss(tree, strippedCss, purgecssOptions, purgecss, selectors)
         .then((css) => {
             if (css.trim().length === 0) {
                 // @ts-expect-error -- explicitly remove the tag
@@ -95,13 +124,16 @@ function processStyleNodePurgeCSS(tree: PostHTMLTreeLike, styleNode: PostHTML.No
         });
 }
 
-function runPurgecss(tree: PostHTMLTreeLike, css: string, userOptions: Partial<PurgeCSSOptions>, purgecss: typeof import('purgecss'), extractor: () => string[]) {
+function runPurgecss(tree: PostHTMLTreeLike, css: string, userOptions: Partial<PurgeCSSOptions>, purgecss: typeof import('purgecss'), selectors: ExtractorResultDetailed) {
     if (typeof userOptions !== 'object') {
         userOptions = {};
     }
 
     const options: PurgeCSSOptions = {
         ...userOptions,
+        // PurgeCSS does not reliably match case-insensitive attribute values.
+        // Keep selectors for attributes present in the HTML, regardless of value.
+        dynamicAttributes: [...(userOptions.dynamicAttributes ?? []), ...selectors.attributes.names],
         content: [{
             raw: tree.render(),
             extension: 'html'
@@ -112,7 +144,7 @@ function runPurgecss(tree: PostHTMLTreeLike, css: string, userOptions: Partial<P
             extension: 'css'
         }],
         extractors: [{
-            extractor,
+            extractor: () => selectors,
             extensions: ['html']
         }]
     };
@@ -135,7 +167,7 @@ const mod: HtmlnanoModule<RemoveUnusedCssOptions> = {
         const promises: Promise<unknown>[] = [];
 
         let html: string;
-        let extractor: () => string[];
+        let selectors: ExtractorResultDetailed;
 
         const purgecss = await optionalImport<typeof import('purgecss')>('purgecss');
         const uncss = await optionalImport('uncss');
@@ -148,8 +180,8 @@ const mod: HtmlnanoModule<RemoveUnusedCssOptions> = {
             if (isStyleNode(node) && isCssStyleType(node)) {
                 if (tool === 'purgeCSS') {
                     if (purgecss) {
-                        extractor ??= purgeFromHtml(tree);
-                        promises.push(processStyleNodePurgeCSS(tree, node, toolOptions, purgecss, extractor));
+                        selectors ??= purgeFromHtml(tree);
+                        promises.push(processStyleNodePurgeCSS(tree, node, toolOptions, purgecss, selectors));
                     }
                 } else if (tool === 'uncss') {
                     if (uncss) {
@@ -167,13 +199,6 @@ const mod: HtmlnanoModule<RemoveUnusedCssOptions> = {
 };
 
 export default mod;
-
-function getSelectorTokens(value: unknown) {
-    if (typeof value !== 'string') {
-        return [];
-    }
-    return value.split(/\s+/).filter(Boolean);
-}
 
 function resolveUserOptions(userOptions: RemoveUnusedCssOptions | true | null | undefined) {
     if (userOptions && typeof userOptions === 'object') {

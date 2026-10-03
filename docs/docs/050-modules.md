@@ -1676,7 +1676,8 @@ The following uncss options are ignored if passed to the module:
 - CDATA wrappers in `<style>` tags are preserved after removing unused rules.
 - Empty styles are removed entirely when all rules are stripped.
 - AMP boilerplate styles (`amp-boilerplate`, `amp4ads-boilerplate`, `amp4email-boilerplate`) are not touched.
-- PurgeCSS keeps tag selectors based on the HTML (for example `section {}`), and class/id extraction treats whitespace and newlines as separators.
+- PurgeCSS reads decoded class names and IDs from the HTML. Attribute selectors are retained whenever their attribute is present, regardless of its value, to preserve case-insensitive matches.
+- PurgeCSS keeps tag selectors based on the HTML (for example `section {}`), including omitted document elements. Classes are split on ASCII whitespace; IDs are kept as complete values.
 
 #### Example
 Source:
