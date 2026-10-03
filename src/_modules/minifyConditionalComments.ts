@@ -3,8 +3,7 @@ import { isConditionalComment } from '../helpers';
 import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLNodeLike, PostHTMLTreeLike } from '../types';
 
 // Spec: https://docs.microsoft.com/en-us/previous-versions/windows/internet-explorer/ie-developer/compatibility/ms537512(v=vs.85)
-const CONDITIONAL_COMMENT_HIDDEN_REGEXP = /(<!--\[if\s+?[^<>[\]]+?]>)([\s\S]*?)(<!\[endif\]-->)/gm;
-const CONDITIONAL_COMMENT_REVEALED_REGEXP = /(<!--\[if\s+?[^<>[\]]+?\]><!-->)([\s\S]*?)(<!--<!\[endif\]-->)/gm;
+const CONDITIONAL_COMMENT_OPEN_REGEXP = /<!--\[if\s+[^<>\s[\]][^<>[\]]*]>(<!-->)?/g;
 const CONDITIONAL_COMMENT_START_REGEXP = /<!(?:--)?\[if\s/i;
 
 // These elements contain literal text, not conditional comments. Noscript must
@@ -62,18 +61,27 @@ type ConditionalCommentMatch = {
     close: string;
 };
 
-function collectConditionalCommentMatches(text: string, regexp: RegExp): ConditionalCommentMatch[] {
+function collectConditionalCommentMatches(text: string): ConditionalCommentMatch[] {
     const matches: ConditionalCommentMatch[] = [];
+    const regexp = CONDITIONAL_COMMENT_OPEN_REGEXP;
     regexp.lastIndex = 0;
 
     let match: RegExpExecArray | null;
     while ((match = regexp.exec(text)) !== null) {
+        const contentStart = regexp.lastIndex;
+        const close = match[1] ? '<!--<![endif]-->' : '<![endif]-->';
+        // Searching once avoids rescanning the suffix for every opener when a
+        // malformed or deeply nested comment has no matching closing marker.
+        const contentEnd = text.indexOf(close, contentStart);
+        if (contentEnd === -1) break;
+
+        regexp.lastIndex = contentEnd + close.length;
         matches.push({
             start: match.index,
-            end: match.index + match[0].length,
-            open: match[1],
-            content: match[2],
-            close: match[3]
+            end: regexp.lastIndex,
+            open: match[0],
+            content: text.slice(contentStart, contentEnd),
+            close
         });
     }
 
@@ -123,10 +131,7 @@ function shouldPreserveContent(content: string) {
 }
 
 async function minifyContentInsideConditionalComments(text: string, htmlnanoOptions: Partial<HtmlnanoOptions>) {
-    const matches = [
-        ...collectConditionalCommentMatches(text, CONDITIONAL_COMMENT_HIDDEN_REGEXP),
-        ...collectConditionalCommentMatches(text, CONDITIONAL_COMMENT_REVEALED_REGEXP)
-    ].sort((a, b) => a.start - b.start);
+    const matches = collectConditionalCommentMatches(text);
 
     if (!matches.length) {
         return Promise.resolve(text);

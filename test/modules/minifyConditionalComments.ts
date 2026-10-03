@@ -1,8 +1,10 @@
 import { expect } from 'expect';
 import { performance } from 'node:perf_hooks';
+import { spawnSync } from 'node:child_process';
 import { parseFragment } from 'parse5';
+import posthtml from 'posthtml';
 import { init } from '../htmlnano.ts';
-import { process as processHtml } from '../../dist/index.mjs';
+import htmlnano, { process as processHtml } from '../../dist/index.mjs';
 import safePreset from '../../dist/presets/safe.mjs';
 import type { HtmlnanoOptions } from '../../src/types.js';
 
@@ -290,6 +292,38 @@ describe('minifyConditionalComments', () => {
             return init(input, input, { minifyConditionalComments: true, minifyCharacterReferences: true });
         });
     }
+
+    it('should process hidden and revealed wrappers once in a single text node', async () => {
+        const input = '<!--[if IE]><div>&copy;</div><![endif]-->X<!--[if !IE]><!--><div>&copy;</div><!--<![endif]-->Y';
+        const result = await posthtml([htmlnano({
+            minifyConditionalComments: true,
+            minifyCharacterReferences: true
+        }, {})]).process([input], { skipParse: true });
+
+        expect(result.html).toBe('<!--[if IE]><div>©</div><![endif]-->X<!--[if !IE]><!--><div>©</div><!--<![endif]-->Y');
+    });
+
+    it('should reject large malformed wrappers without excessive backtracking', () => {
+        // A subprocess timeout bounds the test even if synchronous regexp
+        // backtracking blocks the event loop (and Mocha's own timeout).
+        const result = spawnSync(process.execPath, ['--require', '@swc-node/register', '--eval', `
+            const { strictEqual } = require('node:assert');
+            const { process: minify } = require('./dist/index.mjs');
+            async function main() {
+                for (const input of [
+                    '<!--[if' + ' '.repeat(100000) + '<!-->',
+                    '<!--[if IE]>'.repeat(100000) + '-->'
+                ]) {
+                    strictEqual((await minify(input, { minifyConditionalComments: true }, {}, {})).html, input);
+                }
+            }
+            main();
+        `], { timeout: 3000, encoding: 'utf8' });
+
+        expect(result.error).toBeUndefined();
+        expect(result.stderr).toBe('');
+        expect(result.status).toBe(0);
+    });
 
     describe('safe preset evaluation', () => {
         for (const { name, input, expected } of evaluationFixtures) {
