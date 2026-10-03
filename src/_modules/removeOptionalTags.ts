@@ -55,7 +55,8 @@ const pEndTagFollowedByTags = new Set([
 ]);
 const pEndTagFollowedByTagsInNoQuirksMode = new Set(['table']);
 // Only the plain HTML5 doctype is guaranteed to put the document into no-quirks mode
-const noQuirksDoctypePattern = /^<!doctype\s+html\s*>$/i;
+const noQuirksDoctypePattern = /^<!doctype[\t\n\f\r ]+html[\t\n\f\r ]*>$/i;
+const asciiWhitespacePattern = /^[\t\n\f\r ]*$/;
 const pEndTagForbiddenParentTags = new Set([
     // Listed by the specification
     'a', 'audio', 'del', 'ins', 'map', 'noscript', 'video',
@@ -547,8 +548,9 @@ function escapeJoinedText(nodes: PostHTMLNodeLike[], omission: OmissionContext, 
  */
 function isNoQuirksDocument(tree: PostHTMLTreeLike) {
     for (const node of tree) {
-        if (typeof node !== 'string') continue;
-        if (noQuirksDoctypePattern.test(node.trim())) return true;
+        if (typeof node === 'string' && (asciiWhitespacePattern.test(node) || node.startsWith('<!--'))) continue;
+        // A doctype after content or another doctype is ignored by browsers.
+        return typeof node === 'string' && noQuirksDoctypePattern.test(node);
     }
 
     return false;

@@ -703,6 +703,32 @@ describe('removeOptionalTags', () => {
             return init(input, expected, options);
         });
 
+        it('keeps </p> when an HTML5 doctype is late or malformed', async () => {
+            const prefixes = [
+                '<div></div><!doctype html>',
+                'text<!doctype html>',
+                '<!doctype other><!doctype html>',
+                '<!doctype html\u00a0>',
+                '<!doctype\u00a0html>',
+                '<!doctype html\v>'
+            ];
+            for (const prefix of prefixes) {
+                const input = prefix + '<div><p>one</p><table></table></div>';
+
+                await initIdempotent(input, input, options);
+                expect(parse(input).mode).toBe('quirks');
+            }
+        });
+
+        it('recognizes an HTML5 doctype after initial whitespace and comments', async () => {
+            const input = ' \n<!-- before --><!DOCTYPE\tHTML\f><div><p>one</p><table></table></div>';
+            const expected = input.replace('</p>', '');
+
+            await initIdempotent(input, expected, options);
+            expect(parse(expected)).toEqual(parse(input));
+            expect(parse(expected).mode).toBe('no-quirks');
+        });
+
         it('</dt> and </dd>', () => {
             const input = '<dl><dt>one</dt><dd>two</dd><dt>three</dt><dd>four</dd></dl>';
             const expected = '<dl><dt>one<dd>two<dt>three<dd>four</dl>';
