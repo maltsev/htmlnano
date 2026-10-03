@@ -1,11 +1,17 @@
 import type PostHTML from 'posthtml';
+import posthtml from 'posthtml';
 import { hasOwn, normalizeMimeType } from '../helpers';
-import type { HtmlnanoModule, HtmlnanoOptions, HtmlnanoTemplateRule, MinifyHtmlTemplateOptions, PostHTMLTreeLike } from '../types';
+import type { HtmlnanoModule, HtmlnanoOptions, HtmlnanoTemplateRule, MinifyHtmlTemplateOptions, PostHTMLNodeLike, PostHTMLTreeLike } from '../types';
 
 type NormalizedRule = {
     tag: string;
     attrs?: Record<string, string | boolean>;
 };
+
+const textElements = new Set([
+    'script', 'style', 'textarea', 'title', 'xmp', 'iframe',
+    'noembed', 'noframes', 'noscript', 'plaintext'
+]);
 
 export const defaultRules: HtmlnanoTemplateRule[] = [
     { tag: 'script', attrs: { type: 'text/html' } },
@@ -29,7 +35,7 @@ const mod: HtmlnanoModule<MinifyHtmlTemplateOptions> = {
             return tree;
         }
 
-        const { process: processHtml } = await import('../index.js');
+        const { default: htmlnano, process: processHtml } = await import('../index.js');
 
         const innerOptions: HtmlnanoOptions = {
             ...options,
@@ -38,52 +44,84 @@ const mod: HtmlnanoModule<MinifyHtmlTemplateOptions> = {
         };
 
         const promises: Promise<void>[] = [];
+        let inPlaintext = false;
 
-        tree.walk((node) => {
-            if (!node.tag) {
-                return node;
-            }
+        function visit(nodes: PostHTMLNodeLike[], minify = true): void {
+            for (const node of nodes) {
+                if (inPlaintext) return;
+                if (!node || typeof node === 'string') continue;
+                const tag = node.tag?.toLowerCase() ?? '';
+                // Plaintext consumes the rest of the document, even beyond
+                // the closing tag that PostHTML may put in its tree.
+                if (tag === 'plaintext') {
+                    inPlaintext = true;
+                    return;
+                }
 
-            const attrs = normalizeNodeAttrs(node);
-            if (!matchesTemplateRule(node, attrs, rules)) {
-                return node;
-            }
-
-            if (hasOwn(attrs, 'integrity')) {
-                return node;
-            }
-
-            if (node.tag.toLowerCase() === 'script' && hasOwn(attrs, 'src')) {
-                return node;
-            }
-
-            const rawContent = collectNodeContent(tree, node);
-            if (rawContent.trim().length === 0) {
-                return node;
-            }
-
-            const promise = processHtml(rawContent, innerOptions, {}, {})
-                .then((result) => {
-                    // Script data ignores HTML attribute quotes. Decoding a
-                    // reference there can close the container or enter the
-                    // double-escaped state and swallow its closing tag.
-                    if (node.tag?.toLowerCase() === 'script'
-                        && /<\/script(?=[\t\n\f\r />])|<!--[\s\S]*<script(?=[\t\n\f\r />])/i.test(result.html)) {
-                        return;
+                const attrs = normalizeNodeAttrs(node);
+                if (!minify || !matchesTemplateRule(node, attrs, rules)) {
+                    if (!textElements.has(tag) && node.content) {
+                        visit(typeof node.content === 'string' ? [node.content] : node.content, minify);
                     }
-                    node.content = [result.html];
-                });
+                    continue;
+                }
 
-            promises.push(promise);
+                const content = typeof node.content === 'string' ? [node.content] : node.content;
+                const isTextElement = textElements.has(tag);
+                // Scan native template subtrees for plaintext without scheduling
+                // their nested templates for a second, concurrent inner run.
+                if (!isTextElement && content) visit(content, false);
 
-            return node;
-        });
+                if (hasOwn(attrs, 'integrity')) {
+                    continue;
+                }
+
+                if (tag === 'script' && hasOwn(attrs, 'src')) {
+                    continue;
+                }
+
+                if (!content?.some(child => typeof child !== 'string' || child.trim().length > 0)) {
+                    continue;
+                }
+
+                const promise = (isTextElement
+                    ? processHtml(collectNodeContent(tree, node), innerOptions, {}, { ...tree.options, skipParse: false })
+                    // @ts-expect-error -- PostHTML supports trees with skipParse, but its types accept only strings
+                    : posthtml([htmlnano(innerOptions, {})]).process(content, { ...tree.options, skipParse: true }))
+                    .then((result) => {
+                        if (isTextElement && hasUnsafeTextContent(tag, result.html)) {
+                            return;
+                        }
+                        // Keep parsed HTML as nodes so later content handlers do
+                        // not interpret serialized attribute values as text.
+                        node.content = isTextElement
+                            ? [result.html]
+                            : [...result.tree as unknown as PostHTMLNodeLike[]];
+                    });
+
+                promises.push(promise);
+            }
+        }
+
+        visit(tree);
 
         return Promise.all(promises).then(() => tree);
     }
 };
 
 export default mod;
+
+function hasUnsafeTextContent(tag: string, html: string): boolean {
+    // Text-only elements ignore HTML attribute quotes. Decoding a reference
+    // there can close the container. The tag comes from textElements, whose
+    // names contain no regular expression metacharacters.
+    if (new RegExp(`</${tag}(?=[\\t\\n\\f\\r />])`, 'i').test(html)) {
+        return true;
+    }
+    // Script data can also enter the double-escaped state and swallow its
+    // closing tag, along with the following document content.
+    return tag === 'script' && /<!--[\s\S]*<script(?=[\t\n\f\r />])/i.test(html);
+}
 
 function resolveTemplateRules(moduleOptions: MinifyHtmlTemplateOptions | undefined): NormalizedRule[] {
     if (!moduleOptions || moduleOptions === true) {
@@ -216,7 +254,7 @@ function collectNodeContent(tree: PostHTMLTreeLike, node: PostHTML.Node) {
         if (typeof child === 'string') {
             html += child;
         } else {
-            html += tree.render(child);
+            html += tree.render(child, tree.options);
         }
     }
 

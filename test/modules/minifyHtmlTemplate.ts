@@ -1,4 +1,4 @@
-import { init } from '../htmlnano.ts';
+import { init, initWithPostHtmlOptions } from '../htmlnano.ts';
 import type { HtmlnanoOptions } from '../../src/types.js';
 import { expect } from 'expect';
 import { parseFragment } from 'parse5';
@@ -43,6 +43,17 @@ describe('minifyHtmlTemplate', () => {
             '<script type="text/html"><div title="</scripted>">©</div></script>',
             { minifyHtmlTemplate: true, minifyCharacterReferences: true }
         );
+    });
+
+    it('should prevent closing-tag injection in custom raw-text templates', async () => {
+        const html = '<style><div title="&lt;/style&gt;&lt;img src=x onerror=alert(1)&gt;">x</div></style>';
+        const result = await processHtml(html, {
+            minifyHtmlTemplate: [{ tag: 'style' }],
+            minifyCharacterReferences: true
+        }, {});
+
+        expect(result.html).toBe(html);
+        expect(parseFragment(result.html)).toEqual(parseFragment(html));
     });
 
     it('should minify script templates using built-in rules', () => {
@@ -104,6 +115,49 @@ describe('minifyHtmlTemplate', () => {
                 minifyHtmlTemplate: true
             }
         );
+    });
+
+    it('should preserve XML parsing and rendering options inside templates', () => {
+        const html = '<template><svg><path /></svg><br /></template>';
+        return initWithPostHtmlOptions(html, html, { minifyHtmlTemplate: true }, {
+            xmlMode: true,
+            closingSingleTag: 'slash',
+            singleTags: ['path']
+        });
+    });
+
+    it('should respect explicit attribute quoting inside templates', () => {
+        return initWithPostHtmlOptions(
+            '<template><div title="x"> y </div></template>',
+            '<template><div title="x"> y </div></template>',
+            { minifyHtmlTemplate: true, removeAttributeQuotes: true },
+            { quoteAllAttributes: true }
+        );
+    });
+
+    it('should keep encoded apostrophes when single-quoting template attributes', () => {
+        return initWithPostHtmlOptions(
+            '<template><div title="a&#39;b">&copy;</div></template>',
+            '<template><div title=\'a&#39;b\'>©</div></template>',
+            { minifyHtmlTemplate: true, minifyCharacterReferences: true },
+            { quoteStyle: 1 }
+        );
+    });
+
+    it('should not decode template attribute delimiters as text in the outer pass', async () => {
+        const html = '<template><img title="&#34; onerror=&#34;alert(1)" src="x"></template>';
+        const result = await processHtml(html, {
+            minifyHtmlTemplate: true,
+            minifyCharacterReferences: true
+        }, {});
+
+        expect(result.html).toBe(html);
+        expect(parseFragment(result.html)).toEqual(parseFragment(html));
+    });
+
+    it('should preserve raw-text descendants when character references runs first', () => {
+        const html = '<template><textarea><b title="&lt;/textarea&gt;&lt;img src=x onerror=alert(1)&gt;">x</b></textarea></template>';
+        return init(html, html, { minifyCharacterReferences: true, minifyHtmlTemplate: true });
     });
 
     it('should minify nested <template> inside <template>', () => {
@@ -214,6 +268,25 @@ describe('minifyHtmlTemplate', () => {
             '<template>   </template>',
             { minifyHtmlTemplate: true }
         );
+    });
+
+    for (const tag of ['textarea', 'iframe', 'noscript']) {
+        it(`should preserve apparent templates inside <${tag}>`, () => {
+            const html = `<${tag}><template> <b>  x  </b> </template></${tag}>`;
+            return init(html, html, { minifyHtmlTemplate: true });
+        });
+    }
+
+    for (const parent of ['div', 'template']) {
+        it(`should preserve apparent templates after plaintext inside <${parent}>`, () => {
+            const html = `<${parent}><plaintext>text</plaintext></${parent}><template> <b>  x  </b> </template>`;
+            return init(html, html, { minifyHtmlTemplate: true });
+        });
+    }
+
+    it('should not process descendants of a skipped template', () => {
+        const html = '<template integrity="hash"><template> <b>  x  </b> </template></template>';
+        return init(html, html, { minifyHtmlTemplate: true, collapseWhitespace: 'conservative' });
     });
 
     it('should do nothing when custom rules are an empty array', () => {

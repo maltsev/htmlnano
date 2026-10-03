@@ -1412,7 +1412,7 @@ Minified:
 
 ### minifyHtmlTemplate
 Minifies HTML inside template containers (for example `<script type="text/x-handlebars-template">` or `<template>`).
-It runs htmlnano on the inner HTML using the current options.
+It runs htmlnano on the inner HTML using the current minification and PostHTML parsing/rendering options.
 
 #### Options
 `minifyHtmlTemplate: true` enables the default template rules.
@@ -1444,7 +1444,8 @@ htmlnano.process(html, {
 - Rules are objects: `{ tag, attrs? }`.
 - Attribute name matching is case-insensitive. For `type`, matching ignores MIME parameters and casing.
 - Any tag with an `integrity` attribute is skipped, and `<script src="...">` is not processed.
-- Script template content is preserved if minification would introduce a closing script tag or a double-escaped script sequence.
+- Text-only template content is preserved if minification would introduce a closing container tag. Script templates also preserve content that would introduce a double-escaped script sequence.
+- Apparent templates inside text-only elements (such as `<textarea>`) or after `<plaintext>` are not processed. Nested templates are left to the inner run, where `minifyHtmlTemplate` is disabled.
 - The actual changes depend on the enabled modules (for example `collapseWhitespace`).
 
 #### Example
