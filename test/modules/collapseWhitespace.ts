@@ -51,6 +51,41 @@ describe('collapseWhitespace', () => {
                 </html> `;
 
     for (const collapseType of ['all', 'aggressive', 'conservative'] as const) {
+        context(`non-rendering elements in ${collapseType} mode`, () => {
+            const options: HtmlnanoOptions = { collapseWhitespace: collapseType };
+
+            for (const element of ['<script>run()</script>', '<STYLE>p { color: red }</STYLE>', '<template>  <b> hidden </b>  </template>', '<link href="x">']) {
+                it(`keeps word separators across ${element}`, () => {
+                    const input = `<p>a ${element}b</p><p>a${element} b</p>`;
+
+                    return init(input, input, options);
+                });
+            }
+
+            it('keeps one separator across adjacent hidden elements and comments', () => {
+                const hidden = '<script>run()</script><!--c--><template>  x  </template>';
+                const input = `<p>a ${hidden} b</p>`;
+                const expected = collapseType === 'all' ? `<p>a${hidden} b</p>` : input;
+
+                return init(input, expected, options);
+            });
+
+            it('keeps whitespace at inline edges across hidden siblings', () => {
+                const input = '<p>a<script>run()</script><em> b </em><template>x</template>c</p>';
+
+                return init(input, input, options);
+            });
+
+            it('still trims whitespace beside block elements across hidden siblings', () => {
+                const input = '<div>  <script>run()</script>  <p>x</p>  <template>x</template>  </div>';
+                const expected = collapseType === 'conservative'
+                    ? '<div> <script>run()</script> <p>x</p> <template>x</template> </div>'
+                    : '<div><script>run()</script><p>x</p><template>x</template></div>';
+
+                return init(input, expected, options);
+            });
+        });
+
         context(`protected whitespace in ${collapseType} mode`, () => {
             const options: HtmlnanoOptions = { collapseWhitespace: collapseType };
 

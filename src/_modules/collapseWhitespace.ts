@@ -14,6 +14,13 @@ const noWhitespaceCollapseElements = new Set([
     'template'
 ]);
 
+// These elements do not create a rendered whitespace boundary by default.
+// https://html.spec.whatwg.org/multipage/rendering.html#hidden-elements
+const nonRenderingElements = new Set([
+    'area', 'base', 'basefont', 'datalist', 'head', 'link', 'meta',
+    'noembed', 'noframes', 'param', 'script', 'style', 'template', 'title'
+]);
+
 const noTrimWhitespacesArroundElements = new Set([
     // non-empty tags that will maintain whitespace around them
     'a', 'abbr', 'acronym', 'b', 'bdi', 'bdo', 'big', 'button', 'cite', 'code', 'del', 'dfn', 'em', 'font', 'i', 'ins', 'kbd', 'label', 'mark', 'math', 'nobr', 'object', 'q', 'rp', 'rt', 'rtc', 'ruby', 's', 'samp', 'select', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'svg', 'textarea', 'time', 'tt', 'u', 'var',
@@ -65,9 +72,6 @@ function collapseWhitespace(tree: Array<PostHTML.Node | string>, options: Htmlna
 function collapseWhitespace(tree: PostHTMLTreeLike | Array<PostHTML.Node | string>, options: HtmlnanoOptions, collapseType: CollapseType, parent?: ParentInfo) {
     collapseType = validOptions.includes(collapseType) ? collapseType : 'conservative';
     tree.forEach((node, index) => {
-        const prevNode = tree[index - 1];
-        const nextNode = tree[index + 1];
-
         if (typeof node === 'string') {
             if (collapseType === 'all') {
                 node = collapseAllWhitespaces(node, tree, index, parent);
@@ -83,7 +87,8 @@ function collapseWhitespace(tree: PostHTMLTreeLike | Array<PostHTML.Node | strin
                     || collapseType === 'aggressive'
                 );
 
-                node = collapseRedundantWhitespaces(node, collapseType, shouldTrim, parent, prevNode, nextNode);
+                node = collapseRedundantWhitespaces(node, collapseType, shouldTrim, parent,
+                    getAdjacentNode(tree, index, -1), getAdjacentNode(tree, index, 1));
             }
         } else if (node.tag) {
             const tag = node.tag.toLowerCase();
@@ -100,8 +105,8 @@ function collapseWhitespace(tree: PostHTMLTreeLike | Array<PostHTML.Node | strin
 
                 node.content = collapseWhitespace(node.content, options, collapseType, {
                     node,
-                    prevNode,
-                    nextNode,
+                    prevNode: getAdjacentNode(tree, index, -1),
+                    nextNode: getAdjacentNode(tree, index, 1),
                     spaceBefore: isInlineContent && isRenderedSpaceBefore(tree, index, parent),
                     spaceAfter: isInlineContent && isRenderedSpaceAfter(tree, index, parent)
                 });
@@ -115,7 +120,7 @@ function collapseWhitespace(tree: PostHTMLTreeLike | Array<PostHTML.Node | strin
 
 function collapseRedundantWhitespaces(
     text: string, collapseType: CollapseType, shouldTrim = false, parent: ParentInfo | undefined,
-    prevNode: PostHTML.Node | string, nextNode: PostHTML.Node | string
+    prevNode: PostHTMLNodeLike | undefined, nextNode: PostHTMLNodeLike | undefined
 ) {
     if (!text || text.length === 0) {
         return NONE;
@@ -243,6 +248,7 @@ function isRenderedSpaceBefore(tree: ArrayLike<PostHTMLNodeLike>, index: number,
             return !endsWithWhitespacePattern.test(sibling);
         }
 
+        if (isNonRenderingNode(sibling)) continue;
         return isInlineNode(sibling) && !endsWithRenderedWhitespace(sibling);
     }
 
@@ -278,6 +284,7 @@ function endsWithRenderedWhitespace(node: PostHTML.Node): boolean {
             return endsWithWhitespacePattern.test(child);
         }
 
+        if (isNonRenderingNode(child)) continue;
         return endsWithRenderedWhitespace(child);
     }
 
@@ -298,10 +305,28 @@ function isRenderedSpaceAfter(tree: ArrayLike<PostHTMLNodeLike>, index: number, 
             return !startsWithWhitespacePattern.test(sibling);
         }
 
+        if (isNonRenderingNode(sibling)) continue;
         return isInlineNode(sibling);
     }
 
     return parent?.spaceAfter ?? false;
+}
+
+function isNonRenderingNode(node: PostHTMLNodeLike) {
+    return typeof node === 'object' && typeof node.tag === 'string'
+        && nonRenderingElements.has(node.tag.toLowerCase());
+}
+
+function getAdjacentNode(tree: ArrayLike<PostHTMLNodeLike>, index: number, direction: -1 | 1) {
+    for (let i = index + direction; i >= 0 && i < tree.length; i += direction) {
+        const sibling = tree[i];
+        // Unprocessed whitespace ahead is subject to the same block boundary.
+        // Behind us it may already carry the separator we need to preserve.
+        if (direction === 1 && typeof sibling === 'string' && !sibling.replace(edgeWhitespacePattern, NONE)) continue;
+        if (!isNonRenderingNode(sibling)) return sibling;
+    }
+
+    return undefined;
 }
 
 /*
