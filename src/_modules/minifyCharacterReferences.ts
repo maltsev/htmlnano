@@ -11,13 +11,19 @@ export interface MinifyCharacterReferencesOptions {
 }
 
 /**
- * Tags whose content is not entity-decoded by browsers, so a literal
- * "&mdash;" inside them is NOT a character reference and must be left alone.
- * See how collapseWhitespace treats these protected elements.
+ * Raw-text elements do not decode character references. Keep textarea content
+ * conservatively too, even though browsers entity-decode its RCDATA content.
+ * Noscript must work both with scripting enabled (raw text) and disabled.
  */
 const rawTextElements = new Set([
     'script',
     'style',
+    'xmp',
+    'iframe',
+    'noembed',
+    'noframes',
+    'noscript',
+    'plaintext',
     'textarea'
 ]);
 
@@ -170,11 +176,45 @@ type RenderQuotingOptions = {
 };
 
 /**
- * onAttrs() has no access to the tree, and therefore none to the render
- * options. Both hooks of a module are called with the very same options
- * object, so the tree pass below uses it as a per-run key to hand them over.
+ * Hooks have no access to the tree or its render options. Both receive the
+ * same options object, so the tree pass uses it as a per-run key to share
+ * quoting options and protection for content parsed differently by browsers.
  */
-const renderQuotingOptions = new WeakMap<object, RenderQuotingOptions>();
+const runContexts = new WeakMap<object, {
+    quoting: RenderQuotingOptions;
+    protectedNodes: WeakMap<object, 'content' | 'all'>;
+}>();
+
+/** PostHTML may parse raw-text content as elements that the browser never sees. */
+function collectProtectedNodes(content: PostHTMLNodeLike[]): WeakMap<object, 'content' | 'all'> {
+    const protectedNodes = new WeakMap<object, 'content' | 'all'>();
+    let inPlaintext = false;
+
+    function visit(nodes: PostHTMLNodeLike[], protectedContent: boolean): void {
+        for (const node of nodes) {
+            if (!node || typeof node !== 'object') continue;
+
+            if (protectedContent || inPlaintext) protectedNodes.set(node, 'all');
+            const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+            // Plaintext consumes everything to EOF, including its closing tag.
+            // A spelling inside another raw-text element is just literal text.
+            if (!protectedContent && tag === 'plaintext') inPlaintext = true;
+
+            if (node.content) {
+                visit(
+                    Array.isArray(node.content) ? node.content : [node.content],
+                    protectedContent || inPlaintext || rawTextElements.has(tag)
+                );
+            }
+            // Ancestors may also contain text siblings after plaintext's
+            // apparent closing tag. Preserve their text, but not their attrs.
+            if (inPlaintext && !protectedNodes.has(node)) protectedNodes.set(node, 'content');
+        }
+    }
+
+    visit(content, false);
+    return protectedNodes;
+}
 
 type DecodeContext = {
     decodeAll: boolean;
@@ -392,11 +432,14 @@ function decodeAttributeValue(
 
 const mod: HtmlnanoModule<MinifyCharacterReferencesOptions> = {
     default: function minifyCharacterReferences(tree, options) {
-        renderQuotingOptions.set(options, tree.options ?? {});
+        runContexts.set(options, {
+            quoting: tree.options ?? {},
+            protectedNodes: collectProtectedNodes(tree)
+        });
         return tree;
     },
 
-    onContent(_options, moduleOptions) {
+    onContent(options, moduleOptions) {
         const context: DecodeContext = {
             decodeAll: moduleOptions?.decodeAll === true,
             inAttribute: false,
@@ -404,8 +447,8 @@ const mod: HtmlnanoModule<MinifyCharacterReferencesOptions> = {
         };
 
         return (content, node) => {
-            // Browsers do not entity-decode raw-text element content.
-            if (node.tag && rawTextElements.has(node.tag)) {
+            if (runContexts.get(options)?.protectedNodes.has(node)
+                || node.tag && rawTextElements.has(node.tag.toLowerCase())) {
                 return content;
             }
 
@@ -436,8 +479,10 @@ const mod: HtmlnanoModule<MinifyCharacterReferencesOptions> = {
             forbidden: forbiddenInAttributeWithApostrophe
         };
 
-        return (attrs) => {
-            const quoting = renderQuotingOptions.get(options) ?? {};
+        return (attrs, node) => {
+            const runContext = runContexts.get(options);
+            if (runContext?.protectedNodes.get(node) === 'all') return attrs;
+            const quoting = runContext?.quoting ?? {};
             const newAttrs: Record<string, string | boolean | void> = {};
             for (const [name, value] of Object.entries(attrs)) {
                 newAttrs[name] = typeof value === 'string'

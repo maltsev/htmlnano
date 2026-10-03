@@ -611,8 +611,13 @@ and hexadecimal (`&#x2014;`) numeric references are decoded as well.
   `&apos;`/`&#39;`/`&#x27;` are decoded in attribute values, except in the
   ones posthtml-render renders single-quoted (JSON-ish values, or every value
   when the `quoteStyle` render option asks for single quotes).
-- Content of `<script>`, `<style>`, and `<textarea>` is left untouched, since
-  browsers do not entity-decode raw-text element content.
+- Raw-text content (`<script>`, `<style>`, `<xmp>`, `<iframe>`, `<noembed>`,
+  and `<noframes>`) is left untouched, including markup parsed by PostHTML
+  as descendants. Tag names are matched regardless of case. `<noscript>`
+  content is preserved for both scripting modes, and everything after
+  `<plaintext>` is preserved through the end of the document.
+  `<textarea>` content is also conservatively left untouched, although
+  browsers do decode its character references.
 - Invalid, unknown, or non-terminated references (for example `&fake;` or
   `&mdash` without a semicolon) are left untouched, and double-encoded input
   like `&amp;mdash;` never collapses into `&mdash;`.

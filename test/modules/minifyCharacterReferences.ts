@@ -164,6 +164,50 @@ describe('minifyCharacterReferences', () => {
         );
     });
 
+    for (const moduleOptions of [true, { decodeAll: true }]) {
+        for (const tag of ['script', 'style', 'textarea', 'xmp', 'iframe', 'noembed', 'noframes', 'noscript']) {
+            for (const spelling of [tag, tag.toUpperCase()]) {
+                it(`should preserve all content of <${spelling}> with ${JSON.stringify(moduleOptions)}`, () => {
+                    const protectedContent = '<span title="&copy;">&copy;&#39;&quot;&gt;</span>';
+                    return init(
+                        `<${spelling} title="&copy;">${protectedContent}</${spelling}><p>&copy;</p>`,
+                        `<${spelling} title="©">${protectedContent}</${spelling}><p>©</p>`,
+                        { minifyCharacterReferences: moduleOptions }
+                    );
+                });
+            }
+        }
+
+        it(`should not introduce a script through raw-text descendants with ${JSON.stringify(moduleOptions)}`, () => {
+            const source = '<iframe><span title="&lt;/iframe&gt;&lt;script&gt;alert(1)&lt;/script&gt;">&copy;</span></iframe>';
+            return init(source, source, { minifyCharacterReferences: moduleOptions });
+        });
+
+        it(`should preserve everything after <plaintext> with ${JSON.stringify(moduleOptions)}`, () => {
+            return init(
+                '<div><plaintext title="&copy;">&copy;</plaintext><p title="&copy;">&copy;</p></div><p>&copy;</p>',
+                '<div><plaintext title="©">&copy;</plaintext><p title="&copy;">&copy;</p></div><p>&copy;</p>',
+                { minifyCharacterReferences: moduleOptions }
+            );
+        });
+
+        it(`should preserve text siblings after <plaintext> with ${JSON.stringify(moduleOptions)}`, () => {
+            return init(
+                '<div title="&copy;"><plaintext>&copy;</plaintext>&copy;<span>&copy;</span></div>',
+                '<div title="©"><plaintext>&copy;</plaintext>&copy;<span>&copy;</span></div>',
+                { minifyCharacterReferences: moduleOptions }
+            );
+        });
+
+        it(`should not treat <plaintext> inside raw text as an element with ${JSON.stringify(moduleOptions)}`, () => {
+            return init(
+                '<iframe><plaintext>&copy;</plaintext></iframe><p>&copy;</p>',
+                '<iframe><plaintext>&copy;</plaintext></iframe><p>©</p>',
+                { minifyCharacterReferences: moduleOptions }
+            );
+        });
+    }
+
     it('should leave unknown named references untouched', () => {
         return init(
             '<p>&fake;&notanentity;</p>',
