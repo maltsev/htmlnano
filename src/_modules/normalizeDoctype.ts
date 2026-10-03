@@ -1,6 +1,9 @@
 import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLTreeLike } from '../types';
 
-const rDoctype = /^<!doctype\s/i;
+// In HTML, the first `>` ends a doctype even inside a quoted identifier.
+// Match the whole node so trailing content is never discarded.
+// Completing an unfinished declaration could activate following markup.
+const rDoctype = /^<!doctype[ \t\n\f\r][^>]*>$/i;
 const rHtml5Doctype = /^<!doctype[ \t\n\f\r]+html[ \t\n\f\r]*>$/i;
 const shortDoctype = '<!doctype html>';
 

@@ -1,5 +1,7 @@
 import { init } from '../htmlnano.ts';
 import { expect } from 'expect';
+import { parse, serialize } from 'parse5';
+import { render } from 'posthtml-render';
 import normalizeDoctypeModule from '../../src/_modules/normalizeDoctype.ts';
 import type { PostHTMLTreeLike } from '../../src/types.ts';
 
@@ -56,6 +58,25 @@ describe('normalizeDoctype', () => {
                 options
             );
         });
+
+        it('should normalize all HTML whitespace characters', () => {
+            return init(
+                '<!DOCTYPE\t\n\f\r html\t\n\f\r>',
+                '<!doctype html>',
+                options
+            );
+        });
+
+        it('should continue to normalize complete malformed doctypes', () => {
+            return init('<!DOCTYPE html PUBLIC>', '<!doctype html>', options);
+        });
+
+        for (const whitespace of ['\u00a0', '\u000b', '\ufeff']) {
+            it(`should preserve a non-HTML whitespace separator U+${whitespace.charCodeAt(0).toString(16)}`, () => {
+                const html = `<!DOCTYPE${whitespace}html><p>text</p>`;
+                return init(html, html, options);
+            });
+        }
 
         it('should leave a document without a doctype unchanged', () => {
             return init(
@@ -151,6 +172,53 @@ describe('normalizeDoctype', () => {
             });
         }
     });
+
+    for (const mode of [true, 'html5'] as const) {
+        describe(`${mode} boundaries`, () => {
+            // A custom parser or an earlier plugin may put a declaration and
+            // other content in the same string node.
+            const cases = [
+                { name: 'trailing text', input: '<!DOCTYPE html>text' },
+                { name: 'trailing markup', input: '<!DOCTYPE html><script>alert(1)</script>' },
+                { name: 'trailing whitespace', input: '<!DOCTYPE html>\n' },
+                { name: 'unterminated declaration', input: '<!DOCTYPE html' },
+                { name: 'multiple declarations', input: '<!DOCTYPE html><!DOCTYPE html>' }
+            ];
+
+            for (const { name, input } of cases) {
+                it(`should preserve a string containing ${name}`, () => {
+                    const tree = [input] as PostHTMLTreeLike;
+                    const result = normalizeDoctypeModule.default!(tree, {}, mode);
+
+                    expect(result).toBe(tree);
+                    expect(result).toStrictEqual([input]);
+                });
+            }
+
+            it('should not activate markup following an unfinished declaration in a supplied tree', () => {
+                const tree = [
+                    '<!DOCTYPE html',
+                    { tag: 'script', content: ['alert(1)'] }
+                ] as PostHTMLTreeLike;
+                const original = render(tree);
+                const normalized = render(normalizeDoctypeModule.default!(tree, {}, mode));
+
+                expect(normalized).toBe(original);
+                expect(serialize(parse(normalized))).toBe(
+                    '<!DOCTYPE html<script><html><head></head><body>alert(1)</body></html>'
+                );
+            });
+
+            it('should preserve doctype-like markup in comments and raw text', () => {
+                const content = '<!-- <!DOCTYPE html> --><script>const doctype = "<!DOCTYPE html>";</script><style>p::before { content: "<!DOCTYPE html>"; }</style>';
+                return init(
+                    `<!DOCTYPE html>${content}`,
+                    `<!doctype html>${content}`,
+                    { normalizeDoctype: mode }
+                );
+            });
+        });
+    }
 
     it('should do nothing when the module is disabled', () => {
         const legacy = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html></html>';

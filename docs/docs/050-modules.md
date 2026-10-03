@@ -991,8 +991,8 @@ The option has two enabled modes:
 - `'html5'` canonicalizes casing and redundant ASCII whitespace only when the
   complete input is already the short HTML5 doctype. This conservative mode is
   used by the `safe` preset and inherited by `ampSafe`.
-- `true` rewrites any top-level doctype string beginning with `<!doctype` and
-  ASCII whitespace, including legacy `PUBLIC`/`SYSTEM` and malformed doctypes.
+- `true` rewrites complete top-level doctype strings beginning with `<!doctype`
+  and ASCII whitespace, including legacy `PUBLIC`/`SYSTEM` and malformed doctypes.
   This broad, backward-compatible mode is used by the `max` preset.
 
 #### Notes
@@ -1006,6 +1006,8 @@ The option has two enabled modes:
   can subtly alter rendering, such as inline image spacing inside table cells.
 - XML declarations and non-doctype strings are never treated as doctypes. A
   document without a doctype is left unchanged.
+- Neither mode rewrites strings with content after the declaration, an absent
+  closing `>`, or non-ASCII whitespace immediately after `<!doctype`.
 
 #### Example
 Source:
