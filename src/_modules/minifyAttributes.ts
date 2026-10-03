@@ -126,28 +126,37 @@ function minifyViewportNumber(value: string): string {
 }
 
 function minifyMetaViewportValue(value: string): string {
+    // A reference's semicolon is not a viewport separator. Splitting on it can
+    // join tokens when whitespace is removed (e.g. "&#49; 00" becomes "100").
+    if (decodeHTMLAttribute(value) !== value) return value;
+
     // Viewport content is a comma/semicolon-separated list of key=value pairs.
     // We normalize whitespace around separators and "=", and strip redundant
     // trailing zeros in numeric values. The author's separator characters are
     // preserved to stay conservative.
     return value
-        .trim()
         .split(/([,;])/)
         .map((part) => {
             if (part === ',' || part === ';') return part;
 
-            const trimmed = part.trim();
+            const trimmed = trimViewportWhitespace(part);
             if (trimmed === '') return trimmed;
 
             const eqIndex = trimmed.indexOf('=');
             if (eqIndex === -1) return trimmed;
 
-            const key = trimmed.slice(0, eqIndex).trim();
-            const rawValue = trimmed.slice(eqIndex + 1).trim();
+            const key = trimViewportWhitespace(trimmed.slice(0, eqIndex));
+            const rawValue = trimViewportWhitespace(trimmed.slice(eqIndex + 1));
 
             return `${key}=${minifyViewportNumber(rawValue)}`;
         })
         .join('');
+}
+
+function trimViewportWhitespace(value: string): string {
+    // The viewport grammar excludes form feed and Unicode whitespace.
+    // https://drafts.csswg.org/css-viewport/#parsing-algorithm
+    return value.replace(/^[\t\n\r ]+|[\t\n\r ]+$/g, '');
 }
 
 function isMetaViewport(attrs: Record<string, string | boolean | void>, tagName?: string): boolean {
@@ -156,7 +165,7 @@ function isMetaViewport(attrs: Record<string, string | boolean | void>, tagName?
     const name = attrs.name;
     if (typeof name !== 'string') return false;
 
-    return name.trim().toLowerCase() === 'viewport';
+    return name.toLowerCase() === 'viewport';
 }
 
 function isMetaRefresh(attrs: Record<string, string | boolean | void>, tagName?: string): boolean {
@@ -165,7 +174,7 @@ function isMetaRefresh(attrs: Record<string, string | boolean | void>, tagName?:
     const httpEquiv = attrs['http-equiv'];
     if (typeof httpEquiv !== 'string') return false;
 
-    return httpEquiv.trim().toLowerCase() === 'refresh';
+    return httpEquiv.toLowerCase() === 'refresh';
 }
 
 function normalizeOptions(moduleOptions: Partial<MinifyAttributesOptions> | boolean): NormalizedOptions {
@@ -230,9 +239,7 @@ const mod: HtmlnanoModule<MinifyAttributesOptions> = {
                         attrs.content = minified;
                     }
                 }
-            }
-
-            if (normalizedOptions.metaContent && isMetaViewport(attrs, tagName)) {
+            } else if (normalizedOptions.metaContent && isMetaViewport(attrs, tagName)) {
                 const content = attrs.content;
                 if (typeof content === 'string') {
                     const minified = minifyMetaViewportValue(content);

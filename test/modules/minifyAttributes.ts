@@ -119,6 +119,39 @@ describe('minifyAttributes', () => {
     });
 
     context('<meta name="viewport" content=...>', () => {
+        for (const content of ['width=&#49; 00', 'width=&#100; evice-width', 'width=1.0&#44; initial-scale=2.0']) {
+            it(`should preserve encoded viewport content: ${content}`, () => {
+                const html = `<meta name="viewport" content="${content}">`;
+                return initIdempotent(html, html, options);
+            });
+        }
+
+        for (const whitespace of ['\u00a0', '\u2003', '\ufeff', '\f', '\v']) {
+            it(`should preserve significant viewport characters: U+${whitespace.charCodeAt(0).toString(16)}`, () => {
+                return initIdempotent(
+                    `<meta name="viewport" content=" ${whitespace}width${whitespace} = ${whitespace}device-width${whitespace} , initial-scale=1.0 ">`,
+                    `<meta name="viewport" content="${whitespace}width${whitespace}=${whitespace}device-width${whitespace},initial-scale=1">`,
+                    options
+                );
+            });
+        }
+
+        it('should normalize viewport grammar whitespace', () => {
+            return initIdempotent(
+                '<meta name="VIEWPORT" content="\twidth\n=\rdevice-width,\tinitial-scale\n=\r1.0\t">',
+                '<meta name="VIEWPORT" content="width=device-width,initial-scale=1">',
+                options
+            );
+        });
+
+        it('should not apply viewport rewrites to refresh destinations', () => {
+            return initIdempotent(
+                '<meta name="viewport" http-equiv="refresh" content="0; url=/next?scale=1.0">',
+                '<meta name="viewport" http-equiv="refresh" content="0; /next?scale=1.0">',
+                options
+            );
+        });
+
         it('should remove spaces after commas and around "="', () => {
             return init(
                 '<meta name="viewport" content="width = device-width, initial-scale = 1">',
@@ -180,6 +213,14 @@ describe('minifyAttributes', () => {
             );
         });
     });
+
+    for (const metadata of ['name=" viewport "', 'name="\u00a0viewport\u00a0"', 'http-equiv=" refresh "']) {
+        it(`should match metadata names without trimming: ${metadata}`, () => {
+            const content = metadata.startsWith('name') ? ' width = device-width, initial-scale = 1.0 ' : ' 0; url=/next ';
+            const html = `<meta ${metadata} content="${content}">`;
+            return initIdempotent(html, html, options);
+        });
+    }
 
     context('redundantWhitespaces', () => {
         it('should preserve significant whitespace in safe mode', () => {

@@ -263,6 +263,9 @@ is left unchanged. It also minifies
 (commas/semicolons) and `=`, and by dropping redundant trailing zeros in
 numeric values (e.g. `initial-scale=1.0` → `initial-scale=1`). The author's
 separator characters (`,` or `;`) are preserved.
+Viewport whitespace normalization follows its ASCII grammar and leaves content
+containing character references unchanged. If a meta element also declares a
+refresh, only the refresh rewrite is applied to preserve its destination.
 
 #### Options
 - `metaContent` (`boolean`) - enable minification for `meta[http-equiv="refresh"]` and `meta[name="viewport"]` content.
