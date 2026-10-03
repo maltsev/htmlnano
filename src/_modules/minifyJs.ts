@@ -48,7 +48,7 @@ const mod: HtmlnanoModule<MinifyOptions> = {
             }
 
             if (node.attrs) {
-                promises.push(...processNodeWithOnAttrs(node, terserOptions, terser));
+                promises.push(...processNodeWithOnAttrs(node, terserOptions, terser, tree.options?.decodeEntities === true));
             }
 
             return node;
@@ -113,11 +113,34 @@ function resolveOnAttrTerserOptions(terserOptions: MinifyOptions) {
     const outputHasQuoteStyle = !!(output && typeof output === 'object' && 'quote_style' in output);
     const formatHasQuoteStyle = !!(format && typeof format === 'object' && 'quote_style' in format);
 
-    if (outputHasQuoteStyle || formatHasQuoteStyle) {
-        return terserOptions;
-    }
+    // Handler bodies have implicit parameters (event, arguments, and the
+    // window.onerror parameters). Treating their declarations as ordinary
+    // function locals can rename them or fold them to undefined.
+    const resolved: MinifyOptions = {
+        ...terserOptions,
+        module: false,
+        toplevel: false,
+        enclose: false,
+        parse: { ...terserOptions.parse, ['bare_returns']: true, shebang: false },
+        compress: terserOptions.compress === false
+            ? false
+            : {
+                    ...(typeof terserOptions.compress === 'object' ? terserOptions.compress : {}),
+                    module: false,
+                    toplevel: false
+                },
+        mangle: terserOptions.mangle === false
+            ? false
+            : {
+                    ...(typeof terserOptions.mangle === 'object' ? terserOptions.mangle : {}),
+                    module: false,
+                    toplevel: false
+                }
+    };
 
-    const resolved: MinifyOptions = { ...terserOptions };
+    if (outputHasQuoteStyle || formatHasQuoteStyle) {
+        return resolved;
+    }
 
     if (format && typeof format === 'object') {
         resolved.format = { ...format, ['quote_style']: 3 };
@@ -218,10 +241,7 @@ function processScriptNode(scriptNode: PostHTML.Node, terserOptions: MinifyOptio
         });
 }
 
-function processNodeWithOnAttrs(node: PostHTML.Node, terserOptions: MinifyOptions, terser: typeof import('terser')) {
-    const jsWrapperStart = 'a=function(){';
-    const jsWrapperEnd = '};a();';
-
+function processNodeWithOnAttrs(node: PostHTML.Node, terserOptions: MinifyOptions, terser: typeof import('terser'), decoded = false) {
     const onAttrTerserOptions = resolveOnAttrTerserOptions(terserOptions);
 
     const promises: Promise<void>[] = [];
@@ -239,20 +259,14 @@ function processNodeWithOnAttrs(node: PostHTML.Node, terserOptions: MinifyOption
             continue;
         }
 
-        // For example onclick="return false" is valid,
-        // but "return false;" is invalid (error: 'return' outside of function)
-        // Therefore the attribute's code should be wrapped inside function:
-        // "function _(){return false;}"
-        const wrappedJs = jsWrapperStart + node.attrs[attrName] + jsWrapperEnd;
+        const js = decoded ? attrValue : decodeHTMLAttribute(attrValue);
         const promise = terser
-            .minify(wrappedJs, onAttrTerserOptions)
+            .minify(js, onAttrTerserOptions)
             .then(({ code }) => {
-                if (code) {
-                    const minifiedJs = code.substring(
-                        jsWrapperStart.length,
-                        code.length - jsWrapperEnd.length
-                    );
-                    node.attrs![attrName] = minifiedJs;
+                if (code !== undefined) {
+                    // Encode ampersands so newly printed character references
+                    // cannot become quotes or executable code in the browser.
+                    node.attrs![attrName] = code.replace(/&/g, '&amp;');
                 }
             })
             .catch((error: unknown) => {

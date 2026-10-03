@@ -1,4 +1,9 @@
-import { init } from '../htmlnano.ts';
+import { expect } from 'expect';
+import { runInNewContext } from 'node:vm';
+import { parseFragment } from 'parse5';
+import type { DefaultTreeAdapterTypes } from 'parse5';
+import { init, initWithPostHtmlOptions } from '../htmlnano.ts';
+import { process as processHtml } from '../../dist/index.mjs';
 import safePreset from '../../dist/presets/safe.mjs';
 import ampSafePreset from '../../dist/presets/ampSafe.mjs';
 import maxPreset from '../../dist/presets/max.mjs';
@@ -64,7 +69,7 @@ describe('minifyJs', () => {
     it('should still minify handlers on external scripts', () => {
         return init(
             '<script src="file.js" onload="foo (1 + 2)">not JavaScript</script>',
-            '<script src="file.js" onload="foo(3)">not JavaScript</script>',
+            '<script src="file.js" onload="foo(3);">not JavaScript</script>',
             options
         );
     });
@@ -109,7 +114,7 @@ describe('minifyJs', () => {
     it('should minify JS inside on* attributes', () => {
         return init(
             '<a href="#" onclick="return function () {};">click</a>',
-            '<a href="#" onclick="return function(){}">click</a>',
+            '<a href="#" onclick="return function(){};">click</a>',
             options
         );
     });
@@ -117,7 +122,7 @@ describe('minifyJs', () => {
     it('should minify JS inside mixed-case on* attributes', () => {
         return init(
             '<a href="#" onClick="return function () {};">click</a>',
-            '<a href="#" onClick="return function(){}">click</a>',
+            '<a href="#" onClick="return function(){};">click</a>',
             options
         );
     });
@@ -130,10 +135,63 @@ describe('minifyJs', () => {
         );
     });
 
+    it('should minify handlers ending in line comments', () => {
+        return init(
+            '<button onclick="return 1 + 2; // comment"></button>',
+            '<button onclick="return 3;"></button>',
+            options
+        );
+    });
+
+    for (const minifyJs of [{ compress: false, mangle: false }, { format: { beautify: true } }, { module: true, toplevel: true, compress: { module: true, toplevel: true }, mangle: { module: true, toplevel: true } }]) {
+        it(`should preserve handler semantics with ${JSON.stringify(minifyJs)}`, async () => {
+            const result = await processHtml('<button onclick="var event; var arguments; return event.value + arguments[0].value + this.value;"></button>', { minifyJs }, {});
+            const code = getHandlerCode(result.html);
+            expect(runInNewContext(`(function(event) { ${code} }).call({value: 4}, {value: 3})`)).toBe(10);
+        });
+    }
+
+    it('should preserve window.onerror parameters', async () => {
+        const result = await processHtml('<body onerror="var source; var lineno; var colno; var error; return [event, source, lineno, colno, error];"></body>', options, {});
+        const code = getHandlerCode(result.html, 'onerror');
+        expect(runInNewContext(`(function(event, source, lineno, colno, error) { ${code} })(1, 2, 3, 4, 5)`)).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it('should decode character references in handler code', () => {
+        return init(
+            '<button onclick="if (a &amp;&amp; b) foo (1 + 2)"></button>',
+            '<button onclick="a&amp;&amp;b&amp;&amp;foo(3);"></button>',
+            options
+        );
+    });
+
+    it('should respect already decoded handler values', () => {
+        return initWithPostHtmlOptions(
+            '<button onclick="return \'&amp;lt;\'"></button>',
+            '<button onclick="return\'&amp;lt;\';"></button>',
+            options,
+            { decodeEntities: true }
+        );
+    });
+
+    it('should not turn printed character references into handler code', async () => {
+        const result = await processHtml(String.raw`<button onclick="return '\x26quot;); injected(); //'"></button>`, options, {});
+        const code = getHandlerCode(result.html);
+        expect(runInNewContext(`(function() { ${code} })()`)).toBe('&quot;); injected(); //');
+    });
+
+    it('should empty handlers containing only removable comments', () => {
+        return init('<button onclick="/* comment */"></button>', '<button onclick=""></button>', options);
+    });
+
+    it('should preserve required semicolons in handlers', () => {
+        return init('<button onclick="if (foo()) ;"></button>', '<button onclick="if(foo());"></button>', { minifyJs: { compress: false } });
+    });
+
     it('should minify JS with `this` inside on* attributes ', () => {
         return init(
             '<video oncanplay="this.currentTime = 1.2; this.oncanplay=null;"></video>',
-            '<video oncanplay="this.currentTime=1.2,this.oncanplay=null"></video>',
+            '<video oncanplay="this.currentTime=1.2,this.oncanplay=null;"></video>',
             options
         );
     });
@@ -141,7 +199,7 @@ describe('minifyJs', () => {
     it('should minify JS with `this` inside on* attributes with `module` option', () => {
         return init(
             '<video oncanplay="this.currentTime = 1.2; this.oncanplay=null;"></video>',
-            '<video oncanplay="this.currentTime=1.2,this.oncanplay=null"></video>',
+            '<video oncanplay="this.currentTime=1.2,this.oncanplay=null;"></video>',
             { minifyJs: { module: true } }
         );
     });
@@ -180,8 +238,8 @@ describe('minifyJs', () => {
             `<a href="#" onclick="myFunc('my string')"></a>
             <a href="#" onclick='myFunc("my string")'></a>`,
 
-            `<a href="#" onclick="myFunc('my string')"></a>
-            <a href="#" onclick='myFunc("my string")'></a>`,
+            `<a href="#" onclick="myFunc('my string');"></a>
+            <a href="#" onclick='myFunc("my string");'></a>`,
             options
         );
     });
@@ -223,7 +281,7 @@ describe('minifyJs', () => {
     it('should switch to single quotes when an on* handler contains double quotes', () => {
         return init(
             `<a href="#" onclick='alert("hi")'>x</a>`,
-            `<a href="#" onclick='alert("hi")'>x</a>`,
+            `<a href="#" onclick='alert("hi");'>x</a>`,
             options
         );
     });
@@ -231,7 +289,7 @@ describe('minifyJs', () => {
     it('should apply smart quotes even when boolean attributes are present', () => {
         return init(
             `<button hidden onclick='alert("hi")'>x</button>`,
-            `<button hidden="" onclick='alert("hi")'>x</button>`,
+            `<button hidden="" onclick='alert("hi");'>x</button>`,
             options
         );
     });
@@ -239,7 +297,7 @@ describe('minifyJs', () => {
     it('should skip smart quotes when an attribute mixes single and double quotes', () => {
         return init(
             `<a title="it's &quot;x&quot;" onclick='f("a")'>y</a>`,
-            `<a title="it's &quot;x&quot;" onclick="f(&quot;a&quot;)">y</a>`,
+            `<a title="it's &quot;x&quot;" onclick="f(&quot;a&quot;);">y</a>`,
             options
         );
     });
@@ -247,7 +305,7 @@ describe('minifyJs', () => {
     it('should keep user-provided quote_style in Terser format option', () => {
         return init(
             `<a onclick="f('s')"></a>`,
-            `<a onclick="f('s')"></a>`,
+            `<a onclick="f('s');"></a>`,
             // eslint-disable-next-line camelcase -- Terser format option name
             { minifyJs: { format: { quote_style: 1 } } }
         );
@@ -256,7 +314,7 @@ describe('minifyJs', () => {
     it('should resolve on* Terser options with an empty output option', () => {
         return init(
             `<a onclick="f('s')"></a>`,
-            `<a onclick="f('s')"></a>`,
+            `<a onclick="f('s');"></a>`,
             { minifyJs: { output: {} } }
         );
     });
@@ -264,7 +322,7 @@ describe('minifyJs', () => {
     it('should resolve on* Terser options with an empty format option', () => {
         return init(
             `<a onclick="f('s')"></a>`,
-            `<a onclick="f('s')"></a>`,
+            `<a onclick="f('s');"></a>`,
             { minifyJs: { format: {} } }
         );
     });
@@ -304,8 +362,15 @@ describe('minifyJs', () => {
     it('should drop legal comments from on* attributes with the max preset', () => {
         return init(
             '<a onclick="/*! @license MIT */ foob()"></a>',
-            '<a onclick="foob()"></a>',
+            '<a onclick="foob();"></a>',
             { minifyJs: maxPreset.minifyJs }
         );
     });
 });
+
+function getHandlerCode(html: string, attrName = 'onclick') {
+    // Use a native element because parseFragment omits the <body> wrapper.
+    const fragment = parseFragment(html.replace(/<\/?body/g, tag => tag.replace('body', 'div')));
+    const element = fragment.childNodes[0] as DefaultTreeAdapterTypes.Element;
+    return element.attrs.find(attr => attr.name === attrName)!.value;
+}

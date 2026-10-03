@@ -1348,6 +1348,10 @@ htmlnano.process(html, { minifyJs: { format: { comments: 'some' } } }, htmlnano.
 - Any `<script>` with an `integrity` attribute is skipped to preserve SRI safety. Generate SRI after minification if you rely on it.
 - Content of scripts with a `src` attribute is left untouched; their event handlers can still be minified.
 - Inline event handler attributes (like `onclick` or `onClick`) are minified as JavaScript.
+- Handler bodies support `return` and trailing line comments, and character references are decoded before
+  minification and escaped for HTML afterward. Invalid handlers are preserved. For handlers, `module`,
+  `toplevel` (including nested compressor/mangler options), and `enclose` are disabled to preserve their
+  implicit parameters and execution context; nested functions can still be compressed and mangled.
 - CDATA wrappers inside `<script>` in SVG are preserved; the inner JS is minified and re-wrapped.
 - For AMP documents, inline handlers like `on="tap:..."` are not modified when using the AMP-safe preset.
 

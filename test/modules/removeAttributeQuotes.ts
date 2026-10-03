@@ -129,7 +129,7 @@ describe('removeAttributeQuotes', () => {
     it('should handle event-handler output', () => {
         return initIdempotent(
             '<button onclick="alert(1); return false"></button>',
-            '<button onclick="return alert(1),!1"></button>',
+            '<button onclick="return alert(1),!1;"></button>',
             options
         );
     });
