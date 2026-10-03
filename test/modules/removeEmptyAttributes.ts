@@ -6,6 +6,11 @@ describe('removeEmptyAttributes', () => {
         removeEmptyAttributes: safePreset.removeEmptyAttributes
     };
 
+    it('should preserve attributes named after inherited object properties', () => {
+        const html = '<div constructor="" __definegetter__=" " __lookupgetter__="data"></div>';
+        return init(html, html, options);
+    });
+
     it('should remove empty attributes', () => {
         return init(
             '<div ID="" class="" style title="" lang="en" dir="" alt=""></div>',

@@ -1,4 +1,4 @@
-import { isEventHandler } from '../helpers';
+import { hasOwn, isEventHandler } from '../helpers';
 import type { HtmlnanoModule } from '../types';
 
 const safeToRemoveAttrs: Record<string, string[] | null> = {
@@ -102,7 +102,9 @@ const mod: HtmlnanoModule = {
             const tagName = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
             Object.entries(attrs).forEach(([attrName, attrValue]) => {
                 const normalizedAttrName = attrName.toLowerCase();
-                const safeAttr = safeToRemoveAttrs[normalizedAttrName];
+                const safeAttr = hasOwn(safeToRemoveAttrs, normalizedAttrName)
+                    ? safeToRemoveAttrs[normalizedAttrName]
+                    : undefined;
                 if (
                     isEventHandler(attrName, tagName)
                     || (
