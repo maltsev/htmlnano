@@ -15,7 +15,7 @@ describe('normalizeAttributeValues', () => {
 
     it('normalize invalid value default', () => {
         return Promise.all([
-            // attribute on any tag
+            // CORS settings attribute
             init(
                 '<img crossorigin="example">',
                 '<img crossorigin="anonymous">',
@@ -84,7 +84,7 @@ describe('normalizeAttributeValues', () => {
         );
     });
 
-    it('normalizes casing and whitespace for invalid defaults', () => {
+    it('normalizes casing without trimming enumerated values', () => {
         return Promise.all([
             init(
                 '<img loading="LAZY">',
@@ -93,7 +93,7 @@ describe('normalizeAttributeValues', () => {
             ),
             init(
                 '<img loading="  LAZY  ">',
-                '<img loading="lazy">',
+                '<img loading="eager">',
                 options
             ),
             init(
@@ -107,5 +107,35 @@ describe('normalizeAttributeValues', () => {
                 options
             )
         ]);
+    });
+
+    it('does not enable credentials or weaken a policy by trimming invalid values', () => {
+        return init(
+            '<img crossorigin=" use-credentials "><a referrerpolicy=" unsafe-url "></a>',
+            '<img crossorigin="anonymous"><a referrerpolicy=""></a>',
+            options
+        );
+    });
+
+    it('recognizes decoded keywords and preserves encoded significant whitespace', () => {
+        return init(
+            '<a referrerpolicy="NO&#45;REFERRER"></a><img crossorigin="USE&#45;CREDENTIALS"><img loading="&#76;AZY"><a referrerpolicy="&Tab;NO-REFERRER"></a>',
+            '<a referrerpolicy="no-referrer"></a><img crossorigin="use-credentials"><img loading="lazy"><a referrerpolicy=""></a>',
+            options
+        );
+    });
+
+    it('accepts every current referrer policy', () => {
+        const policies = ['no-referrer', 'no-referrer-when-downgrade', 'same-origin', 'origin', 'strict-origin', 'origin-when-cross-origin', 'strict-origin-when-cross-origin', 'unsafe-url'];
+        return Promise.all(policies.map(policy => init(
+            `<a referrerpolicy="${policy.toUpperCase()}"></a>`,
+            `<a referrerpolicy="${policy}"></a>`,
+            options
+        )));
+    });
+
+    it('ignores CORS and referrer policy attributes on unrelated elements', () => {
+        const html = '<custom-fetch crossorigin="USE-CREDENTIALS" referrerpolicy="NO-REFERRER"></custom-fetch><div crossorigin="example" referrerpolicy="example"></div>';
+        return init(html, html, options);
     });
 });

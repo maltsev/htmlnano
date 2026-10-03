@@ -15,7 +15,7 @@ const caseInsensitiveAttributes: Record<string, null | string[]> = {
     kind: ['track'],
     method: ['form'],
     preload: ['audio', 'video'],
-    referrerpolicy: null,
+    referrerpolicy: ['a', 'area', 'iframe', 'img', 'link', 'script'],
     sandbox: ['iframe'],
     spellcheck: null,
     scope: ['th'],
@@ -42,16 +42,16 @@ const caseInsensitiveAttributes: Record<string, null | string[]> = {
 // https://html.spec.whatwg.org/#invalid-value-default
 const invalidValueDefault: Record<string, { tag: null | string[]; default: string; valid: string[] }> = {
     crossorigin: {
-        tag: null,
+        tag: ['audio', 'img', 'link', 'script', 'video'],
         default: 'anonymous',
         valid: ['', 'anonymous', 'use-credentials']
     },
     // https://html.spec.whatwg.org/#referrer-policy-attributes
     // The attribute's invalid value default and missing value default are both the empty string state.
     referrerpolicy: {
-        tag: null,
+        tag: ['a', 'area', 'iframe', 'img', 'link', 'script'],
         default: '',
-        valid: ['', 'url', 'origin', 'no-referrer', 'no-referrer-when-downgrade', 'same-origin', 'origin-when-cross-origin', 'strict-origin-when-cross-origin', 'unsafe-url']
+        valid: ['', 'origin', 'no-referrer', 'no-referrer-when-downgrade', 'same-origin', 'origin-when-cross-origin', 'strict-origin', 'strict-origin-when-cross-origin', 'unsafe-url']
     },
     // https://html.spec.whatwg.org/#lazy-loading-attributes
     loading: {
@@ -114,6 +114,10 @@ const invalidValueDefault: Record<string, { tag: null | string[]; default: strin
     }
 };
 
+function asciiLowercase(value: string): string {
+    return value.replace(/[A-Z]/g, char => char.toLowerCase());
+}
+
 const mod: HtmlnanoModule = {
     onAttrs() {
         return (attrs, node) => {
@@ -132,18 +136,14 @@ const mod: HtmlnanoModule = {
                     invalidMeta
                     && (invalidMeta.tag === null || (node && node.tag && invalidMeta.tag.includes(node.tag)))
                 );
-                const shouldNormalizeCase = hasCaseInsensitive || appliesInvalidValueDefault;
-
-                if (typeof attrValue === 'string' && shouldNormalizeCase) {
-                    // Hidden keywords match the decoded value exactly; whitespace
-                    // makes "until-found" invalid and selects the hidden state.
-                    newAttrValue = (attrName === 'hidden' ? decodeHTMLAttribute(attrValue) : attrValue.trim()).toLowerCase();
-                }
 
                 if (appliesInvalidValueDefault && invalidMeta) {
-                    if (typeof newAttrValue !== 'string' || !invalidMeta.valid.includes(newAttrValue)) {
-                        newAttrValue = invalidMeta.default;
-                    }
+                    // Enumerated keywords match the decoded value exactly, with
+                    // ASCII case folding. Whitespace must not make invalid values valid.
+                    const value = asciiLowercase(typeof attrValue === 'string' ? decodeHTMLAttribute(attrValue) : '');
+                    newAttrValue = invalidMeta.valid.includes(value) ? value : invalidMeta.default;
+                } else if (typeof attrValue === 'string' && hasCaseInsensitive) {
+                    newAttrValue = attrValue.trim().toLowerCase();
                 }
 
                 newAttrs[attrName] = newAttrValue;
