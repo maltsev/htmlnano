@@ -26,6 +26,11 @@ const mod: HtmlnanoModule = {
 
             Object.keys(attrs).forEach((attrName) => {
                 const attrNameLower = attrName.toLowerCase();
+                // Each ping URL triggers a request, including repeated URLs.
+                if (attrNameLower === 'ping') {
+                    return;
+                }
+
                 if (!isListAttribute(attrNameLower, tagName)) {
                     return;
                 }

@@ -22,6 +22,14 @@ describe('deduplicateAttributeValues', () => {
         );
     });
 
+    it('should preserve repeated ping URLs and their request count', () => {
+        return init(
+            '<a href="/" ping="/audit /audit /other">click</a><area href="/" ping="/audit /audit">',
+            '<a href="/" ping="/audit /audit /other">click</a><area href="/" ping="/audit /audit">',
+            options
+        );
+    });
+
     it('should treat non-ASCII whitespace as part of a token', () => {
         return init(
             '<div class="foo\u00a0bar foo\u00a0bar foo\u000bbar"></div>',
