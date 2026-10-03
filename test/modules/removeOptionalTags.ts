@@ -24,7 +24,7 @@ describe('removeOptionalTags', () => {
             ['<body>&not</body>in;', '¬in;'],
             ['<body>&#6</body>5;', '\u00065;'],
             ['<body>&#x3</body>c;', '\u0003c;'],
-            ['<body>&#13</body>0;', '&#13;0;'],
+            ['<body>&#13</body>0;', '<body>&#13;0;'],
             ['<body>&amp;</body>copy;', '&amp;copy;']
         ];
         for (const [input, expected] of cases) {
@@ -39,6 +39,26 @@ describe('removeOptionalTags', () => {
 
         await initIdempotent(input, expected, { removeOptionalTags: { removeStartTags: false } });
         expect(parse(expected)).toEqual(parse(input));
+    });
+
+    it('keeps encoded whitespace in its original document or table container', async () => {
+        for (const whitespace of ['&#32;', '&#x09;', '&NewLine;', '&#32']) {
+            const cases = [
+                [`<body>${whitespace}text</body>`, `<body>${whitespace}text`],
+                [
+                    `<head><title>x</title></head>${whitespace}<body>text</body>`,
+                    `<head><title>x</title></head>${whitespace === '&#32' ? ' ' : whitespace}text`
+                ],
+                [
+                    `<table><colgroup><col></colgroup>${whitespace}<tbody><tr><td>x</td></tr></tbody></table>`,
+                    `<table><colgroup><col></colgroup>${whitespace}<tr><td>x</table>`
+                ]
+            ];
+            for (const [input, expected] of cases) {
+                await initIdempotent(input, expected, options);
+                expect(parse(expected)).toEqual(parse(input));
+            }
+        }
     });
 
     it('preserves apparent optional tags in literal text content', async () => {

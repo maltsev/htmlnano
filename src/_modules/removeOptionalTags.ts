@@ -1,4 +1,5 @@
 import type PostHTML from 'posthtml';
+import { decodeHTML } from 'entities';
 import { isComment } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike, PostHTMLTreeLike, RemoveOptionalTagsOptions } from '../types';
 import { escapeTextBoundary } from './helpers/escapeTextBoundary';
@@ -164,6 +165,12 @@ function normalizeOptions(moduleOptions: Partial<RemoveOptionalTagsConfig>): Nor
     };
 }
 
+function startsWithWhitespace(text: string) {
+    // Character references become character tokens before the parser decides
+    // which document section or table container owns the whitespace.
+    return startWithWhitespacePattern.test(text.startsWith('&') ? decodeHTML(text) : text);
+}
+
 /** Empty strings are dropped by posthtml-render, so they can't separate two nodes. */
 function isRenderedNode(node: PostHTMLNodeLike | undefined) {
     if (node === undefined || node === null) return false;
@@ -284,7 +291,7 @@ function canOmitEndTag(
     const isNextTaglessNode = nextNode !== null && typeof nextNode !== 'string' && nextTagName === false;
     const isNextComment = typeof nextNode === 'string' && isComment(nextNode);
     const isNextWhitespaceOrComment = typeof nextNode === 'string'
-        && (startWithWhitespacePattern.test(nextNode) || isComment(nextNode));
+        && (startsWithWhitespace(nextNode) || isComment(nextNode));
 
     switch (tagName) {
         /** An "html" element's end tag may be omitted if it is not IMMEDIATELY followed by a comment. */
@@ -419,7 +426,7 @@ function canOmitStartTag(
             if (firstChildNode === null) return true;
 
             if (typeof firstChildNode === 'string') {
-                return !(startWithWhitespacePattern.test(firstChildNode) || isComment(firstChildNode));
+                return !(startsWithWhitespace(firstChildNode) || isComment(firstChildNode));
             }
 
             return typeof firstChildTagName === 'string'
