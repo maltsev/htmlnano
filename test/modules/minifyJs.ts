@@ -103,6 +103,39 @@ describe('minifyJs', () => {
         );
     });
 
+    for (const payload of [
+        String.raw`\u003c/ScRiPt>\u003cimg src=x onerror=injected()>`,
+        String.raw`\u003c/script >\u003cimg src=x onerror=injected()>`,
+        String.raw`\u003c/script/>\u003cimg src=x onerror=injected()>`,
+        String.raw`\u003c!--\u003cscript>`
+    ]) {
+        it(`should preserve scripts when minification would change HTML parsing: ${payload}`, async () => {
+            const html = `<script>var payload = "${payload}";</script><p>after</p>`;
+            const result = await processHtml(html, {
+                // eslint-disable-next-line camelcase -- Terser format option name
+                minifyJs: { format: { inline_script: false } }
+            }, {});
+            expect(result.html).toBe(html);
+            expect(parseFragment(result.html)).toEqual(parseFragment(html));
+        });
+    }
+
+    it('should preserve scripts when a Terser preamble contains a closing script tag', () => {
+        const html = '<script> foo (); </script><p>after</p>';
+        return init(html, html, { minifyJs: { output: { preamble: '</script><img src=x onerror=injected()>' } } });
+    });
+
+    it('should still minify safely escaped script payloads', async () => {
+        const result = await processHtml(String.raw`<script>var payload = "\u003c/script>\u003cimg src=x onerror=injected()>";</script><p>after</p>`, options, {});
+        const fragment = parseFragment(result.html);
+        expect(fragment.childNodes).toHaveLength(2);
+        expect((fragment.childNodes[1] as DefaultTreeAdapterTypes.Element).tagName).toBe('p');
+        const script = fragment.childNodes[0] as DefaultTreeAdapterTypes.Element;
+        const code = (script.childNodes[0] as DefaultTreeAdapterTypes.TextNode).value;
+        expect(runInNewContext(`${code}; payload`)).toBe('</script><img src=x onerror=injected()>');
+        expect(code).toBe('var payload="<\\/script><img src=x onerror=injected()>";');
+    });
+
     it('should minify module scripts with ES module syntax', () => {
         return init(
             '<script type="module">export const foo = 1;</script>',

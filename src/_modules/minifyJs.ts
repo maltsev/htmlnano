@@ -239,6 +239,15 @@ function processScriptNode(scriptNode: PostHTML.Node, terserOptions: MinifyOptio
                 content = '/*<![CDATA[*/' + content + '/*]]>*/';
             }
 
+            // Terser normally escapes these markers, but inline_script:false
+            // and custom preambles can introduce live markup or make HTML's
+            // script tokenizer swallow the closing tag and following content.
+            const escapedStart = content.indexOf('<!--');
+            if (/<\/script(?=[\t\n\f\r />])/i.test(content)
+                || (escapedStart !== -1 && /<script(?=[\t\n\f\r />])/i.test(content.slice(escapedStart + 4)))) {
+                return;
+            }
+
             scriptNode.content = [content];
         });
 }
