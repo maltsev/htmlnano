@@ -7,6 +7,21 @@ import { describe, it } from 'mocha';
 
 describe('sortAttributesWithLists', () => {
     for (const sortType of ['alphabetical', 'frequency'] as const) {
+        for (const dropzone of ['move copy string:text/plain', 'm&#111;ve copy string:text/plain', 'move&#32;string:text/plain copy']) {
+            it(`${sortType} preserves conflicting dropzone operations in ${dropzone}`, () => {
+                const input = `<div dropzone="${dropzone}"></div>`;
+                return initIdempotent(input, input, { sortAttributesWithLists: sortType });
+            });
+        }
+
+        it(`${sortType} still sorts dropzone values with a single operation`, () => {
+            return initIdempotent(
+                '<div dropzone="string:text/plain move file:image/png"></div>',
+                '<div dropzone="file:image/png move string:text/plain"></div>',
+                { sortAttributesWithLists: sortType }
+            );
+        });
+
         it(`${sortType} prevents attribute injection when sorting creates a JSON-like value`, async () => {
             const input = '<div class="onmouseover=\'alert(1)\'&quot;} {&quot;x&quot;:&quot;foo\'"></div>';
             const expected = '<div class=\'{"x":"foo&#39; onmouseover=&#39;alert(1)&#39;"}\'></div>';

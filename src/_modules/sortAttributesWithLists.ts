@@ -1,4 +1,5 @@
 // class, rel, ping
+import { decodeHTMLAttribute } from 'entities';
 import type { HtmlnanoModule, PostHTMLTreeLike, SortAttributesOption } from '../types';
 import { isListAttribute } from './collapseAttributeWhitespace';
 import { canRenderApostrophe } from './helpers/attributeQuoting.js';
@@ -112,6 +113,15 @@ function walkListAttributes(
             const attrNameLower = attrName.toLowerCase();
             if (!isListAttribute(attrNameLower, tagName) || typeof attrValues !== 'string') {
                 return;
+            }
+
+            if (attrNameLower === 'dropzone') {
+                // With conflicting operations, the historical dropzone algorithm
+                // uses the first one. References can hide operations or separators.
+                const operations = new Set(splitListAttributeValues(decodeHTMLAttribute(attrValues))
+                    .filter(value => /^(copy|move|link)$/i.test(value))
+                    .map(value => value.toLowerCase()));
+                if (operations.size > 1) return;
             }
 
             walkFn(node.attrs!, attrName, attrValues);

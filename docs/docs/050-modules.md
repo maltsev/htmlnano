@@ -486,6 +486,7 @@ However it will improve the compression ratio of gzip/brotli used in HTTP compre
 
 Frequency sorting preserves duplicates, ignores redundant whitespace in the attribute value, and uses alphabetical ordering to break ties.
 Attribute name casing is preserved.
+Values with conflicting `dropzone` operations (`copy`, `move`, `link`) are left unchanged because the first operation takes precedence.
 
 #### Example
 
