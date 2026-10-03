@@ -1513,6 +1513,7 @@ htmlnano enables SVGO multipass by default; set `multipass: false` to disable it
 - Explicit `preset-default` overrides take precedence over these defaults. For example, `params: { overrides: { cleanupIds: {} } }` re-enables ID cleanup. Plugins explicitly listed outside the preset, custom plugins, and an empty plugin list are passed through as configured.
 - SVGs are rendered with quoted attributes before SVGO runs to keep the output stable.
 - SVGs containing `foreignObject`, or HTML markup inside `title`/`desc`, are left to the other HTML minification modules. SVGO's XML parsing and serialization can change embedded HTML structure, raw-text content, and whitespace, and can turn escaped text into executable markup.
+- HTML tags that [cause browsers to leave SVG content](https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inforeign), such as `p`, also cause the enclosing SVG to bypass SVGO, preserving content that PostHTML represents as SVG descendants.
 - SVGs containing numeric references with different HTML/XML meanings (such as `&#128;`), or carriage-return references (`&#13;`), also bypass SVGO to preserve their browser-parsed values.
 - Parser errors from SVGO leave the original `<svg>` as-is. Other SVGO errors are logged and the module falls back to a no-plugin SVGO run; if that also fails, the original SVG is preserved.
 - Set `skipInternalWarnings: true` to suppress SVGO error logging.

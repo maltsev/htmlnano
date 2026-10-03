@@ -13,6 +13,16 @@ const inlineSvgOverrides = {
     inlineStyles: { removeMatchedSelectors: false }
 } as const;
 
+// These HTML start tags make browsers leave foreign content, even when
+// PostHTML represents them as SVG descendants.
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inforeign
+const htmlBreakoutTags = new Set([
+    'b', 'big', 'blockquote', 'body', 'br', 'center', 'code', 'dd', 'div', 'dl',
+    'dt', 'em', 'embed', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'hr', 'i',
+    'img', 'li', 'listing', 'menu', 'meta', 'nobr', 'ol', 'p', 'pre', 'ruby', 's',
+    'small', 'span', 'strong', 'strike', 'sub', 'sup', 'table', 'tt', 'u', 'ul', 'var'
+]);
+
 /** Minify SVG with SVGO */
 const mod: HtmlnanoModule<SvgoConfig> = {
     async default(tree, options, svgoOptions) {
@@ -86,8 +96,11 @@ function hasUnsafeNumericReferences(svg: string): boolean {
 function containsHtmlContent(node: PostHTMLNodeLike): boolean {
     if (!node || typeof node !== 'object') return false;
 
-    const tag = node.tag?.toLowerCase();
-    if (tag === 'foreignobject') return true;
+    const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+    if (tag === 'foreignobject' || tag && htmlBreakoutTags.has(tag)) return true;
+    if (tag === 'font' && Object.keys(node.attrs ?? {}).some(name => (
+        ['color', 'face', 'size'].includes(name.toLowerCase())
+    ))) return true;
 
     const content = Array.isArray(node.content) ? node.content : [node.content];
     // SVG title/desc are also HTML integration points. PostHTML parses title

@@ -320,6 +320,29 @@ describe('minifySvg', () => {
         });
     }
 
+    it('should preserve HTML tags that browsers move outside SVG', async () => {
+        const inputs = [
+            '<svg><g><p>outside SVG</p></g></svg>',
+            '<svg><g><DIV>outside SVG</DIV></g></svg>',
+            ...['color="red"', 'FACE="serif"', 'size="3"'].map(attribute => (
+                `<svg><g><font ${attribute}>outside SVG</font></g></svg>`
+            ))
+        ];
+
+        for (const input of inputs) {
+            const { html } = await htmlnano.process(input, {
+                minifySvg: {},
+                skipConfigLoading: true
+            }, {});
+
+            expect(serialize(parse(html))).toBe(serialize(parse(input)));
+        }
+    });
+
+    it('should still optimize SVG font elements without HTML font attributes', () => {
+        return init('<svg><font></font></svg>', '<svg><font/></svg>', { minifySvg: { plugins: [] } });
+    });
+
     // https://github.com/maltsev/htmlnano/issues/197
     it('shouldn\'t choke on svg errors', () => {
         const input = `
