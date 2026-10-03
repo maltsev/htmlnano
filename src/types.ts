@@ -4,6 +4,7 @@ export type PostHTMLNodeLike = PostHTML.Node | string;
 
 export type PostHTMLTreeLike = [PostHTMLNodeLike] & PostHTML.NodeAPI & {
     options?: {
+        decodeEntities?: boolean;
         quoteAllAttributes?: boolean | undefined;
         quoteStyle?: 0 | 1 | 2 | undefined;
         replaceQuote?: boolean | undefined;

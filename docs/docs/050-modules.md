@@ -1315,7 +1315,10 @@ htmlnano.process(html, {
 });
 ```
 
-The module treats script types with parameters (for example `text/javascript; charset=utf-8`) as JavaScript.
+Script types follow HTML's script type detection: values with parameters (for example
+`text/javascript; charset=utf-8`) and whitespace-only values are data blocks and are left untouched.
+Tag and attribute names are matched case-insensitively, character references in type values are decoded,
+and the legacy `language` attribute is considered when `type` is absent.
 For `type="module"` scripts, it enables Terser's `module` option unless you explicitly set `module` yourself.
 
 #### Legal comments (`@license`, `@preserve`, `/*!`)
@@ -1343,6 +1346,7 @@ htmlnano.process(html, { minifyJs: { format: { comments: 'some' } } }, htmlnano.
 #### Notes
 - Only JavaScript script types are processed: the default type, `text/javascript`, `application/javascript`, and legacy `text/ecmascript`. Other types (for example `application/json`) are left untouched.
 - Any `<script>` with an `integrity` attribute is skipped to preserve SRI safety. Generate SRI after minification if you rely on it.
+- Content of scripts with a `src` attribute is left untouched; their event handlers can still be minified.
 - Inline event handler attributes (like `onclick` or `onClick`) are minified as JavaScript.
 - CDATA wrappers inside `<script>` in SVG are preserved; the inner JS is minified and re-wrapped.
 - For AMP documents, inline handlers like `on="tap:..."` are not modified when using the AMP-safe preset.

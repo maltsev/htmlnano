@@ -36,10 +36,35 @@ describe('minifyJs', () => {
         );
     });
 
-    it('should minify JS with script type parameters', () => {
+    it('should preserve data blocks with script type parameters', () => {
         return init(
             '<script type="text/javascript; charset=utf-8"> /* test */ var foob = function () {}; </script>',
-            '<script type="text/javascript; charset=utf-8">var foob=function(){};</script>',
+            '<script type="text/javascript; charset=utf-8"> /* test */ var foob = function () {}; </script>',
+            options
+        );
+    });
+
+    for (const attrs of ['type=" "', 'type="module; charset=utf-8"', 'type="&#32;"', 'language="vbscript"', 'TYPE="application/json" type="text/javascript"', 'SRC="file.js"', 'INTEGRITY="example"']) {
+        it(`should preserve script content with ${attrs}`, () => {
+            const html = `<SCRIPT ${attrs}>not JavaScript at all</SCRIPT>`;
+            return init(html, html, options);
+        });
+    }
+
+    for (const attrs of ['TYPE=" TEXT/JAVASCRIPT "', 'type="text&#47;javascript"', 'language="JavaScript"', 'type="" language="vbscript"']) {
+        it(`should recognize JavaScript scripts with ${attrs}`, () => {
+            return init(
+                `<SCRIPT ${attrs}> var foo = 1; </SCRIPT>`,
+                `<SCRIPT ${attrs}>var foo=1;</SCRIPT>`,
+                options
+            );
+        });
+    }
+
+    it('should still minify handlers on external scripts', () => {
+        return init(
+            '<script src="file.js" onload="foo (1 + 2)">not JavaScript</script>',
+            '<script src="file.js" onload="foo(3)">not JavaScript</script>',
             options
         );
     });

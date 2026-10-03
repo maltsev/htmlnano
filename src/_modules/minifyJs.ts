@@ -1,5 +1,6 @@
 import type PostHTML from 'posthtml';
-import { extractTextContentFromNode, isEventHandler, normalizeMimeType, optionalImport } from '../helpers';
+import { decodeHTMLAttribute } from 'entities';
+import { extractTextContentFromNode, isEventHandler, optionalImport } from '../helpers';
 import type { HtmlnanoModule, PostHTMLTreeLike } from '../types';
 import { redundantScriptTypes } from './removeRedundantAttributes.js';
 
@@ -17,7 +18,7 @@ const mod: HtmlnanoModule<MinifyOptions> = {
         let p: Promise<void> | undefined;
 
         tree.walk((node) => {
-            const nodeAttrs = node.attrs || {};
+            const nodeAttrs = normalizeScriptAttrs(node.attrs || {}, tree.options?.decodeEntities === true);
 
             /**
          * Skip SRI
@@ -35,9 +36,8 @@ const mod: HtmlnanoModule<MinifyOptions> = {
                 return node;
             }
 
-            if (node.tag && node.tag === 'script') {
-                const rawMimeType = typeof nodeAttrs.type === 'string' ? normalizeMimeType(nodeAttrs.type) : undefined;
-                const mimeType = rawMimeType || 'text/javascript';
+            if (node.tag?.toLowerCase() === 'script' && !('src' in nodeAttrs)) {
+                const mimeType = getScriptType(nodeAttrs);
                 if (redundantScriptTypes.has(mimeType) || mimeType === 'module') {
                     const scriptTerserOptions = resolveScriptTerserOptions(terserOptions, mimeType);
                     p = processScriptNode(node, scriptTerserOptions, terser);
@@ -62,6 +62,25 @@ const mod: HtmlnanoModule<MinifyOptions> = {
 };
 
 export default mod;
+
+function normalizeScriptAttrs(attrs: PostHTML.NodeAttributes, decoded: boolean) {
+    const normalized = Object.create(null) as PostHTML.NodeAttributes;
+    for (const [name, value] of Object.entries(attrs)) {
+        const normalizedName = name.toLowerCase();
+        if (!(normalizedName in normalized)) {
+            normalized[normalizedName] = typeof value === 'string' && !decoded ? decodeHTMLAttribute(value) : value;
+        }
+    }
+    return normalized;
+}
+
+function getScriptType(attrs: PostHTML.NodeAttributes) {
+    if ('type' in attrs) {
+        const type = typeof attrs.type === 'string' ? attrs.type : '';
+        return type === '' ? 'text/javascript' : type.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, '').toLowerCase();
+    }
+    return attrs.language ? `text/${attrs.language}`.toLowerCase() : 'text/javascript';
+}
 
 function stripCdata(js: string) {
     const leftStrippedJs = js.replace(/\/\/\s*<!\[CDATA\[/, '').replace(/\/\*\s*<!\[CDATA\[\s*\*\//, '');
