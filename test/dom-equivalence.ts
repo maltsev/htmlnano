@@ -5,6 +5,7 @@ import {
     parseFragment
 } from 'parse5';
 import type { DefaultTreeAdapterTypes } from 'parse5';
+import { isEventHandler } from '../dist/helpers.mjs';
 
 type Namespace = 'html' | 'mathml' | 'svg';
 
@@ -150,23 +151,27 @@ const CASE_INSENSITIVE_ATTRIBUTES = new Map<string, Set<string> | null>([
 // the safe preset's compatibility contract. Keep this list aligned with
 // removeEmptyAttributes; attributes outside it are compared normally.
 const REMOVABLE_EMPTY_ATTRIBUTES = new Map<string, Set<string> | null>([
-    ['id', null], ['class', null], ['style', null], ['title', null], ['lang', null],
+    ['id', null], ['class', null], ['style', null],
     ['dir', null], ['abbr', new Set(['th'])], ['accept', new Set(['input'])],
-    ['accept-charset', new Set(['form'])], ['charset', new Set(['meta', 'script'])],
+    ['accept-charset', new Set(['form'])], ['charset', new Set(['script'])],
     ['action', new Set(['form'])], ['cols', new Set(['textarea'])],
     ['colspan', new Set(['td', 'th'])], ['coords', new Set(['area'])],
     ['dirname', new Set(['input', 'textarea'])], ['dropzone', null],
-    ['headers', new Set(['td', 'th'])],
-    ['form', new Set(['button', 'fieldset', 'input', 'keygen', 'object', 'output', 'select', 'textarea'])],
-    ['formaction', new Set(['button', 'input'])],
     ['height', new Set(['canvas', 'embed', 'iframe', 'img', 'input', 'object', 'video'])],
-    ['href', new Set(['link'])], ['list', new Set(['input'])],
+    ['list', new Set(['input'])],
     ['name', new Set(['button', 'fieldset', 'form', 'input', 'keygen', 'map', 'meta', 'output', 'param', 'select', 'slot', 'textarea'])],
     ['placeholder', new Set(['input', 'textarea'])], ['rel', new Set(['a', 'area', 'link'])],
-    ['rows', new Set(['textarea'])], ['src', new Set(['audio', 'embed', 'iframe', 'img', 'input', 'script', 'source', 'track', 'video'])],
-    ['tabindex', null], ['type', new Set(['a', 'button', 'embed', 'input', 'link', 'menu', 'menuitem', 'object', 'ol', 'script', 'source', 'style'])],
+    ['rows', new Set(['textarea'])],
+    ['tabindex', null], ['type', new Set(['a', 'button', 'input', 'menu', 'menuitem', 'ol', 'script', 'style'])],
     ['value', new Set(['button', 'input', 'li'])],
     ['width', new Set(['canvas', 'embed', 'iframe', 'img', 'input', 'object', 'video'])]
+]);
+
+const REMOVABLE_WHITESPACE_ATTRIBUTES = new Set([
+    'class', 'style', 'dir', 'accept', 'accept-charset', 'charset', 'cols',
+    'colspan', 'coords', 'dropzone', 'height', 'high', 'low', 'max', 'maxlength',
+    'min', 'minlength', 'ping', 'rel', 'rows', 'rowspan', 'size', 'span', 'start',
+    'tabindex', 'width'
 ]);
 
 const NAMESPACES: Record<Namespace, html.NS> = {
@@ -353,7 +358,7 @@ function normalizeAttributes(
     preset: SafePresetName
 ): NormalizedAttribute[] {
     return element.attrs
-        .filter(attribute => !isRemovableEmptyAttribute(element.tagName, attribute.name, attribute.value))
+        .filter(attribute => !isRemovableEmptyAttribute(element, attribute.name, attribute.value))
         .map(attribute => ({
             name: attribute.name,
             namespace: attribute.namespace ?? null,
@@ -458,9 +463,17 @@ function normalizeViewport(value: string): string {
         .join('');
 }
 
-function isRemovableEmptyAttribute(tagName: string, name: string, value: string): boolean {
-    if (value.trim() !== '') return false;
-    if (name.toLowerCase().startsWith('on')) return true;
+function isRemovableEmptyAttribute(element: DefaultTreeAdapterTypes.Element, name: string, value: string): boolean {
+    const tagName = element.tagName;
+    if (isEventHandler(name, tagName)) return value.trim() === '';
+    if (name === 'dir' && tagName === 'bdi') return false;
+    if (name === 'type' && tagName === 'script' && element.attrs.some(attribute => attribute.name === 'language')) return false;
+    if (name === 'dropzone' && tagName.includes('-')) return false;
+    if (name === 'value' && tagName === 'input') {
+        const type = element.attrs.find(attribute => attribute.name === 'type')?.value.toLowerCase();
+        if (type && ['checkbox', 'radio', 'submit', 'reset'].includes(type)) return false;
+    }
+    if (value !== '' && !(REMOVABLE_WHITESPACE_ATTRIBUTES.has(name) && /^[\t\n\f\r ]*$/.test(value))) return false;
     const tags = REMOVABLE_EMPTY_ATTRIBUTES.get(name.toLowerCase());
     return tags === null || tags?.has(tagName) === true;
 }
