@@ -11,6 +11,8 @@ const RELEASE_TYPES = new Set(['major', 'minor', 'patch']);
 const OPENAI_API_URL = 'https://api.openai.com/v1/responses';
 const OPENAI_MODEL = 'gpt-5.6-sol';
 const GITHUB_FALLBACK_REPOSITORY_URL = 'https://github.com/maltsev/htmlnano';
+const BENCHMARK_REPOSITORY_URL = 'https://github.com/maltsev/html-minifiers-benchmark';
+const BENCHMARK_README_URL = 'https://raw.githubusercontent.com/maltsev/html-minifiers-benchmark/master/README.md';
 const COMMIT_RECORD_SEPARATOR = '\x1e';
 const COMMIT_FIELD_SEPARATOR = '\x1f';
 
@@ -19,6 +21,7 @@ const paths = {
     changelog: path.join(rootDir, 'CHANGELOG.md'),
     docsDir: path.join(rootDir, 'docs', 'docs'),
     packageJson: path.join(rootDir, 'package.json'),
+    readme: path.join(rootDir, 'README.md'),
     releasedDocsDir: path.join(rootDir, 'docs', 'versioned_docs', 'version-stable')
 };
 
@@ -220,6 +223,58 @@ function getCurrentDate() {
     const day = String(now.getDate()).padStart(2, '0');
 
     return `${year}-${month}-${day}`;
+}
+
+async function fetchLatestBenchmarks() {
+    const response = await fetch(BENCHMARK_README_URL, {
+        signal: AbortSignal.timeout(30000)
+    });
+
+    if (!response.ok) {
+        throw new Error(`Benchmark request failed (${response.status} ${response.statusText}).`);
+    }
+
+    const readme = (await response.text()).replace(/\r\n/g, '\n');
+    const updated = readme.match(/^Updated: \d{4}-\d{2}-\d{2}[ \t]*$/m);
+    const table = readme.match(/^\|[ \t]*Website[ \t]*\|[^\n]*\n(?:\|[^\n]*(?:\n|$))+/m);
+
+    if (!updated || !table || !/^\|[ \t]*\*\*Avg\. minify rate\*\*[ \t]*\|/m.test(table[0])) {
+        throw new Error('Benchmark README is missing the update date or results table.');
+    }
+
+    const definitions = new Map();
+    for (const match of readme.matchAll(/^\[([^\]]+)\]:[ \t]+(\S+)[ \t]*$/gm)) {
+        definitions.set(match[1], match[0].trimEnd());
+    }
+
+    const references = Array.from(table[0].split('\n')[0].matchAll(/\[([^\]]+)\]/g), match => match[1]);
+    if (!references.includes('htmlnano')) {
+        throw new Error('Benchmark results table is missing htmlnano.');
+    }
+
+    const links = references.map((reference) => {
+        const definition = definitions.get(reference);
+        if (!definition) {
+            throw new Error(`Benchmark README is missing the reference definition for ${reference}.`);
+        }
+        return definition;
+    });
+
+    return [updated[0].trimEnd(), links.join('\n'), table[0].trimEnd(), `Latest benchmarks: ${BENCHMARK_REPOSITORY_URL} (updated daily).`].join('\n\n');
+}
+
+function replaceReadmeBenchmarks(readme, benchmarks) {
+    const heading = /^## Benchmarks[ \t]*\r?$/m.exec(readme);
+    if (!heading) {
+        throw new Error('README.md is missing the Benchmarks section.');
+    }
+
+    const contentStart = heading.index + heading[0].length;
+    const nextHeading = /^##[ \t]+/m.exec(readme.slice(contentStart));
+    const sectionEnd = nextHeading ? contentStart + nextHeading.index : readme.length;
+    const suffix = readme.slice(sectionEnd);
+
+    return `${readme.slice(0, contentStart)}\n\n${benchmarks}\n${suffix ? `\n${suffix}` : ''}`;
 }
 
 async function summarizeCommitLog(previousVersion, newVersion, commitLog) {
@@ -482,12 +537,19 @@ async function main() {
     }
     const commitLog = formatCommitsForPrompt(commits);
 
+    console.log('Fetching the latest benchmarks...');
+    const benchmarks = await fetchLatestBenchmarks();
+    const readme = replaceReadmeBenchmarks(fs.readFileSync(paths.readme, 'utf8'), benchmarks);
+
     console.log(`Generating changelog for ${newVersion} from ${latestTag || 'initial history'}..HEAD...`);
     const previousVersion = latestTag ? normalizeVersion(latestTag) : null;
     const summary = await summarizeCommitLog(previousVersion, newVersion, commitLog);
 
     console.log('Updating CHANGELOG.md...');
     updateChangelog(newVersion, previousVersion, summary, GITHUB_FALLBACK_REPOSITORY_URL);
+
+    console.log('Updating README.md benchmarks...');
+    fs.writeFileSync(paths.readme, readme);
 
     console.log('Updating the released docs snapshot...');
     snapshotReleasedDocs();
