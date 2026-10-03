@@ -29,7 +29,12 @@ const optionalEndTags = new Set([
     'caption', 'colgroup', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th'
 ]);
 
-const bodyStartTagCantBeOmittedWithFirstChildTags = new Set(['meta', 'link', 'script', 'style', 'template']);
+const bodyStartTagCantBeOmittedWithFirstChildTags = new Set([
+    'meta', 'link', 'script', 'style', 'template',
+    // These also enter the head when the body (and possibly head) start tag
+    // is absent, even though some are obsolete or invalid body content.
+    'base', 'basefont', 'bgsound', 'noframes', 'noscript', 'title'
+]);
 const tbodyStartTagCantBeOmittedWithPrecededTags = new Set(['tbody', 'thead', 'tfoot']);
 const cellEndTagFollowedByTags = new Set(['td', 'th']);
 const rubyEndTagFollowedByTags = new Set(['rt', 'rp']);
@@ -158,26 +163,6 @@ function normalizeOptions(moduleOptions: Partial<RemoveOptionalTagsConfig>): Nor
     };
 }
 
-function isEmptyTextNode(node: PostHTMLNodeLike) {
-    if (typeof node === 'string' && node.trim() === '') {
-        return true;
-    }
-
-    return false;
-}
-
-function isEmptyNode(node: PostHTML.Node) {
-    if (!node.content) {
-        return true;
-    }
-
-    if (node.content.length) {
-        return !node.content.filter(n => typeof n === 'string' && isEmptyTextNode(n) ? false : true).length;
-    }
-
-    return true;
-}
-
 /** Empty strings are dropped by posthtml-render, so they can't separate two nodes. */
 function isRenderedNode(node: PostHTMLNodeLike | undefined) {
     if (node === undefined || node === null) return false;
@@ -293,6 +278,9 @@ function canOmitEndTag(
 ) {
     const isLastInParent = nextNode === null;
     const nextTagName = getTagNameOf(nextNode);
+    // A tagless wrapper can hide a comment or whitespace at the rendered
+    // boundary. Keep the structural end tag when that boundary is unknown.
+    const isNextTaglessNode = nextNode !== null && typeof nextNode !== 'string' && nextTagName === false;
     const isNextComment = typeof nextNode === 'string' && isComment(nextNode);
     const isNextWhitespaceOrComment = typeof nextNode === 'string'
         && (startWithWhitespacePattern.test(nextNode) || isComment(nextNode));
@@ -302,11 +290,11 @@ function canOmitEndTag(
         /** A "body" element's end tag may be omitted if it is not IMMEDIATELY followed by a comment. */
         case 'html':
         case 'body':
-            return !isNextComment;
+            return !isNextComment && !isNextTaglessNode;
 
         /** A "head" element's end tag may be omitted if it is not IMMEDIATELY followed by ASCII whitespace or a comment. */
         case 'head':
-            return !isNextWhitespaceOrComment;
+            return !isNextWhitespaceOrComment && !isNextTaglessNode;
 
         /**
          * The same specification rule applies to "caption" and "colgroup",
@@ -413,11 +401,13 @@ function canOmitStartTag(
     switch (tagName) {
         /** An "html" element's start tag may be omitted if the first thing inside it is not a comment. */
         case 'html':
-            return !(typeof firstChildNode === 'string' && isComment(firstChildNode));
+            return firstChildNode === null || (typeof firstChildNode === 'string'
+                ? !isComment(firstChildNode)
+                : firstChildTagName !== false);
 
         /** A "head" element's start tag may be omitted if the element is empty, or if the first thing inside it is an element. */
         case 'head':
-            return isEmptyNode(node) || firstChildTagName !== false;
+            return firstChildNode === null || firstChildTagName !== false;
 
         /**
          * A "body" element's start tag may be omitted if the element is empty, or if the first thing inside it
@@ -425,13 +415,14 @@ function canOmitStartTag(
          * a "meta", "link", "script", "style", or "template" element.
          */
         case 'body': {
-            if (isEmptyNode(node)) return true;
+            if (firstChildNode === null) return true;
 
             if (typeof firstChildNode === 'string') {
                 return !(startWithWhitespacePattern.test(firstChildNode) || isComment(firstChildNode));
             }
 
-            return !(typeof firstChildTagName === 'string' && bodyStartTagCantBeOmittedWithFirstChildTags.has(firstChildTagName));
+            return typeof firstChildTagName === 'string'
+                && !bodyStartTagCantBeOmittedWithFirstChildTags.has(firstChildTagName);
         }
 
         /**

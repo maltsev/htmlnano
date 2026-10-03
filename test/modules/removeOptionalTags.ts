@@ -297,7 +297,7 @@ describe('removeOptionalTags', () => {
             return init(input, expected, options);
         });
 
-        it('empty <head>', () => {
+        it('<head> containing only whitespace', () => {
             const input = `
             <!DOCTYPE HTML>
             <html>
@@ -310,7 +310,7 @@ describe('removeOptionalTags', () => {
             <!DOCTYPE HTML>
             
                 <!-- prevent <html> being removed -->
-                
+                <head>
     
                 `;
 
@@ -385,6 +385,50 @@ describe('removeOptionalTags', () => {
             const expected = '';
 
             return init(input, expected, options);
+        });
+
+        it('keeps whitespace-only document sections in their original DOM location', async () => {
+            const input = '<html><head> \n</head><body> \t</body></html>';
+            const expected = '<head> \n<body> \t';
+            const result = await htmlnano.process(input, options, {});
+
+            expect(result.html).toBe(expected);
+            expect(parse(result.html)).toEqual(parse(input));
+        });
+
+        it('keeps body content that would otherwise be parsed in the head', async () => {
+            const contents = [
+                '<base href="x">', '<basefont></basefont>', '<bgsound></bgsound>',
+                '<title>body title</title>', '<noframes><p>fallback</p></noframes>',
+                '<noscript><p>fallback</p></noscript>'
+            ];
+            for (const content of contents) {
+                const input = `<html><head><title>head</title></head><body>${content}</body></html>`;
+                const expected = `<title>head</title><body>${content}`;
+
+                await initIdempotent(input, expected, options);
+                for (const scriptingEnabled of [true, false]) {
+                    expect(parse(expected, { scriptingEnabled })).toEqual(parse(input, { scriptingEnabled }));
+                }
+            }
+        });
+
+        it('keeps structural tags when tagless wrappers hide boundary comments', () => {
+            function wrapComments(tree: PostHTMLTreeLike) {
+                tree.forEach((node, index) => {
+                    if (typeof node === 'string') {
+                        // @ts-expect-error -- plugins can insert tagless wrappers
+                        tree[index] = { tag: false, content: [node] };
+                    } else if (node.tag === 'body') {
+                        // @ts-expect-error -- plugins can insert tagless wrappers
+                        node.content = [{ tag: false, content: node.content }];
+                    }
+                });
+                return tree;
+            }
+
+            const input = '<body><!-- inside --></body><!-- outside -->';
+            return init(input, input, { ...options, custom: wrapComments });
         });
 
         it('first child meta keeps the <body> start tag', () => {
