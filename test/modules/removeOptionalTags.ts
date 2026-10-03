@@ -14,6 +14,33 @@ describe('removeOptionalTags', () => {
         removeOptionalTags: true
     };
 
+    it('does not create markup or character references across omitted tags', async () => {
+        const cases = [
+            ['<<body>img src=x onerror=alert(1)></body>', '&lt;img src=x onerror=alert(1)>'],
+            ['<<html><head></head><body>img src=x onerror=alert(1)></body></html>', '&lt;img src=x onerror=alert(1)>'],
+            ['<body><</body>img src=x onerror=alert(1)>', '&lt;img src=x onerror=alert(1)>'],
+            ['&co<body>py;</body>', '&amp;copy;'],
+            ['<body>&co</body>py;', '&amp;copy;'],
+            ['<body>&not</body>in;', '¬in;'],
+            ['<body>&#6</body>5;', '\u00065;'],
+            ['<body>&#x3</body>c;', '\u0003c;'],
+            ['<body>&#13</body>0;', '&#13;0;'],
+            ['<body>&amp;</body>copy;', '&amp;copy;']
+        ];
+        for (const [input, expected] of cases) {
+            await initIdempotent(input, expected, options);
+            expect(parseFragment(expected)).toEqual(parseFragment(input));
+        }
+    });
+
+    it('protects text boundaries when only end tags are omitted', async () => {
+        const input = '<body>&co</body>py;';
+        const expected = '<body>&amp;copy;';
+
+        await initIdempotent(input, expected, { removeOptionalTags: { removeStartTags: false } });
+        expect(parse(expected)).toEqual(parse(input));
+    });
+
     it('preserves apparent optional tags in literal text content', async () => {
         for (const tag of ['script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes', 'noscript', 'IFRAME']) {
             const input = `<${tag}><ul><li>one</li><li>two</li></ul><body>text</body></${tag}>`;

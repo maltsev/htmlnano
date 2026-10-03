@@ -1,6 +1,7 @@
 import type PostHTML from 'posthtml';
 import { isComment } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike, PostHTMLTreeLike, RemoveOptionalTagsOptions } from '../types';
+import { escapeTextBoundary } from './helpers/escapeTextBoundary';
 
 type RemoveOptionalTagsConfig = boolean | RemoveOptionalTagsOptions;
 
@@ -518,6 +519,36 @@ function removeOptionalTagsFrom(nodes: PostHTMLNodeLike[], parent: PostHTML.Node
     });
 }
 
+interface TextBoundaryContext {
+    previousText: { nodes: PostHTMLNodeLike[]; index: number } | null;
+    inPlaintext: boolean;
+}
+
+/** Follow rendered boundaries, including nested omitted tags and tagless nodes. */
+function escapeJoinedText(nodes: PostHTMLNodeLike[], omission: OmissionContext, context: TextBoundaryContext) {
+    nodes.forEach((node, index) => {
+        if (context.inPlaintext) return;
+
+        if (typeof node === 'string') {
+            if (!node.length) return;
+            if (context.previousText) {
+                const previous = context.previousText;
+                previous.nodes[previous.index] = escapeTextBoundary(previous.nodes[previous.index] as string);
+            }
+            context.previousText = { nodes, index };
+            return;
+        }
+
+        const tagName = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+        if (tagName) context.previousText = null;
+        if (tagName === 'plaintext') context.inPlaintext = true;
+        if (context.inPlaintext || foreignContentTags.has(tagName) || textContentTags.has(tagName)) return;
+
+        if (node.content) escapeJoinedText(node.content, omission, context);
+        if (tagName && !omission.endTagOmittedNodes.has(node)) context.previousText = null;
+    });
+}
+
 /**
  * Some omissions are only valid in no-quirks mode, which requires a doctype.
  * A tree without one is either quirks mode or a fragment of an unknown document,
@@ -557,6 +588,9 @@ function removeOptionalTags(
     };
 
     removeOptionalTagsFrom(tree, null, context);
+    // Removing either tag can join text into markup or extend an unfinished
+    // character reference. Escape just the preceding unfinished suffix.
+    escapeJoinedText(tree, context, { previousText: null, inPlaintext: false });
 
     if (context.usedCloseAs) {
         /*
