@@ -1142,7 +1142,8 @@ The merged content is appended into the last script in the group and the earlier
 - Boolean attributes (`async`, `defer`, `nomodule`) are normalized and treated as present, so `defer` and `defer="defer"` match.
 - Tag and attribute names are compared without ASCII case distinctions, and attribute character references are decoded for comparison. The first attribute wins when names are duplicated with different casing. Script type detection follows the [HTML rules for `type` and legacy `language`](https://html.spec.whatwg.org/multipage/scripting.html#prepare-the-script-element).
 - Scripts are separated by `nonce` value, by `nomodule`, and by `async`/`defer` differences.
-- A missing trailing semicolon is added when concatenating. If a script ends with a line comment, the merger inserts `\n;` before the next script to avoid comment swallowing.
+- Concatenated scripts are separated by `\n;\n` to preserve line comments and prevent expressions from joining across script boundaries.
+- Scripts containing a quoted `use strict`, a leading hashbang, or HTML tokenizer markers (`<!--` or `<script`/`</script`) are conservatively left untouched and break a merge group. This preserves strict mode and avoids changes to [HTML script parsing](https://html.spec.whatwg.org/multipage/scripting.html#restrictions-for-contents-of-script-elements) without parsing JavaScript.
 
 #### Side effects
 Merging changes where the code physically lives in the document.
@@ -1159,8 +1160,12 @@ Source:
 
 Minified:
 ```html
-<script type="text/javascript">window.foo = 1;window.bar = 2;</script>
-<script defer="defer">window.baz = 3;window.qux = 4;</script>
+<script type="text/javascript">window.foo = 1;
+;
+window.bar = 2;</script>
+<script defer="defer">window.baz = 3;
+;
+window.qux = 4;</script>
 ```
 
 

@@ -66,16 +66,13 @@ function buildScriptKey(attrs: PostHTML.NodeAttributes, scriptType: string) {
     return JSON.stringify(Object.fromEntries(Object.entries(keyObject).sort()));
 }
 
-function endsWithLineComment(scriptContent: string) {
-    const lastNewlineIndex = Math.max(
-        scriptContent.lastIndexOf('\n'),
-        scriptContent.lastIndexOf('\r')
-    );
-    const lastLine = lastNewlineIndex === -1
-        ? scriptContent
-        : scriptContent.slice(lastNewlineIndex + 1);
-
-    return /\/\/.*$/.test(lastLine);
+function needsScriptBoundary(scriptContent: string) {
+    // Conservatively keep strict directives in their own Script evaluation.
+    // Hashbangs are only valid at the beginning of a script. HTML escape
+    // markers can combine across scripts and swallow the closing tag/markup.
+    return /(['"])use strict\1/.test(scriptContent)
+        || scriptContent.trimStart().startsWith('#!')
+        || /<!--|<\/?script/i.test(scriptContent);
 }
 
 // Only sibling scripts separated by whitespace can share a merge group.
@@ -109,7 +106,9 @@ function mergeScriptsInScope(nodes: PostHTMLNodeLike[]) {
         normalizeAsyncAttr(node.attrs || {});
         const nodeAttrs = normalizeScriptAttrs(node.attrs || {});
         const scriptType = getScriptType(nodeAttrs);
-        if ('src' in nodeAttrs || 'integrity' in nodeAttrs || !isMergeableScriptType(scriptType)) {
+        if ('src' in nodeAttrs || 'integrity' in nodeAttrs
+            || !isMergeableScriptType(scriptType)
+            || needsScriptBoundary(extractTextContentFromNode(node))) {
             previousScript = null;
             previousKey = null;
             return;
@@ -119,11 +118,10 @@ function mergeScriptsInScope(nodes: PostHTMLNodeLike[]) {
         if (previousScript && previousKey === scriptKey) {
             let scriptContent = extractTextContentFromNode(previousScript).trim();
             if (scriptContent) {
-                if (endsWithLineComment(scriptContent)) {
-                    scriptContent += '\n;';
-                } else if (scriptContent.slice(-1) !== ';') {
-                    scriptContent += ';';
-                }
+                // A newline ends line comments, a semicolon prevents ASI from
+                // joining expressions, and the final newline preserves leading
+                // HTML close comments in the next script. No lexer is needed.
+                scriptContent += '\n;\n';
 
                 node.content = node.content || [];
                 node.content.unshift(scriptContent);
