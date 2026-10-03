@@ -1,4 +1,4 @@
-import { init } from '../htmlnano.ts';
+import { init, initIdempotent } from '../htmlnano.ts';
 
 describe('minifyAttributes', () => {
     const options = {
@@ -6,12 +6,51 @@ describe('minifyAttributes', () => {
     };
 
     context('<meta http-equiv="refresh" content=...>', () => {
-        it('should remove empty url', () => {
+        it('should preserve an explicit empty url', () => {
             return init(
                 '<meta http-equiv="refresh" content="5; url=">',
-                '<meta http-equiv="refresh" content="5">',
+                '<meta http-equiv="refresh" content="5; URL=">',
                 options
             );
+        });
+
+        for (const url of ['url=https://evil.example/', 'UrL = //evil.example/', 'url=\'/next\'']) {
+            it(`should preserve a URL that itself starts with a URL= prefix: ${url}`, () => {
+                return initIdempotent(
+                    `<meta http-equiv="refresh" content=" 0; url=${url}">`,
+                    `<meta http-equiv="refresh" content="0; URL=${url}">`,
+                    options
+                );
+            });
+        }
+
+        for (const content of ['0; url=&#117;rl=https://evil.example/', '0; url=&#39;/next&#39;', '0; url=/next?a=1&amp;b=2']) {
+            it(`should preserve refresh content containing character references: ${content}`, () => {
+                const html = `<meta http-equiv="refresh" content="${content}">`;
+                return initIdempotent(html, html, options);
+            });
+        }
+
+        it('should preserve non-ASCII whitespace in refresh URLs', () => {
+            return initIdempotent(
+                '<meta http-equiv="refresh" content=" 0; url=\u00a0/next\u00a0 ">',
+                '<meta http-equiv="refresh" content="0; \u00a0/next\u00a0">',
+                options
+            );
+        });
+
+        for (const url of ['', '\'\'', '\'']) {
+            it(`should preserve empty URL resolution against a base URL: ${url}`, () => {
+                return initIdempotent(
+                    `<base href="https://example.com/base/"><meta http-equiv="refresh" content=" 5; url=${url}">`,
+                    `<base href="https://example.com/base/"><meta http-equiv="refresh" content="5; URL=${url}">`,
+                    options
+                );
+            });
+        }
+
+        it('should still remove an empty separator without an explicit URL', () => {
+            return init('<meta http-equiv="refresh" content=" 5; ">', '<meta http-equiv="refresh" content="5">', options);
         });
 
         it('should drop url= prefix', () => {

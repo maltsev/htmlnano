@@ -255,8 +255,10 @@ Minified:
 
 ### minifyAttributes
 Minify specific attribute values. This module targets
-`meta[http-equiv="refresh"]` by removing the `url=` prefix when present,
-trimming whitespace, and dropping empty URLs. It also minifies
+`meta[http-equiv="refresh"]` by removing the `url=` prefix when safe and
+trimming ASCII whitespace. Explicit empty URLs and prefixes needed to preserve
+the destination are retained. Refresh content containing character references
+is left unchanged. It also minifies
 `meta[name="viewport"]` content by normalizing whitespace around separators
 (commas/semicolons) and `=`, and by dropping redundant trailing zeros in
 numeric values (e.g. `initial-scale=1.0` → `initial-scale=1`). The author's
@@ -272,7 +274,7 @@ separator characters (`,` or `;`) are preserved.
 #### Example
 Source:
 ```html
-<meta http-equiv="refresh" content="5; url=">
+<meta http-equiv="refresh" content=" 5; ">
 <meta http-equiv="refresh" content="5; url=http://example.com/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 ```

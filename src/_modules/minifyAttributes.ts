@@ -1,3 +1,4 @@
+import { decodeHTMLAttribute } from 'entities';
 import type { HtmlnanoModule } from '../types';
 import { collapseAttributeWhitespace } from './collapseAttributeWhitespace';
 
@@ -38,6 +39,10 @@ function skipAsciiWhitespace(input: string, start: number) {
 }
 
 function minifyMetaRefreshValue(value: string): string | null {
+    // References can hide URL prefixes, quotes, and delimiters. Leave their
+    // source spelling intact rather than parsing a different value than HTML.
+    if (decodeHTMLAttribute(value) !== value) return null;
+
     const input = value;
     let pos = skipAsciiWhitespace(input, 0);
 
@@ -83,7 +88,7 @@ function minifyMetaRefreshValue(value: string): string | null {
         }
     }
 
-    if (pos >= input.length) return time;
+    if (pos >= input.length) return hasUrlPrefix ? `${time}${separator} URL=` : time;
 
     const firstUrlChar = input[pos];
     if (firstUrlChar === '"' || firstUrlChar === '\'') {
@@ -94,16 +99,17 @@ function minifyMetaRefreshValue(value: string): string | null {
         const quoteIndex = input.indexOf(quote, urlStart);
         const url = quoteIndex === -1 ? input.slice(urlStart) : input.slice(urlStart, quoteIndex);
 
-        if (!url) return time;
         const closingQuote = quoteIndex === -1 ? '' : quote;
 
         return `${time}${separator} URL=${quote}${url}${closingQuote}`;
     }
 
-    const url = input.slice(pos).trim();
-    if (!url) return time;
+    const url = input.slice(pos).replace(/[\t\n\f\r ]+$/, '');
+    // Dropping the outer prefix must not make the URL itself become a prefix
+    // on the next parse (or on a second minification pass).
+    const prefix = hasUrlPrefix && /^url[\t\n\f\r ]*=/i.test(url) ? 'URL=' : '';
 
-    return `${time}${separator} ${url}`;
+    return `${time}${separator} ${prefix}${url}`;
 }
 
 function minifyViewportNumber(value: string): string {
