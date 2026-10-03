@@ -51,6 +51,20 @@ describe('minifyJson', () => {
         );
     });
 
+    it('should recognize uppercase script tags and attribute names', () => {
+        return init(
+            '<SCRIPT TYPE="application/json"> { "test": 5 } </SCRIPT>',
+            '<SCRIPT type="application/json">{"test":5}</SCRIPT>',
+            options
+        );
+    });
+
+    it('should leave non-script elements with JSON MIME types untouched', () => {
+        const html = '<div type="application/json"> { "text": "hello world" } </div>'
+            + '<textarea type="application/ld+json"> { "text": "&lt;" } </textarea>';
+        return init(html, html, options);
+    });
+
     it('should skip JSON inside <script> tags with SRI', () => {
         const fixtures = `<script type="application/json" integrity="example">
                 {

@@ -6,6 +6,10 @@ const rNodeAttrsTypeJson = /(?:\/|\+)json$/i;
 const mod: HtmlnanoModule = {
     onContent() {
         return (content, node) => {
+            if (typeof node.tag !== 'string' || node.tag.toLowerCase() !== 'script') {
+                return content;
+            }
+
             // Skip SRI, reasons are documented in "minifyJs" module
             if (node.attrs && 'integrity' in node.attrs) {
                 return content;
