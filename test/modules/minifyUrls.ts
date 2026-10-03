@@ -346,4 +346,34 @@ describe('minifyUrls', () => {
             return init(html, expected, { minifyUrls: 'https://example.com/' });
         }));
     });
+
+    for (const value of ['x', 'a 1x, b 2x', 'x 1y', 'good.png 2x, x 1y', 'a.png\u00a0b.png 2x', 'image.png,other.png 2x']) {
+        it(`should preserve srcset candidates in ${value}`, () => {
+            const html = `<img srcset="${value}">`;
+            return init(html, html, { minifyUrls: 'https://example.com/' });
+        });
+    }
+
+    it('should handle character references in srcset URLs', () => {
+        return init(
+            '<img srcset="https://example.com/foo/&#106;avascript:image.png 1x, https://example.com/foo/other.png?a=1&amp;b=2 2x">',
+            '<img srcset="./javascript:image.png 1x, other.png?a=1&amp;b=2 2x">',
+            { minifyUrls: 'https://example.com/foo/' }
+        );
+    });
+
+    it('should not introduce empty resource URLs', () => {
+        return Promise.all([
+            init(
+                '<img src="https://example.com/foo/" srcset="https://example.com/foo/ 1x">',
+                '<img src="./" srcset="./ 1x">',
+                { minifyUrls: 'https://example.com/foo/' }
+            ),
+            init(
+                '<iframe src="https://example.com/foo/page.html"></iframe>',
+                '<iframe src="https://example.com/foo/page.html"></iframe>',
+                { minifyUrls: 'https://example.com/foo/page.html' }
+            )
+        ]);
+    });
 });

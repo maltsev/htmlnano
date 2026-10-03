@@ -136,7 +136,7 @@ function isWhitespace(char: string | undefined) {
  *
  * Returns null when there is nothing to parse, so that the attribute is left as is.
  */
-function parseSrcset(srcset: string): SrcsetCandidate[] | null {
+export function parseSrcset(srcset: string): SrcsetCandidate[] | null {
     const candidates: SrcsetCandidate[] = [];
     let position = 0;
 

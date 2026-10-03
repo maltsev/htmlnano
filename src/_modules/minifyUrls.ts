@@ -3,6 +3,7 @@ import type PostHTML from 'posthtml';
 import { decodeHTMLAttribute } from 'entities';
 import { optionalImport } from '../helpers';
 import type { HtmlnanoModule, HtmlnanoOptions } from '../types';
+import { isSrcsetAttribute, parseSrcset } from './collapseAttributeWhitespace.js';
 
 const tagsHasHrefAttributes = new Set([
     'a',
@@ -60,14 +61,6 @@ const isUriTypeAttribute = (tag: string, attr: string) => {
         || tag === 'head' && attr === 'profile'
         || tag === 'script' && attr === 'for'
         || tagsHasSrcAttributes.has(tag) && attr === 'src'
-    );
-};
-
-const isSrcsetAttribute = (tag: string, attr: string) => {
-    return (
-        tag === 'source' && attr === 'srcset'
-        || tag === 'img' && attr === 'srcset'
-        || tag === 'link' && attr === 'imagesrcset'
     );
 };
 
@@ -157,21 +150,28 @@ const mod: HtmlnanoModule<HtmlnanoOptions['minifyUrls']> = {
                     continue;
                 }
 
-                if (isSrcsetAttribute(tag, attrNameLower)) {
+                if (isSrcsetAttribute(attrNameLower, tag)) {
                     if (srcset && typeof attrValue === 'string') {
                         try {
-                            const parsedSrcset = srcset.parseSrcset(attrValue, { strict: true });
+                            const value = decoded ? attrValue : decodeHTMLAttribute(attrValue);
+                            const candidates = parseSrcset(value);
+                            const parsedSrcset = srcset.parseSrcset(value, { strict: true });
+                            const roundTripped = parseSrcset(srcset.stringifySrcset(parsedSrcset));
+                            // The dependency's loose tokenizer can skip short URLs or
+                            // reinterpret descriptors. Only use it when both parsers agree.
+                            if (!candidates || !roundTripped || candidates.length !== roundTripped.length
+                                || candidates.some((candidate, index) => candidate.url !== roundTripped[index].url
+                                    || candidate.descriptors.join(' ') !== roundTripped[index].descriptors.join(' '))) {
+                                continue;
+                            }
 
-                            node.attrs[attrName] = srcset.stringifySrcset(parsedSrcset.map((item) => {
-                                if (relateUrlInstance) {
-                                    // @ts-expect-error -- not actually readonly
-                                    item.url = relateUrlValue(relateUrlInstance, item.url, urlBase);
-                                }
-
-                                return item;
-                            }));
+                            const related = srcset.stringifySrcset(parsedSrcset.map(item => ({
+                                ...item,
+                                url: relateUrlInstance ? relateUrlValue(relateUrlInstance, item.url, urlBase) : item.url
+                            })));
+                            if (related !== value) node.attrs[attrName] = related.replace(/&/g, '&amp;');
                         } catch {
-                        // srcset will throw an Error for invalid srcset.
+                            // Invalid srcset values are left unchanged.
                         }
                     }
 
@@ -216,6 +216,9 @@ function relateUrlValue(relateUrl: RelateUrl, value: string, base: string) {
         if (original.protocol !== 'http:' && original.protocol !== 'https:') return value;
 
         let related = relateUrl.relate(value);
+        // Empty src/srcset URLs have special behavior before URL resolution.
+        // Use an explicit directory reference if it still resolves identically.
+        if (!related) related = './';
         // A colon in the first path segment becomes a scheme after shortening.
         // In particular, /javascript:... must never become executable code.
         if (/^[a-z][a-z0-9+.-]*:/i.test(related) && !/^https?:/i.test(related)) {
