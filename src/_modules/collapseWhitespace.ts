@@ -24,13 +24,15 @@ const nonRenderingElements = new Set([
 const noTrimWhitespacesArroundElements = new Set([
     // non-empty tags that will maintain whitespace around them
     'a', 'abbr', 'acronym', 'b', 'bdi', 'bdo', 'big', 'button', 'cite', 'code', 'del', 'dfn', 'em', 'font', 'i', 'ins', 'kbd', 'label', 'mark', 'math', 'nobr', 'object', 'q', 'rp', 'rt', 'rtc', 'ruby', 's', 'samp', 'select', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'svg', 'textarea', 'time', 'tt', 'u', 'var',
+    'audio', 'canvas', 'data', 'iframe', 'meter', 'output', 'picture', 'progress', 'slot', 'video',
     // self-closing tags that will maintain whitespace around them
-    'comment', 'img', 'input', 'wbr'
+    'comment', 'embed', 'img', 'input', 'wbr'
 ]);
 
 const noTrimWhitespacesInsideElements = new Set([
     // non-empty tags that will maintain whitespace within them
-    'a', 'abbr', 'acronym', 'b', 'bdi', 'bdo', 'big', 'cite', 'code', 'del', 'dfn', 'em', 'font', 'i', 'ins', 'kbd', 'label', 'mark', 'nobr', 'q', 'rp', 'rt', 'rtc', 'ruby', 's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'time', 'tt', 'u', 'var'
+    'a', 'abbr', 'acronym', 'b', 'bdi', 'bdo', 'big', 'cite', 'code', 'del', 'dfn', 'em', 'font', 'i', 'ins', 'kbd', 'label', 'mark', 'nobr', 'q', 'rp', 'rt', 'rtc', 'ruby', 's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'time', 'tt', 'u', 'var',
+    'data', 'output', 'picture', 'slot'
 ]);
 
 /*
@@ -101,7 +103,7 @@ function collapseWhitespace(tree: PostHTMLTreeLike | Array<PostHTML.Node | strin
                  * boundaries the children inherit are the element's own ones,
                  * closed off as soon as a non-inline element is reached.
                  */
-                const isInlineContent = collapseType === 'all' && noTrimWhitespacesInsideElements.has(tag);
+                const isInlineContent = collapseType === 'all' && hasInlineContent(node);
 
                 node.content = collapseWhitespace(node.content, options, collapseType, {
                     node,
@@ -149,14 +151,14 @@ function collapseRedundantWhitespaces(
         if (
             typeof parent !== 'object'
             || !parent?.node.tag
-            || !noTrimWhitespacesInsideElements.has(parent.node.tag.toLowerCase())
+            || !hasInlineContent(parent.node)
         ) {
             if (
                 // It is the first child node of the parent
                 !prevNode
                 // It is not the first child node, and prevNode not a text node, and prevNode is safe to trim around
                 || (
-                    typeof prevNode === 'object' && prevNode.tag && !noTrimWhitespacesArroundElements.has(prevNode.tag.toLowerCase()))
+                    typeof prevNode === 'object' && prevNode.tag && !isInlineNode(prevNode))
             ) {
                 text = text.replace(startsWithWhitespacePattern, NONE);
             } else {
@@ -182,7 +184,7 @@ function collapseRedundantWhitespaces(
             }
             if (
                 !nextNode
-                || typeof nextNode === 'object' && nextNode.tag && !noTrimWhitespacesArroundElements.has(nextNode.tag.toLowerCase())
+                || typeof nextNode === 'object' && nextNode.tag && !isInlineNode(nextNode)
             ) {
                 text = text.replace(endsWithWhitespacePattern, NONE);
             }
@@ -336,7 +338,12 @@ function getAdjacentNode(tree: ArrayLike<PostHTMLNodeLike>, index: number, direc
  */
 function isInlineNode(node: PostHTML.Node) {
     if (typeof node.tag !== 'string') return true;
-    return noTrimWhitespacesArroundElements.has(node.tag.toLowerCase());
+    return noTrimWhitespacesArroundElements.has(node.tag.toLowerCase()) || node.tag.includes('-');
+}
+
+function hasInlineContent(node: PostHTML.Node) {
+    return typeof node.tag === 'string'
+        && (noTrimWhitespacesInsideElements.has(node.tag.toLowerCase()) || node.tag.includes('-'));
 }
 
 /*
@@ -354,7 +361,7 @@ function hasWhitespacePreservingStyle(node: PostHTML.Node) {
 function isTrimmableAroundNode(node: PostHTML.Node | string | undefined) {
     if (!node) return true;
     if (typeof node === 'string') return isComment(node);
-    return typeof node.tag === 'string' && !noTrimWhitespacesArroundElements.has(node.tag.toLowerCase());
+    return typeof node.tag === 'string' && !isInlineNode(node);
 }
 
 function isCommentNode(node: PostHTML.Node | string | undefined) {

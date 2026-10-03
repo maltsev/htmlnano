@@ -513,6 +513,7 @@ It doesn’t affect white spaces in the elements `<style>`, `<textarea>`, `<scri
 #### Notes
 - Comments are preserved, but whitespace around them can be collapsed depending on the option.
 - Non-rendering elements such as `<script>`, `<style>`, and `<template>` do not interrupt word separators between surrounding text or inline elements.
+- Custom elements with hyphenated names are treated as inline elements when deciding whether to keep word separators.
 - Template content is left untouched.
 - Element and attribute names are matched case-insensitively, so uppercase or mixed-case markup receives the same whitespace protection.
 - Character references in inline styles are decoded for the whitespace-preservation check. Whitespace inside a protected element does not replace a separator outside it.

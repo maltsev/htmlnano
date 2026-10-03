@@ -51,6 +51,32 @@ describe('collapseWhitespace', () => {
                 </html> `;
 
     for (const collapseType of ['all', 'aggressive', 'conservative'] as const) {
+        context(`additional inline elements in ${collapseType} mode`, () => {
+            const options: HtmlnanoOptions = { collapseWhitespace: collapseType };
+
+            for (const tag of ['data', 'output', 'slot', 'x-word', 'EMU-XREF']) {
+                it(`preserves separators inside and around <${tag}>`, () => {
+                    const input = `<p>a<${tag}> b </${tag}>c</p><p>a <${tag}>b</${tag}> c</p>`;
+
+                    return init(input, input, options);
+                });
+            }
+
+            for (const element of ['<audio controls=""></audio>', '<canvas></canvas>', '<embed src="x">', '<iframe src="x"></iframe>', '<meter value="1"></meter>', '<picture><img src="x"></picture>', '<progress></progress>', '<video controls=""></video>']) {
+                it(`preserves separators around ${element}`, () => {
+                    const input = `<p>a ${element} b</p>`;
+
+                    return init(input, input, options);
+                });
+            }
+
+            it('carries separator boundaries through nested custom elements', () => {
+                const input = '<p>a<x-outer><x-inner> b </x-inner></x-outer>c</p>';
+
+                return init(input, input, options);
+            });
+        });
+
         context(`non-rendering elements in ${collapseType} mode`, () => {
             const options: HtmlnanoOptions = { collapseWhitespace: collapseType };
 
