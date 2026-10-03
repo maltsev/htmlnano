@@ -290,8 +290,6 @@ function decodeReferences(text: string, context: DecodeContext): string {
         return text;
     }
 
-    let decodedAmpersand = false;
-
     const result = text.replace(referencePattern, (match: string, offset: number) => {
         const decoded = resolveReference(match, context.decodeAll);
         if (decoded === null) {
@@ -316,16 +314,15 @@ function decodeReferences(text: string, context: DecodeContext): string {
             if (!isUnambiguousAmpersand(text, offset + match.length, context.inAttribute)) {
                 return match;
             }
-            decodedAmpersand = true;
         }
 
         return decoded;
     });
 
-    // The lookahead above sees the original text, while the neighbours of a
-    // decoded "&" may themselves have been decoded ("&amp;no&#116;;" would
-    // become "&not;"). Verify that the result still means exactly the same.
-    if (decodedAmpersand && decodeLikeParser(result, context.inAttribute) !== decodeLikeParser(text, context.inAttribute)) {
+    // Decoding can complete an existing reference even without emitting "&":
+    // "&co&#112;y;" becomes "&copy;" and "&#6&#48;;" becomes "&#60;".
+    // Check every changed result, including neighbours of decoded ampersands.
+    if (result !== text && decodeLikeParser(result, context.inAttribute) !== decodeLikeParser(text, context.inAttribute)) {
         return text;
     }
 

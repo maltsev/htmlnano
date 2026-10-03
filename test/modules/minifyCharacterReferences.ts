@@ -126,6 +126,20 @@ describe('minifyCharacterReferences', () => {
         );
     });
 
+    for (const moduleOptions of [true, { decodeAll: true }]) {
+        for (const value of ['&co&#112;y;', '&#6&#48;;', '&#x6&#48;;', '&copy&#59;']) {
+            it(`should not complete an existing reference in ${value} with ${JSON.stringify(moduleOptions)}`, () => {
+                const source = `<p title="${value}">${value}</p>`;
+                return init(source, source, { minifyCharacterReferences: moduleOptions });
+            });
+        }
+
+        it(`should not create a javascript URL by completing a reference with ${JSON.stringify(moduleOptions)}`, () => {
+            const source = '<a href="jav&#x&#54;&#49;;script:alert(1)">x</a>';
+            return init(source, source, { minifyCharacterReferences: moduleOptions });
+        });
+    }
+
     it('should not touch <script> content', () => {
         return init(
             '<script>var a = "&mdash;&copy;";</script>',
