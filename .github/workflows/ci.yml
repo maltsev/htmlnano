@@ -4,18 +4,12 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: Run tests (Node.js ${{ matrix.node-version }}, cssnano ${{ matrix.cssnano-version }})
+    name: Run tests (Node.js ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
         node-version: ['22', '24', 'current']
-        cssnano-version: ['9']
-        include:
-          - node-version: '24'
-            cssnano-version: '7'
-          - node-version: '24'
-            cssnano-version: '8'
 
     steps:
       - uses: actions/checkout@v7
@@ -27,22 +21,32 @@ jobs:
 
       - run: npm install
 
-      - name: Install cssnano ${{ matrix.cssnano-version }}
-        if: matrix.cssnano-version != '9'
-        run: npm install --no-save --package-lock=false cssnano@${{ matrix.cssnano-version }}
-
-      - if: matrix.cssnano-version == '9' && matrix.node-version != 'current'
+      - if: matrix.node-version != 'current'
         run: npm test
 
       # TODO: The Node "current" entry skips c8 coverage because of a c8 bug.
       # Once https://github.com/bcoe/c8/issues/582 is fixed, drop this branch
       # and run the full `npm test` (with c8) on "current" as well.
-      - if: matrix.cssnano-version == '9' && matrix.node-version == 'current'
+      - if: matrix.node-version == 'current'
         run: npm run pretest && npm run test:mocha
 
-      - name: Test cssnano compatibility
-        if: matrix.cssnano-version != '9'
-        run: |
+  test-cssnano:
+    name: Test cssnano ${{ matrix.cssnano-version }} compatibility
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cssnano-version: ['7', '8']
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - run: npm install --no-save --package-lock=false cssnano@${{ matrix.cssnano-version }}
+
+      - run: |
           npm run build
           npm run test:types
           npm run test:mocha
