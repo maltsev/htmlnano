@@ -5,7 +5,10 @@ import eslintPluginImportX, { createNodeResolver } from 'eslint-plugin-import-x'
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import eslintPluginUnusedImports from 'eslint-plugin-unused-imports';
+import eslintPluginYml from 'eslint-plugin-yml';
 import stylistic from '@stylistic/eslint-plugin';
+
+const scriptFiles = ['**/*.{js,mjs,cjs,ts,mts,cts}'];
 
 export default tseslint.config(
     {
@@ -21,6 +24,7 @@ export default tseslint.config(
     }),
     {
         name: 'eslint env config',
+        files: scriptFiles,
         languageOptions: {
             ecmaVersion: 'latest',
             sourceType: 'module',
@@ -38,10 +42,14 @@ export default tseslint.config(
             }
         }
     },
-    eslint.configs.recommended,
+    {
+        ...eslint.configs.recommended,
+        files: scriptFiles
+    },
     {
         ...eslintPluginImportX.flatConfigs.recommended,
         ...eslintPluginImportX.flatConfigs.typescript,
+        files: scriptFiles,
         settings: {
             ...eslintPluginImportX.flatConfigs.recommended.settings,
             ...eslintPluginImportX.flatConfigs.typescript.settings,
@@ -120,17 +128,21 @@ export default tseslint.config(
             'unused-imports/no-unused-vars': 'off'
         }
     },
-    stylistic.configs.customize({
-        indent: 4,
-        quotes: 'single',
-        commaDangle: 'never',
-        semi: true,
-        jsx: false,
-        braceStyle: '1tbs',
-        quoteProps: 'as-needed'
-    }),
+    {
+        ...stylistic.configs.customize({
+            indent: 4,
+            quotes: 'single',
+            commaDangle: 'never',
+            semi: true,
+            jsx: false,
+            braceStyle: '1tbs',
+            quoteProps: 'as-needed'
+        }),
+        files: scriptFiles
+    },
     {
         name: 'eslint stylistic config',
+        files: scriptFiles,
         rules: {
             'linebreak-style': [2, 'unix'],
             camelcase: [2, { properties: 'always' }],
@@ -159,9 +171,18 @@ export default tseslint.config(
     },
     {
         name: 'disable no-tabs in test',
-        files: ['test/**/*'],
+        files: ['test/**/*.{js,mjs,cjs,ts,mts,cts}'],
         rules: {
             '@stylistic/no-tabs': 'off' // test fixtures
+        }
+    },
+    ...eslintPluginYml.configs.standard,
+    {
+        name: 'yaml config',
+        files: ['**/*.{yaml,yml}'],
+        rules: {
+            'yml/indent': ['error', 2],
+            'yml/quotes': ['error', { prefer: 'single', avoidEscape: true }]
         }
     }
 );
