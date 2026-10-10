@@ -5,6 +5,7 @@ import safePreset from '../../dist/presets/safe.mjs';
 import minifyCssModule, { getInlineCssnanoOptions } from '../../src/_modules/minifyCss.ts';
 import type { PostHTMLTreeLike } from '../../src/types.ts';
 import type { Options as CssnanoOptions } from 'cssnano';
+import type { Plugin, Result } from 'postcss';
 
 describe('minifyCss', function () {
     this.timeout(3000);
@@ -79,6 +80,100 @@ describe('minifyCss', function () {
             options
         );
     });
+
+    it('should preserve independent inline styles when batching the default preset', async () => {
+        const styles = [
+            'color: #ff0000; margin: 10px 10px 10px 10px',
+            'color: #0000ff; margin: 20px 20px 20px 20px',
+            'color: #ff0000; margin: 10px 10px 10px 10px',
+            '/* empty */',
+            'color: red; color: blue; color: red !important',
+            'column-width: 10px; column-count: 2',
+            'column-width: auto',
+            '--color: #ff0000; color: var(--color)',
+            '--gap: ; margin: var(--gap, 0px)',
+            'background: url("data:image/svg+xml,<svg>{;}</svg>")',
+            'width: calc(100% - 10px); transform: translate(0px, 0px)',
+            '/*! keep */ font-weight: normal; padding: 0px 0px 0px 0px'
+        ];
+        const html = styles.map(style => `<div style='${style}'></div>`).join('');
+        const { tree } = await posthtml([]).process(html);
+        const sourceTree = tree as PostHTMLTreeLike;
+        // An explicit per-plugin options object retains separate processing.
+        await minifyCssModule.default!(sourceTree, {}, { preset: ['default', {}] });
+
+        await init(html, sourceTree.render(sourceTree), options);
+    });
+
+    it('should keep stylesheet and inline caches separate and preserve CDATA per node', () => {
+        return init(
+            '<style>a { color: #ff0000; }</style><svg><style><![CDATA[a { color: #ff0000; }]]></style></svg><div style="color: #ff0000;"></div><div style="color: #0000ff;"></div><div style="color: #ff0000;"></div>',
+            '<style>a{color:red}</style><svg><style><![CDATA[a{color:red}]]></style></svg><div style="color:red"></div><div style="color:#00f"></div><div style="color:red"></div>',
+            options
+        );
+    });
+
+    it('should process nested inline rules separately', async () => {
+        const html = '<div style="color: #ff0000; @media print { color: #0000ff; }"></div><div style="margin: 10px 10px 10px 10px"></div>';
+        const { tree } = await posthtml([]).process(html);
+        const sourceTree = tree as PostHTMLTreeLike;
+        await minifyCssModule.default!(sourceTree, {}, { preset: ['default', {}] });
+
+        await init(html, sourceTree.render(sourceTree), options);
+    });
+
+    it('should reject invalid inline CSS in a batch', () => {
+        return expect(init(
+            '<div style="color: red"></div><div style="color: blue; /* unclosed"></div>',
+            '',
+            options
+        )).rejects.toThrow('Unclosed comment');
+    });
+
+    it('should preserve separate results for custom plugins and deduplicate identical inputs', async () => {
+        const rootTypes: string[] = [];
+        function plugin(): Plugin {
+            return {
+                postcssPlugin: 'check-root',
+                prepare(result: Result) {
+                    rootTypes.push(result.root.type);
+                    return {
+                        OnceExit(root) {
+                            root.walkDecls((decl) => {
+                                decl.value = 'green';
+                            });
+                        }
+                    };
+                }
+            };
+        }
+
+        await init(
+            '<style>a{color:red}</style><style>a{color:blue}</style><div style="color:red"></div><div style="color:blue"></div><div style="color:red"></div>',
+            '<style>a{color:green}</style><style>a{color:green}</style><div style="color:green"></div><div style="color:green"></div><div style="color:green"></div>',
+            { minifyCss: { plugins: [plugin] } }
+        );
+        expect(rootTypes).toEqual(['root', 'root', 'root', 'root']);
+    });
+
+    for (const [description, html, expectedCalls] of [
+        ['no CSS', '<p>Hello</p>', 0],
+        ['skipped CSS', '<style amp-boilerplate="">body{color:red}</style><style type="text/less">a{color:red}</style><div integrity="x" style="color:red"></div>', 0],
+        ['empty CSS', '<style> </style><div style=" "></div>', 0],
+        ['only a stylesheet', '<style>a{color:red}</style>', 1],
+        ['only inline CSS', '<div style="color:red"></div>', 1]
+    ] as const) {
+        it(`should initialize only the needed processors for ${description}`, async () => {
+            let calls = 0;
+            function presetFactory() {
+                calls++;
+                return { plugins: [] };
+            }
+
+            await init(html, html, { minifyCss: { preset: presetFactory } });
+            expect(calls).toBe(expectedCalls);
+        });
+    }
 
     it('should pass options to cssnano', () => {
         return init(

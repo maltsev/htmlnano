@@ -10,6 +10,10 @@ Skipped nodes:
 - AMP boilerplate styles (`amp-boilerplate`, `amp4ads-boilerplate`, `amp4email-boilerplate`).
 
 Notes:
+- Identical CSS is minified once per document. Processors are initialized only for CSS that needs minification.
+- With the built-in `default` preset and no custom options, distinct inline declaration lists are processed
+  together as independent PostCSS roots, sharing plugin setup without merging styles. Custom presets,
+  plugin lists, and per-plugin options retain separate processing.
 - `style` attributes are wrapped in a temporary selector (`a{...}`) before minification so cssnano can parse them, then the wrapper is removed.
 - For `style` attributes htmlnano disables the optimizations that a single declaration list can't give
   enough context for: `mergeRules`, `minifySelectors`, `minifyParams`, `normalizeCharset`,
