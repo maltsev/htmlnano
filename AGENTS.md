@@ -22,6 +22,7 @@ Follow the notes below to run builds/tests and match the existing style.
 
 `npm run lint`:
 - Uses `eslint --fix .` (auto-fixes where possible).
+- ESLint also lints and formats YAML files.
 
 `npm test`:
 - `pretest` runs lint + compile.
