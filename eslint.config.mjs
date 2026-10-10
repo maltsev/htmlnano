@@ -6,6 +6,8 @@ import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import eslintPluginUnusedImports from 'eslint-plugin-unused-imports';
 import eslintPluginYml from 'eslint-plugin-yml';
+import markdownlint from 'eslint-plugin-markdownlint';
+import markdownlintParser from 'eslint-plugin-markdownlint/parser.js';
 import stylistic from '@stylistic/eslint-plugin';
 
 const scriptFiles = ['**/*.{js,mjs,cjs,ts,mts,cts}'];
@@ -183,6 +185,27 @@ export default tseslint.config(
         rules: {
             'yml/indent': ['error', 2],
             'yml/quotes': ['error', { prefer: 'single', avoidEscape: true }]
+        }
+    },
+    {
+        name: 'markdown config',
+        files: ['**/*.{md,mdx}'],
+        ignores: ['docs/versioned_docs/**'],
+        plugins: { markdownlint },
+        languageOptions: {
+            parser: markdownlintParser
+        },
+        rules: {
+            ...markdownlint.configs.recommended.rules,
+            // Prose, code examples, and benchmark tables can contain long lines.
+            'markdownlint/md013': 'off',
+            // Changelog sections repeat headings under different releases.
+            // eslint-disable-next-line camelcase
+            'markdownlint/md024': ['error', { siblings_only: true }],
+            // Documentation includes HTML examples and the README uses an HTML title.
+            'markdownlint/md033': 'off',
+            // Docusaurus module fragments start with level-three headings.
+            'markdownlint/md041': 'off'
         }
     }
 );
