@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         # See supported Node.js release schedule at https://github.com/nodejs/Release#release-schedule
-        node-version: ['22', '24', 'current']
+        node-version: ['22', '24', current]
         cssnano-version: ['9']
         include:
           - node-version: '24'
