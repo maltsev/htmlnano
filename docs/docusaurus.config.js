@@ -19,7 +19,10 @@ module.exports = {
     organizationName: 'posthtml',
     projectName: 'htmlnano',
     trailingSlash: false,
-    plugins: ['docusaurus-plugin-goatcounter'],
+    plugins: [
+        'docusaurus-plugin-goatcounter',
+        require.resolve('./plugins/module-docs/index.mjs')
+    ],
     themeConfig: {
         image: 'logo.png',
         navbar: {
