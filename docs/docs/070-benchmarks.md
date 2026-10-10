@@ -31,4 +31,4 @@
 | [home.cern](https://home.cern)                                  |         151 |                  37.1% |                46.4% |      40.2% |     38.9% |         39.5% |
 | **Avg. minify rate**                                            |             |               **9.0%** |            **15.2%** |  **21.8%** | **15.6%** |      **9.9%** |
 
-Latest benchmarks: <https://github.com/maltsev/html-minifiers-benchmark> (updated daily).
+Latest benchmarks: [https://github.com/maltsev/html-minifiers-benchmark](https://github.com/maltsev/html-minifiers-benchmark) (updated daily).
