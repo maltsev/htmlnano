@@ -1,5 +1,7 @@
 ### removeRedundantAttributes
+
 Removes redundant attributes from tags when they match HTML defaults:
+
 - `method="get"` from `<form>`
 - `type="text"` from `<input>`
 - `type="submit"` from `<button>` without `command` or `commandfor`, unless it is directly inside `<select>`
@@ -22,10 +24,13 @@ Script `type="module"` is preserved. A JavaScript `type` is also preserved when 
 `link[rel]` is treated as an ASCII whitespace-separated token list. CSS `type` is removed only when the relationships are `stylesheet` and optionally `alternate`, since other relationships can use `type` to control resource fetching.
 
 #### Options
+
 This module is disabled by default, change option to true to enable this module.
 
 #### Side effects
+
 This module could break your styles or JS if you use selectors with attributes:
+
 ```CSS
 form[method="get"] {
     color: red;
@@ -33,7 +38,9 @@ form[method="get"] {
 ```
 
 #### Example
+
 Source:
+
 ```html
 <form method="get">
     <input type="text">
@@ -44,6 +51,7 @@ Source:
 ```
 
 Minified:
+
 ```html
 <form>
     <input>

@@ -7,6 +7,7 @@ npm install htmlnano
 ## JavaScript API
 
 ### ESM
+
 ```js
 import htmlnano, { presets } from 'htmlnano';
 
@@ -29,6 +30,7 @@ const result = await htmlnano.process(html, options, presets.safe, postHtmlOptio
 ```
 
 ### CommonJS
+
 ```js
 const htmlnano = require('htmlnano');
 
@@ -47,9 +49,10 @@ htmlnano
     });
 ```
 
-
 ## PostHTML
+
 Add `htmlnano` as a final plugin:
+
 ```js
 const posthtml = require('posthtml');
 const options = {
@@ -143,7 +146,6 @@ tree. See [Config](./config) for details. An explicit `-c`/`--config
 <file>` is still loaded even with `--no-config-search`, since only the implicit
 lookup is disabled.
 
-
 ## Webpack
 
 ```sh
@@ -178,9 +180,8 @@ module.exports = {
 }
 ```
 
-
-
 ## Gulp
+
 ```bash
 npm i -D gulp-posthtml
 ```

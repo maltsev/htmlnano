@@ -1,4 +1,5 @@
 ### minifyJs
+
 Minifies JS using [Terser](https://github.com/fabiosantoscode/terser) inside `<script>` tags.
 
 You have to install `terser` in order to use this feature:
@@ -12,8 +13,10 @@ npm install --save-dev terser
 ```
 
 #### Options
+
 See [the documentation of Terser](https://github.com/fabiosantoscode/terser#api-reference) for all supported options.
 Terser options can be passed directly to the `minifyJs` module:
+
 ```js
 htmlnano.process(html, {
     minifyJs: {
@@ -29,11 +32,13 @@ and the legacy `language` attribute is considered when `type` is absent.
 For `type="module"` scripts, it enables Terser's `module` option unless you explicitly set `module` yourself.
 
 #### Legal comments (`@license`, `@preserve`, `/*!`)
+
 By default Terser keeps "legal" comments — those matching `@license`, `@preserve`, `@cc_on` or starting with `/*!`
 (this covers `@licstart`/`@licend` blocks as well). The `safe` and `ampSafe` presets keep that default,
 so license notices stay in the output.
 
 The [`max` preset](./presets) turns them off with Terser's own option:
+
 ```js
 minifyJs: {
     format: { comments: false }
@@ -46,11 +51,13 @@ Only use it when you ship the notices elsewhere (a `LICENSE`/`NOTICE` file, a se
 bundle header), or when the inlined scripts are your own.
 
 To keep legal comments while still using the `max` preset, override the module:
+
 ```js
 htmlnano.process(html, { minifyJs: { format: { comments: 'some' } } }, htmlnano.presets.max);
 ```
 
 #### Notes
+
 - Only JavaScript script types are processed: the default type, `text/javascript`, `application/javascript`, and legacy `text/ecmascript`. Other types (for example `application/json`) are left untouched.
 - Any `<script>` with an `integrity` attribute is skipped to preserve SRI safety. Generate SRI after minification if you rely on it.
 - Content of scripts with a `src` attribute is left untouched; their event handlers can still be minified.
@@ -65,10 +72,10 @@ htmlnano.process(html, { minifyJs: { format: { comments: 'some' } } }, htmlnano.
   and re-wrapped. CDATA markers inside JavaScript strings and template literals are left intact.
 - For AMP documents, inline handlers like `on="tap:..."` are not modified when using the AMP-safe preset.
 
-
-
 #### Example
+
 Source:
+
 ```html
 <div>
     <script>
@@ -81,6 +88,7 @@ Source:
 ```
 
 Minified:
+
 ```html
 <div>
     <script>const foo=function(){};</script>

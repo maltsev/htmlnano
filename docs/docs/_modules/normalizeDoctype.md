@@ -1,4 +1,5 @@
 ### normalizeDoctype
+
 Normalize doctypes to the short HTML5 form `<!doctype html>`.
 
 The option has two enabled modes:
@@ -11,6 +12,7 @@ The option has two enabled modes:
   This broad, backward-compatible mode is used by the `max` preset.
 
 #### Notes
+
 - Only the top-level doctype string node is inspected; posthtml-parser emits the
   doctype as a raw string, so no DOM node is created for it.
 - The `'html5'` mode cannot change standards/quirks mode because it leaves
@@ -25,13 +27,16 @@ The option has two enabled modes:
   closing `>`, or non-ASCII whitespace immediately after `<!doctype`.
 
 #### Example
+
 Source:
+
 ```html
 <!DOCTYPE   HTML >
 <html></html>
 ```
 
 Minified with either `'html5'` or `true`:
+
 ```html
 <!doctype html>
 <html></html>

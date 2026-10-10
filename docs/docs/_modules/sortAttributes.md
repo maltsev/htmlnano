@@ -1,4 +1,5 @@
 ### sortAttributes
+
 Sort attributes inside elements.
 
 The module won't impact the plain-text size of the output.
@@ -18,21 +19,24 @@ attribute names across the document and uses alphabetical ordering to break ties
 
 #### Example
 
-**alphabetical**
+##### alphabetical
 
 Source:
+
 ```html
 <input type="text" class="form-control" name="testInput" autofocus="" autocomplete="off" id="testId">
 ```
 
 Processed:
+
 ```html
 <input autocomplete="off" autofocus="" class="form-control" id="testId" name="testInput" type="text">
 ```
 
-**frequency**
+##### frequency
 
 Source:
+
 ```html
 <input type="text" class="form-control" name="testInput" id="testId">
 <a id="testId" href="#" class="testClass"></a>
@@ -40,6 +44,7 @@ Source:
 ```
 
 Processed:
+
 ```html
 <input class="form-control" id="testId" type="text" name="testInput">
 <a class="testClass" id="testId" href="#"></a>

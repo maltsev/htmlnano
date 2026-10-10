@@ -1,4 +1,5 @@
 ### removeOptionalTags
+
 Remove certain tags that can be omitted, see [HTML Standard - 13.1.2.4 Optional tags](https://html.spec.whatwg.org/multipage/syntax.html#optional-tags).
 
 The `safe` preset enables this module as `{ removeStartTags: false }`, and
@@ -13,6 +14,7 @@ removing end tags that can be omitted safely. Set it to `false` to disable all
 optional-tag removal.
 
 #### Notes
+
 - Attributes only block the start tag of the element that carries them:
   `<li class="x">…</li>` keeps its start tag but still loses `</li>`, and a
   `<html class="no-js">` still gets its `</html>` and the optional tags of

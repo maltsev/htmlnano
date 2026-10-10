@@ -1,4 +1,5 @@
 ### sortAttributesWithLists
+
 Sort values in list-like attributes (`class`, `rel`, `ping`, `sandbox`, `dropzone`, `headers`, and `sizes` on `<link>`). `sizes` on `<img>` is not modified.
 
 The module won't impact the plain-text size of the output.
@@ -17,26 +18,30 @@ Values with conflicting `dropzone` operations (`copy`, `move`, `link`) are left 
 
 #### Example
 
-**alphabetical**
+##### alphabetical
 
 Source:
+
 ```html
 <div class="foo baz bar">click</div>
 ```
 
 Processed:
+
 ```html
 <div class="bar baz foo">click</div>
 ```
 
-**frequency**
+##### frequency
 
 Source:
+
 ```html
 <div class="foo baz bar"></div><div class="bar foo"></div>
 ```
 
 Processed:
+
 ```html
 <div class="foo bar baz"></div><div class="foo bar"></div>
 ```

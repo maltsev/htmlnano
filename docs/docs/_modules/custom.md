@@ -1,6 +1,8 @@
 ### custom
+
 It's also possible to pass custom modules in the minifier.
 As a function:
+
 ```js
 const options = {
     custom: function (tree, options) {
@@ -11,6 +13,7 @@ const options = {
 ```
 
 Or as a list of functions:
+
 ```js
 const options = {
     custom: [
@@ -30,6 +33,7 @@ const options = {
 htmlnano's options are passed to your custom plugin by the second parameter `options`.
 
 Custom functions may be asynchronous. If a custom function returns a `Promise`, htmlnano awaits it before running the next custom function:
+
 ```js
 const options = {
     custom: async function (tree, options) {

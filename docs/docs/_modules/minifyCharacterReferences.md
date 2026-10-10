@@ -1,4 +1,5 @@
 ### minifyCharacterReferences
+
 Decodes HTML character references (entities) into shorter literal UTF-8
 characters in text nodes and attribute values. Most named references are
 5–8 bytes, while the equivalent character is only 2–3 bytes as UTF-8
@@ -6,6 +7,7 @@ characters in text nodes and attribute values. Most named references are
 and hexadecimal (`&#x2014;`) numeric references are decoded as well.
 
 #### Options
+
 - `true` — decode a conservative allowlist of common typographic/symbol named
   references plus safe numeric references (default in the `safe` preset).
 - `{ decodeAll: true }` — additionally decode every named reference of the
@@ -13,6 +15,7 @@ and hexadecimal (`&#x2014;`) numeric references are decoded as well.
   (default in the `max` preset).
 
 #### Notes
+
 - The decoding is lossless: a reference is only decoded when the literal
   character is parsed back into exactly the same character in that context.
 - Carriage-return references (`&#13;` and `&#xD;`) are kept because literal
@@ -45,13 +48,16 @@ and hexadecimal (`&#x2014;`) numeric references are decoded as well.
   like `&amp;mdash;` never collapses into `&mdash;`.
 
 #### Example
+
 Source:
+
 ```html
 <p title="a &mdash; b">Copyright &copy; 2024 &#8212; the end&hellip;</p>
 <a href="/search?q=1&amp;page=2">R &amp; D</a>
 ```
 
 Minified:
+
 ```html
 <p title="a — b">Copyright © 2024 — the end…</p>
 <a href="/search?q=1&page=2">R & D</a>

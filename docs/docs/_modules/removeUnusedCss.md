@@ -26,6 +26,7 @@ npm install --save-dev purgecss
 See [the documentation of PurgeCSS](https://purgecss.com) for all supported options.
 
 PurgeCSS options can be passed directly to the `removeUnusedCss` module:
+
 ```js
 htmlnano.process(html, {
     removeUnusedCss: {
@@ -37,9 +38,9 @@ htmlnano.process(html, {
 
 The following PurgeCSS options are ignored if passed to the module:
 
--   `content`
--   `css`
--   `extractors`
+- `content`
+- `css`
+- `extractors`
 
 #### With uncss
 
@@ -48,9 +49,9 @@ The following PurgeCSS options are ignored if passed to the module:
 To find out which selectors are used, uncss loads the HTML into [jsdom](https://github.com/jsdom/jsdom) with `runScripts: 'dangerously'` and script fetching enabled.
 uncss offers no option to turn that off, so with `tool: 'uncss'` the HTML passed to htmlnano is not just parsed, it is *executed*:
 
--   **Arbitrary code execution:** every inline `<script>` in the HTML runs in the build process, with the privileges of whoever runs the build.
--   **Local file read:** `<script src="/absolute/path">` is read from your filesystem (relative to the `htmlroot` option) and executed, so the script can read local files and leak them.
--   **Outbound network requests:** other `<script src="...">` URLs and other external resources are fetched over the network (SSRF).
+- **Arbitrary code execution:** every inline `<script>` in the HTML runs in the build process, with the privileges of whoever runs the build.
+- **Local file read:** `<script src="/absolute/path">` is read from your filesystem (relative to the `htmlroot` option) and executed, so the script can read local files and leak them.
+- **Outbound network requests:** other `<script src="...">` URLs and other external resources are fetched over the network (SSRF).
 
 Only use `tool: 'uncss'` on HTML that you fully control and trust, in an environment where running that HTML's scripts is acceptable.
 For anything else — user-supplied HTML, templates rendering untrusted content, HTML from third-party packages — use `tool: 'purgeCSS'` (the default), which only extracts selectors from the HTML as strings and never builds a DOM or runs JavaScript.
@@ -62,8 +63,8 @@ htmlnano prints this warning once per process when `tool: 'uncss'` is used; set 
 The last uncss release, 0.17.3, is from February 2020, and the project isn't maintained anymore.
 Its dependencies are therefore pinned to versions with published advisories that will never be fixed upstream:
 
--   [jsdom](https://github.com/jsdom/jsdom) 14 depends on `request`, which is itself deprecated and unmaintained, and drags in `form-data` (**critical**: unsafe random function for the multipart boundary, CRLF injection via unescaped field names), `tough-cookie` < 4.1.3 (prototype pollution), `qs` (denial of service) and `uuid` (missing buffer bounds check).
--   `postcss` 7 (**high**: XSS via an unescaped `</style>` in the stringifier, and arbitrary `.map` file read through an attacker-controlled `sourceMappingURL`).
+- [jsdom](https://github.com/jsdom/jsdom) 14 depends on `request`, which is itself deprecated and unmaintained, and drags in `form-data` (**critical**: unsafe random function for the multipart boundary, CRLF injection via unescaped field names), `tough-cookie` < 4.1.3 (prototype pollution), `qs` (denial of service) and `uuid` (missing buffer bounds check).
+- `postcss` 7 (**high**: XSS via an unescaped `</style>` in the stringifier, and arbitrary `.map` file read through an attacker-controlled `sourceMappingURL`).
 
 So installing `uncss` adds all of those to your dependency tree, and `npm audit` will report them.
 `tool: 'purgeCSS'` (the default) depends on none of this; uncss is still supported only for backwards compatibility.
@@ -78,11 +79,12 @@ npm install --save-dev uncss
 # pnpm install --save-dev uncss
 ```
 
-
 ##### Options
+
 See [the documentation of uncss](https://github.com/uncss/uncss) for all supported options.
 
 uncss options can be passed directly to the `removeUnusedCss` module:
+
 ```js
 htmlnano.process(html, {
     removeUnusedCss: {
@@ -94,9 +96,9 @@ htmlnano.process(html, {
 
 The following uncss options are ignored if passed to the module:
 
--   `stylesheets`
--   `ignoreSheets`
--   `raw`
+- `stylesheets`
+- `ignoreSheets`
+- `raw`
 
 #### Notes
 
@@ -109,7 +111,9 @@ The following uncss options are ignored if passed to the module:
 - PurgeCSS's optional `keyframes`, `fontFace`, and `variables` cleanup is disabled when there are multiple CSS style blocks or nonempty inline styles, because definitions can be used outside the block being processed. Unused selectors are still removed.
 
 #### Example
+
 Source:
+
 ```html
 <div class="b">
     <style>
@@ -124,6 +128,7 @@ Source:
 ```
 
 Optimized:
+
 ```html
 <div class="b">
     <style>

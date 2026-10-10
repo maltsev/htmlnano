@@ -1,4 +1,5 @@
 ### minifyConditionalComments
+
 Minifies HTML inside IE conditional comments (both downlevel-hidden and downlevel-revealed forms).
 The conditional comment wrappers are preserved while the inner HTML is processed with the same htmlnano options,
 so other modules (like `collapseWhitespace`, `minifyCss`, or `minifyJs`) can apply within the conditional block.
@@ -8,6 +9,7 @@ pages it changed very little output while adding another recursive htmlnano
 pass, so it remains an opt-in there. The `max` preset enables it.
 
 #### Notes
+
 - Empty conditional comments and standalone `<!--<![endif]-->` markers are left untouched.
 - Hidden blocks are left untouched if minification would introduce `-->` or `--!>`
   inside them, preventing hidden markup from becoming active in other browsers.
@@ -19,6 +21,7 @@ pass, so it remains an opt-in there. The `max` preset enables it.
   `</html>` from the internal parse step is removed so it is not injected into the conditional block.
 
 #### Example
+
 Source:
 
 ```html

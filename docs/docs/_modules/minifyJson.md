@@ -1,7 +1,9 @@
 ### minifyJson
+
 Minifies JSON inside `<script>` tags whose `type` ends in `/json` or `+json` (case-insensitive), including when MIME parameters are present.
 
 #### Notes
+
 - Only `<script>` tags with an explicit JSON MIME type are processed. Tags without a `type` attribute are left untouched.
 - MIME parameters are allowed (`application/json; charset=utf-8`) and casing is ignored.
 - Tags with `integrity` are skipped to preserve SRI safety.
@@ -11,7 +13,9 @@ Minifies JSON inside `<script>` tags whose `type` ends in `/json` or `+json` (ca
 - JSON-like suffixes such as `application/jsonp` are not considered JSON and are skipped.
 
 #### Example
+
 Source:
+
 ```html
 <script type="application/json">
 {
@@ -21,11 +25,13 @@ Source:
 ```
 
 Minified:
+
 ```html
 <script type="application/json">{"user":"me"}</script>
 ```
 
 Source:
+
 ```html
 <script type="application/ld+json; charset=UTF-8">
 {
@@ -35,6 +41,7 @@ Source:
 ```
 
 Minified:
+
 ```html
 <script type="application/ld+json; charset=UTF-8">{"id":1}</script>
 ```

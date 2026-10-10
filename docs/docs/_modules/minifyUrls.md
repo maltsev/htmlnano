@@ -1,4 +1,5 @@
 ### minifyUrls
+
 Convert absolute URL to relative URL using [relateurl](https://www.npmjs.com/package/relateurl).
 
 You have to install `relateurl`, `terser` and `srcset` in order to use this feature:
@@ -53,7 +54,7 @@ htmlnano.process(html, {
 
 #### Example
 
-**Basic Usage**
+##### Basic Usage
 
 Configuration:
 
@@ -75,7 +76,7 @@ Minified:
 <a href="foo/bar/baz">bar</a>
 ```
 
-**With sub-directory**
+##### With sub-directory
 
 Configuration:
 
@@ -97,7 +98,7 @@ Minified:
 <a href="../bar">bar</a>
 ```
 
-**Srcset**
+##### `srcset`
 
 Configuration:
 

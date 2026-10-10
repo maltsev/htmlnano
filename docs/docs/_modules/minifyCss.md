@@ -1,4 +1,5 @@
 ### minifyCss
+
 Minifies CSS with [cssnano](http://cssnano.co/) inside `<style>` tags and `style` attributes.
 
 Only `<style>` tags with a CSS type (`text/css` or no `type` attribute) are minified.
@@ -6,10 +7,12 @@ Other style types (for example `text/less`) are left untouched.
 CDATA wrappers are preserved, even when surrounded by whitespace.
 
 Skipped nodes:
+
 - Any element with an `integrity` attribute (covers both `<style>` tags and `style` attributes).
 - AMP boilerplate styles (`amp-boilerplate`, `amp4ads-boilerplate`, `amp4email-boilerplate`).
 
 Notes:
+
 - Identical CSS is minified once per document. Processors are initialized only for CSS that needs minification.
 - With the built-in `default` preset and no custom options, distinct inline declaration lists are processed
   together as independent PostCSS roots, sharing plugin setup without merging styles. Custom presets,
@@ -33,10 +36,12 @@ npm install --save-dev cssnano postcss
 ```
 
 #### Options
+
 See [the documentation of cssnano](http://cssnano.co/docs/optimisations/) for all supported optimizations.
 By default CSS is minified with preset `default`, which shouldn't have any side-effects.
 
 To use another preset or disable some optimizations pass options to `minifyCss` module:
+
 ```js
 htmlnano.process(html, {
     minifyCss: {
@@ -79,7 +84,9 @@ htmlnano does disable `reduceIdents` and `zindex` for `style` attributes, where 
 wrong (see the notes above), but it cannot make the `<style>`-tag transformations safe for you.
 
 #### Example
+
 Source:
+
 ```html
 <div>
     <style>
@@ -92,6 +99,7 @@ Source:
 ```
 
 Minified:
+
 ```html
 <div>
     <style>h1{margin:10px;color:red}</style>

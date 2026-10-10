@@ -13,13 +13,16 @@
   collapse, as do AMP flags when `amphtml` is enabled.
 
 #### Options
+
 If your document uses [AMP](https://www.ampproject.org/), set the `amphtml` flag
 to collapse additional, AMP-specific boolean attributes:
+
 ```json
 "collapseBooleanAttributes": {
     "amphtml": true
 }
 ```
+
 When `amphtml` is enabled, AMP boolean attributes are collapsed when their
 value is empty, `true`, or matches the attribute name.
 Native `input[placeholder]` and `textarea[placeholder]` text and nonempty AMP
@@ -27,7 +30,9 @@ Native `input[placeholder]` and `textarea[placeholder]` text and nonempty AMP
 `data-block-on-consent="_auto_reject"` are also preserved.
 
 #### Side effects
+
 This module could break your styles or JS if you use selectors with attributes:
+
 ```CSS
 button[disabled="disabled"] {
     color: red;
@@ -35,7 +40,9 @@ button[disabled="disabled"] {
 ```
 
 #### Example
+
 Source:
+
 ```html
 <button disabled="disabled">click</button>
 <script defer=""></script>
@@ -46,6 +53,7 @@ Source:
 ```
 
 Minified:
+
 ```html
 <button disabled>click</button>
 <script defer></script>

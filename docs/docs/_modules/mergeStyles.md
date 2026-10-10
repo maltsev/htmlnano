@@ -1,15 +1,18 @@
 ### mergeStyles
+
 Merges multiple `<style>` with the same normalized `media` and `type` into one tag,
 as long as all other attributes match (for example: `nonce`, `title`, `data-*`).
 Attribute matching is strict: any differing attribute (including `nonce`) prevents merging.
 
 Normalization details:
+
 - Attribute names are compared without ASCII case, and character references in values are decoded for matching. The first duplicate attribute wins, as in HTML.
 - Missing or empty `type` is treated as `text/css` (case-insensitive). Other types, including whitespace-padded values, are left separate.
 - Missing or empty `media` is treated as `all`. ASCII whitespace and case are normalized for simple queries; queries containing strings, escapes or custom identifiers are matched conservatively.
 - Boolean attributes like `amp-custom` and `disabled` are treated as present when set.
 
 Skipped styles:
+
 - `<style scoped>...</style>`
 - `<style integrity>...</style>`
 - AMP boilerplate styles (`amp-boilerplate`, `amp4ads-boilerplate`, `amp4email-boilerplate`)
@@ -63,7 +66,9 @@ becomes:
 ```
 
 #### Example
+
 Source:
+
 ```html
 <style>h1 { color: red }</style>
 <style>div { font-size: 20px }</style>
@@ -72,6 +77,7 @@ Source:
 ```
 
 Minified:
+
 ```html
 <style>h1 { color: red } div { font-size: 20px }</style>
 <style media="print">div { color: blue } a {}</style>
@@ -79,6 +85,7 @@ Minified:
 
 The following is **not** merged, because the external stylesheet sits between the
 two inline styles and could change the cascade:
+
 ```html
 <style>p { color: red }</style>
 <link rel="stylesheet" href="theme.css">

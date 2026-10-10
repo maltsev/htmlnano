@@ -6,8 +6,8 @@
 Modular HTML minifier, built on top of the [PostHTML](https://github.com/posthtml/posthtml). Inspired by [cssnano](https://github.com/cssnano/cssnano).
 
 ## Documentation
-https://htmlnano.netlify.app
 
+<https://htmlnano.netlify.app>
 
 ## Usage
 
@@ -56,8 +56,7 @@ node_modules/.bin/htmlnano "dist/**/*.html" --output-dir minified
 node_modules/.bin/htmlnano "dist/**/*.html" --in-place
 ```
 
-More usage examples (PostHTML, CLI, Webpack): https://htmlnano.netlify.app/usage
-
+More usage examples (PostHTML, CLI, Webpack): <https://htmlnano.netlify.app/usage>
 
 ## Benchmarks
 
@@ -94,4 +93,4 @@ Updated: 2026-10-02
 | [tc39.es](https://tc39.es/ecma262/)                             |        7447 |                   5.7% |                 8.1% |  **<ins>8.3%</ins>** |      6.6% |          6.2% |                7.9% |
 | **Avg. minify rate**                                            |             |               **8.2%** |            **14.2%** |            **20.9%** | **11.5%** |      **9.5%** |           **12.1%** |
 
-Latest benchmarks: https://github.com/maltsev/html-minifiers-benchmark (updated daily).
+Latest benchmarks: <https://github.com/maltsev/html-minifiers-benchmark> (updated daily).

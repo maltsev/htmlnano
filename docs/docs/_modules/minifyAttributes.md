@@ -1,4 +1,5 @@
 ### minifyAttributes
+
 Minify specific attribute values. This module targets
 `meta[http-equiv="refresh"]` by removing the `url=` prefix when safe and
 trimming ASCII whitespace. Explicit empty URLs and prefixes needed to preserve
@@ -13,6 +14,7 @@ containing character references unchanged. If a meta element also declares a
 refresh, only the refresh rewrite is applied to preserve its destination.
 
 #### Options
+
 - `metaContent` (`boolean`) - enable minification for `meta[http-equiv="refresh"]` and `meta[name="viewport"]` content.
 - `redundantWhitespaces` - remove redundant whitespace from attribute values.
   - `safe` - collapse whitespace in list-like attributes and trim single-value attributes (similar to `collapseAttributeWhitespace`).
@@ -20,7 +22,9 @@ refresh, only the refresh rewrite is applied to preserve its destination.
   - `false` - disable this behavior.
 
 #### Example
+
 Source:
+
 ```html
 <meta http-equiv="refresh" content=" 5; ">
 <meta http-equiv="refresh" content="5; url=http://example.com/">
@@ -28,6 +32,7 @@ Source:
 ```
 
 Minified:
+
 ```html
 <meta http-equiv="refresh" content="5">
 <meta http-equiv="refresh" content="5; http://example.com/">

@@ -1,11 +1,14 @@
 ### minifyHtmlTemplate
+
 Minifies HTML inside template containers (for example `<script type="text/x-handlebars-template">` or `<template>`).
 It runs htmlnano on the inner HTML using the current minification and PostHTML parsing/rendering options.
 
 #### Options
+
 `minifyHtmlTemplate: true` enables the default template rules.
 
 You can pass an array of object rules:
+
 ```js
 htmlnano.process(html, {
     minifyHtmlTemplate: [
@@ -16,6 +19,7 @@ htmlnano.process(html, {
 ```
 
 Passing any array replaces the built-in rules. To keep defaults and add more, spread them in:
+
 ```js
 import { modules } from 'htmlnano';
 
@@ -28,6 +32,7 @@ htmlnano.process(html, {
 ```
 
 #### Notes
+
 - The built-in rules include common script template MIME types and the `<template>` tag.
 - Rules are objects: `{ tag, attrs? }`.
 - Attribute name matching is case-insensitive. For `type`, matching ignores MIME parameters and casing.
@@ -37,7 +42,9 @@ htmlnano.process(html, {
 - The actual changes depend on the enabled modules (for example `collapseWhitespace`).
 
 #### Example
+
 Source:
+
 ```html
 <script type="text/x-handlebars-template">
     <div class="entry">
@@ -47,6 +54,7 @@ Source:
 ```
 
 Minified:
+
 ```html
 <script type="text/x-handlebars-template"><div class="entry"><h1>{{title}}</h1></div></script>
 ```

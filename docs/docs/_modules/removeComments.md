@@ -1,5 +1,7 @@
 ### removeComments
+
 #### Options
+
 - `safe` – removes HTML comments but keeps:
   - conditional comments (`<!--[if ...]>...<![endif]-->` and downlevel-revealed forms)
   - `<!--noindex-->...<!--/noindex-->` (case/spacing tolerant)

@@ -3,6 +3,7 @@
 A preset is just an object with modules config.
 
 Currently the following presets are available:
+
 - [safe](https://github.com/maltsev/htmlnano/blob/master/src/presets/safe.ts) — default preset for safe minification.
 - [ampSafe](https://github.com/maltsev/htmlnano/blob/master/src/presets/ampSafe.ts) — same as `safe` but tailored for [AMP pages](https://www.ampproject.org/).
 - [max](https://github.com/maltsev/htmlnano/blob/master/src/presets/max.ts) — maximal minification (might break some pages).
@@ -64,8 +65,8 @@ To keep them:
 htmlnano.process(html, { minifyJs: { format: { comments: 'some' } } }, htmlnano.presets.max);
 ```
 
-
 You can use them the following way:
+
 ```js
 const htmlnano = require('htmlnano');
 const ampSafePreset = require('htmlnano').presets.ampSafe;
@@ -90,8 +91,8 @@ const result = await htmlnano.process(html, {}, ampSafe);
 
 If you skip `preset` argument, [`safe`](https://github.com/maltsev/htmlnano/blob/master/src/presets/safe.ts) is used by default.
 
-
 If you'd like to define your very own config without any presets pass an empty object as a preset:
+
 ```js
 const htmlnano = require('htmlnano');
 const options = {
@@ -108,8 +109,8 @@ htmlnano
     });
 ```
 
-
 You might create your own presets by starting from a built-in one:
+
 ```js
 const htmlnano = require('htmlnano');
 const emailPreset = {

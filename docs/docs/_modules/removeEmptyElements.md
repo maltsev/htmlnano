@@ -1,7 +1,9 @@
 ### removeEmptyElements
+
 Removes elements that have no meaningful content.
 
 #### Options
+
 - `true` — removes empty elements without attributes.
 - `{ removeWithAttributes: 'presentational' }` — also removes empty elements whose
   attributes are all *presentational*: `class`, `style` and `aria-hidden`.
@@ -52,6 +54,7 @@ doesn't make either exception: it removes every empty element except the ones li
 above.
 
 #### Side effects
+
 This module removes elements that are used for styling or scripting, so it's disabled
 in the `safe` preset.
 
@@ -66,7 +69,9 @@ elements are kept for exactly that reason, and you can use `removeEmptyElements:
 back.
 
 #### Example
+
 Source:
+
 ```html
 <div>hello<span><b></b></span></div>
 <div><span class="icon"></span>Download</div>
@@ -74,6 +79,7 @@ Source:
 ```
 
 Minified (`removeEmptyElements: true`):
+
 ```html
 <div>hello</div>
 <div><span class="icon"></span>Download</div>
@@ -81,6 +87,7 @@ Minified (`removeEmptyElements: true`):
 ```
 
 Minified (`removeEmptyElements: { removeWithAttributes: 'presentational' }`):
+
 ```html
 <div>hello</div>
 <div>Download</div>
@@ -88,6 +95,7 @@ Minified (`removeEmptyElements: { removeWithAttributes: 'presentational' }`):
 ```
 
 Minified (`removeEmptyElements: { removeWithAttributes: true }`):
+
 ```html
 <div>hello</div>
 <div>Download</div>
