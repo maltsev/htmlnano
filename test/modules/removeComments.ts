@@ -6,6 +6,60 @@ import safePreset from '../../dist/presets/safe.mjs';
 import maxPreset from '../../dist/presets/max.mjs';
 
 describe('removeComments', () => {
+    context('Astro hydration', () => {
+        const island = '<!--xs--><astro-island ssr="" await-children=""><div data-hk="s00">'
+            + '<table><thead><tr><!--$--><th>name</th><!--/--></tr></thead></table>'
+            + '<!--generated-hydration-id--><button>Next</button><!--/--></div>'
+            + '<!--astro:end--></astro-island>';
+
+        for (const removeComments of ['safe', true] as const) {
+            it(`keeps Astro and renderer hydration comments with ${removeComments}`, () => {
+                return initIdempotent(
+                    '<!-- remove --><main>' + island + '<!-- remove --></main><!-- remove -->',
+                    '<main>' + island + '</main>',
+                    { removeComments }
+                );
+            });
+        }
+
+        it('keeps leading comment blocks separated from an island by whitespace', () => {
+            const input = '<div><!--xs--> \n<!--generated-id-->\t<ASTRO-ISLAND><!--astro:end--></ASTRO-ISLAND></div>';
+            return initIdempotent(input, input, { removeComments: 'safe' });
+        });
+
+        it('handles nested and sibling islands without preserving trailing comments', () => {
+            const input = '<div><astro-island><!--outer--><section><astro-island><!--inner--><!--astro:end--></astro-island>'
+                + '<!--still outer--></section><!--astro:end--></astro-island><!--remove--><p>x</p>'
+                + island + '<!--remove--></div>';
+            return initIdempotent(input, input.replace(/<!--remove-->/g, ''), { removeComments: 'safe' });
+        });
+
+        it('does not require an end marker to preserve island comments', () => {
+            const input = '<astro-island><div><!--generated-id--></div></astro-island><!--remove-->';
+            return initIdempotent(input, input.replace('<!--remove-->', ''), { removeComments: 'safe' });
+        });
+
+        it('removes matching comments outside islands and across text or element boundaries', () => {
+            return initIdempotent(
+                '<!--xs-->text<!--$--><span></span><!--/-->text<astro-island></astro-island><!--astro:end-->',
+                'text<span></span>text<astro-island></astro-island>',
+                { removeComments: 'safe' }
+            );
+        });
+
+        it('still honors plaintext inside an island for the rest of the document', () => {
+            const input = '<astro-island><plaintext><!--literal--></plaintext></astro-island><!--also literal-->';
+            return init(input, input, { removeComments: 'safe' });
+        });
+
+        const explicitModes: RemoveCommentsOptions[] = ['all', /./, '/./', () => true];
+        for (const removeComments of explicitModes) {
+            it(`allows explicit removal of hydration comments with ${String(removeComments)}`, () => {
+                return init(island, island.replace(/<!--[\s\S]*?-->/g, ''), { removeComments });
+            });
+        }
+    });
+
     context('literal text and comment boundaries', () => {
         const modes: RemoveCommentsOptions[] = ['safe', 'all', /./, () => true];
 

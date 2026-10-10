@@ -52,6 +52,22 @@ describe('safe preset exclusions', () => {
     });
 });
 
+describe('Astro hydration comments', () => {
+    for (const { name, preset } of presets.filter(({ name }) => name !== 'max')) {
+        it(`keeps hydration markers with the ${name} preset`, async () => {
+            const input = '<!--remove--><main><!--xs--><astro-island ssr await-children>'
+                + '<div><!--$--><span>name</span><!--/--></div><!--astro:end-->'
+                + '</astro-island><!--remove--></main><!--remove-->';
+            const output = await minify(input, preset);
+
+            expect(output.match(/<!--[\s\S]*?-->/g)).toEqual([
+                '<!--xs-->', '<!--$-->', '<!--/-->', '<!--astro:end-->'
+            ]);
+            expect(await minify(output, preset)).toBe(output);
+        });
+    }
+});
+
 describe('doctype preset settings', () => {
     it('uses conservative normalization in safe and ampSafe, and broad normalization in max', () => {
         expect(safePreset.normalizeDoctype).toBe('html5');

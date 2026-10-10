@@ -6,8 +6,9 @@
   - `<!--sse-->...<!--/sse-->` Server-Side Excludes markers (case/spacing tolerant)
   - excerpt markers that start with `more` (case/spacing tolerant), e.g. `<!-- more -->`, `<!-- MORE -->`, `<!-- more Read more -->`
   - license comments `<!--! ... -->` (the HTML analogue of the `/*! ... */` comments kept by Terser/cssnano)
+  - Astro hydration comments: all comments inside `<astro-island>` elements and comment blocks immediately before them (allowing whitespace between comments and the element)
   (default)
-- `all` — removes all HTML comments, including conditional/noindex/sse/excerpt comments
+- `all` — removes all HTML comments, including conditional/noindex/sse/excerpt and Astro hydration comments
 - A `RegExp` — removes HTML comments that match the regexp (non-matching comments are kept)
 - A string — treated as a regexp pattern. Supports `/pattern/flags` or a plain pattern string (useful in JSON config files)
 - A `Function` that returns boolean — removes HTML comments for which the callback returns a truthy value

@@ -19,15 +19,21 @@ export type RemoveCommentsOptions = boolean | RegExp | ((comment: string) => boo
 const mod: HtmlnanoModule<RemoveCommentsOptions> = {
     default(tree, _, removeType) {
         removeType = normalizeRemoveType(removeType);
+        const preserveAstroComments = removeType === 'safe';
         let inPlaintext = false;
 
-        function visit(nodes: PostHTMLNodeLike[]): void {
+        function visit(nodes: PostHTMLNodeLike[], inAstroIsland = false): void {
             let writeIndex = 0;
             let removedComment = false;
+            const leadingAstroComments = preserveAstroComments && !inAstroIsland
+                ? findLeadingAstroComments(nodes)
+                : new Set<number>();
 
-            for (const node of nodes) {
+            for (const [index, node] of nodes.entries()) {
                 if (!inPlaintext) {
-                    if (isCommentToRemove(node, removeType)) {
+                    const preserveComment = preserveAstroComments
+                        && (inAstroIsland || leadingAstroComments.has(index));
+                    if (!preserveComment && isCommentToRemove(node, removeType)) {
                         removedComment = true;
                         continue;
                     }
@@ -39,7 +45,7 @@ const mod: HtmlnanoModule<RemoveCommentsOptions> = {
                             // beyond its apparent closing tag in PostHTML's tree.
                             inPlaintext = true;
                         } else if (!textElements.has(tag) && Array.isArray(node.content)) {
-                            visit(node.content);
+                            visit(node.content, inAstroIsland || tag === 'astro-island');
                         }
                     }
                 }
@@ -60,6 +66,30 @@ const mod: HtmlnanoModule<RemoveCommentsOptions> = {
 };
 
 export default mod;
+
+function findLeadingAstroComments(nodes: PostHTMLNodeLike[]): Set<number> {
+    const comments = new Set<number>();
+    let beforeIsland = false;
+
+    // Hydration markers can precede an island, with whitespace in between.
+    // Scan backwards so each sibling is examined only once.
+    for (let index = nodes.length - 1; index >= 0; index--) {
+        const node = nodes[index];
+        if (typeof node === 'string') {
+            if (isComment(node)) {
+                if (beforeIsland) {
+                    comments.add(index);
+                }
+            } else if (node.trim()) {
+                beforeIsland = false;
+            }
+        } else {
+            beforeIsland = !!node && typeof node.tag === 'string' && node.tag.toLowerCase() === 'astro-island';
+        }
+    }
+
+    return comments;
+}
 
 function isCommentToRemove(text: PostHTMLNodeLike, removeType: Partial<RemoveCommentsOptions>): boolean {
     if (typeof text !== 'string') {
