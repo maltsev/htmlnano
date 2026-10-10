@@ -170,7 +170,15 @@ async function processCssJobs(
 ): Promise<void> {
     if (jobs.size === 0) return;
 
-    const processor = postcss([cssnano(cssnanoOptions)]);
+    // cssnano 7 and 8 append custom plugins to the options' preset. Give each
+    // processor its own config so stylesheet and inline plugins stay independent.
+    const processorOptions = { ...cssnanoOptions };
+    const preset = processorOptions.preset;
+    if (preset && typeof preset === 'object' && !Array.isArray(preset)) {
+        processorOptions.preset = { ...preset, plugins: [...preset.plugins] };
+    }
+
+    const processor = postcss([cssnano(processorOptions)]);
     const uniqueJobs = [...jobs.values()];
 
     if (batch && uniqueJobs.length > 1) {

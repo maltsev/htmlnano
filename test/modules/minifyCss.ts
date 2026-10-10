@@ -15,19 +15,19 @@ describe('minifyCss', function () {
     };
     const html = `<div><style>
         h1 {
-            margin: 10px 10px 10px 10px;
-            color: #ff0000;
             -moz-border-radius: 10px;
             border-radius: 10px;
+            color: #ff0000;
+            margin: 10px 10px 10px 10px;
         }
     </style></div>`;
     const svg = `<svg><style>
         <![CDATA[
             h1 {
-                margin: 10px 10px 10px 10px;
-                color: #ff0000;
                 -moz-border-radius: 10px;
                 border-radius: 10px;
+                color: #ff0000;
+                margin: 10px 10px 10px 10px;
             }
         ]]>
     </style></svg>`;
@@ -35,7 +35,7 @@ describe('minifyCss', function () {
     it('should minify CSS inside <style>', () => {
         return init(
             html,
-            '<div><style>h1{margin:10px;color:red;-moz-border-radius:10px;border-radius:10px}</style></div>',
+            '<div><style>h1{-moz-border-radius:10px;border-radius:10px;color:red;margin:10px}</style></div>',
             options
         );
     });
@@ -130,31 +130,37 @@ describe('minifyCss', function () {
         )).rejects.toThrow('Unclosed comment');
     });
 
-    it('should preserve separate results for custom plugins and deduplicate identical inputs', async () => {
-        const rootTypes: string[] = [];
-        function plugin(): Plugin {
-            return {
-                postcssPlugin: 'check-root',
-                prepare(result: Result) {
-                    rootTypes.push(result.root.type);
-                    return {
-                        OnceExit(root) {
-                            root.walkDecls((decl) => {
-                                decl.value = 'green';
-                            });
-                        }
-                    };
-                }
-            };
-        }
+    for (const preset of [undefined, { plugins: [] }]) {
+        it(`should preserve separate results for custom plugins and deduplicate identical inputs ${preset ? 'with' : 'without'} a preset`, async () => {
+            const rootTypes: string[] = [];
+            function plugin(): Plugin {
+                return {
+                    postcssPlugin: 'check-root',
+                    prepare(result: Result) {
+                        rootTypes.push(result.root.type);
+                        return {
+                            OnceExit(root) {
+                                root.walkDecls((decl) => {
+                                    decl.value = 'green';
+                                });
+                            }
+                        };
+                    }
+                };
+            }
 
-        await init(
-            '<style>a{color:red}</style><style>a{color:blue}</style><div style="color:red"></div><div style="color:blue"></div><div style="color:red"></div>',
-            '<style>a{color:green}</style><style>a{color:green}</style><div style="color:green"></div><div style="color:green"></div><div style="color:green"></div>',
-            { minifyCss: { plugins: [plugin] } }
-        );
-        expect(rootTypes).toEqual(['root', 'root', 'root', 'root']);
-    });
+            const cssnanoOptions = { plugins: [plugin], preset };
+            const originalOptions = { plugins: [plugin], preset: preset ? { plugins: [] } : undefined };
+
+            await init(
+                '<style>a{color:red}</style><style>a{color:blue}</style><div style="color:red"></div><div style="color:blue"></div><div style="color:red"></div>',
+                '<style>a{color:green}</style><style>a{color:green}</style><div style="color:green"></div><div style="color:green"></div><div style="color:green"></div>',
+                { minifyCss: cssnanoOptions }
+            );
+            expect(rootTypes).toEqual(['root', 'root', 'root', 'root']);
+            expect(cssnanoOptions).toEqual(originalOptions);
+        });
+    }
 
     for (const [description, html, expectedCalls] of [
         ['no CSS', '<p>Hello</p>', 0],
@@ -178,7 +184,7 @@ describe('minifyCss', function () {
     it('should pass options to cssnano', () => {
         return init(
             html,
-            '<div><style>h1{margin:10px;color:#ff0000;-moz-border-radius:10px;border-radius:10px}</style></div>',
+            '<div><style>h1{-moz-border-radius:10px;border-radius:10px;color:#ff0000;margin:10px}</style></div>',
             {
                 minifyCss: {
                     preset: ['default', {
@@ -450,7 +456,7 @@ describe('minifyCss', function () {
     it('should keep CSS inside SVG wrapped in CDATA', () => {
         return init(
             svg,
-            '<svg><style><![CDATA[h1{margin:10px;color:red;-moz-border-radius:10px;border-radius:10px}]]></style></svg>',
+            '<svg><style><![CDATA[h1{-moz-border-radius:10px;border-radius:10px;color:red;margin:10px}]]></style></svg>',
             options
         );
     });

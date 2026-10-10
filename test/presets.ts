@@ -189,7 +189,12 @@ describe('[fixture corpus]', () => {
 
                 // Snapshot cross-module output for review-able diffs.
                 it(`snapshot ${fixture}`, () => {
-                    return minify(readFixture(fixture), preset).then((output) => {
+                    // Disable declaration sorting to keep snapshot output stable
+                    // across supported cssnano versions.
+                    const options: HtmlnanoOptions = {
+                        minifyCss: { preset: ['default', { cssDeclarationSorter: false }] }
+                    };
+                    return minify(readFixture(fixture), preset, options).then((output) => {
                         assertSnapshot(snapshotName, output);
                     });
                 });
