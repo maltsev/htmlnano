@@ -9,6 +9,25 @@ import ampSafePreset from '../../dist/presets/ampSafe.mjs';
 import maxPreset from '../../dist/presets/max.mjs';
 
 describe('minifyJs', () => {
+    for (const preset of [safePreset, maxPreset]) {
+        it('should minify bare SVG CDATA without changing script values', async () => {
+            const code = 'var value = "<tag>&quot; & ]]>"; console.log(1 + 2);';
+            const input = `<svg><script><![CDATA[${code.replace(/\]\]>/g, ']]]]><![CDATA[>')}]]></script></svg>`;
+            const { html } = await processHtml(input, { skipConfigLoading: true }, preset);
+            const svg = parseFragment(html).childNodes[0] as DefaultTreeAdapterTypes.Element;
+            const script = svg.childNodes[0] as DefaultTreeAdapterTypes.Element;
+            const minifiedCode = script.childNodes.map(child => 'value' in child ? child.value : '').join('');
+            expect(runInNewContext(`${minifiedCode}; value`, { console: { log() {} } }))
+                .toBe('<tag>&quot; & ]]>');
+            expect(minifiedCode).toContain('console.log(3)');
+        });
+    }
+
+    it('should minify a simple bare SVG CDATA section', () => {
+        return init('<svg><script><![CDATA[console.log(1 + 2);]]></script></svg>',
+            '<svg><script><![CDATA[console.log(3);]]></script></svg>', { minifyJs: {} });
+    });
+
     const options = {
         minifyJs: safePreset.minifyJs
     };

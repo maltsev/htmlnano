@@ -1,7 +1,7 @@
 import type PostHTML from 'posthtml';
 import { decodeHTMLAttribute } from 'entities';
 import { extractTextContentFromNode, getTagName, isEventHandler, optionalImport } from '../helpers';
-import type { HtmlnanoModule, PostHTMLTreeLike } from '../types';
+import type { HtmlnanoModule, PostHTMLNodeLike, PostHTMLTreeLike } from '../types';
 import { redundantScriptTypes } from './removeRedundantAttributes.js';
 import { getScriptType } from './helpers/getScriptType.js';
 
@@ -15,6 +15,7 @@ const mod: HtmlnanoModule<MinifyOptions> = {
         if (!terser) return tree;
 
         const promises: Promise<void>[] = [];
+        const svgScripts = collectSvgScripts(tree);
 
         let p: Promise<void> | undefined;
 
@@ -42,7 +43,7 @@ const mod: HtmlnanoModule<MinifyOptions> = {
                 const mimeType = getScriptType(nodeAttrs);
                 if (redundantScriptTypes.has(mimeType) || mimeType === 'module') {
                     const scriptTerserOptions = resolveScriptTerserOptions(terserOptions, mimeType);
-                    p = processScriptNode(node, scriptTerserOptions, terser);
+                    p = processScriptNode(node, scriptTerserOptions, terser, svgScripts.has(node));
                     if (p) {
                         promises.push(p);
                     }
@@ -203,7 +204,18 @@ function analyzeTreeQuotes(tree: PostHTMLTreeLike) {
     };
 }
 
-function processScriptNode(scriptNode: PostHTML.Node, terserOptions: MinifyOptions, terser: typeof import('terser')) {
+function collectSvgScripts(nodes: PostHTMLNodeLike[], inSvg = false, scripts = new WeakSet<object>()): WeakSet<object> {
+    for (const node of nodes) {
+        if (!node || typeof node !== 'object') continue;
+        const tag = getTagName(node);
+        const svgContent = tag === 'svg' || (inSvg && !['foreignobject', 'desc', 'title', 'math'].includes(tag));
+        if (svgContent && tag === 'script') scripts.add(node);
+        if (Array.isArray(node.content)) collectSvgScripts(node.content, svgContent, scripts);
+    }
+    return scripts;
+}
+
+function processScriptNode(scriptNode: PostHTML.Node, terserOptions: MinifyOptions, terser: typeof import('terser'), inSvg: boolean) {
     let js = extractTextContentFromNode(scriptNode).trim();
     if (!js.length) {
         return;
@@ -211,7 +223,10 @@ function processScriptNode(scriptNode: PostHTML.Node, terserOptions: MinifyOptio
 
     // Improve performance by avoiding calling stripCdata again and again
     let isCdataWrapped = false;
-    if (js.includes('CDATA')) {
+    const isBareCdata = inSvg && js.startsWith('<![CDATA[') && js.endsWith(']]>');
+    if (isBareCdata) {
+        js = js.slice(9, -3).replace(/\]\]><!\[CDATA\[/g, '');
+    } else if (js.includes('CDATA')) {
         const strippedJs = stripCdata(js);
         isCdataWrapped = js !== strippedJs;
         js = strippedJs;
@@ -229,7 +244,10 @@ function processScriptNode(scriptNode: PostHTML.Node, terserOptions: MinifyOptio
             }
 
             let content = result.code;
-            if (isCdataWrapped) {
+            if (isBareCdata) {
+                // Split any newly printed terminator across adjacent sections.
+                content = '<![CDATA[' + content.replace(/\]\]>/g, ']]]]><![CDATA[>') + ']]>';
+            } else if (isCdataWrapped) {
                 content = '/*<![CDATA[*/' + content + '/*]]>*/';
             }
 
