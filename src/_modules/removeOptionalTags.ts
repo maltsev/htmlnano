@@ -1,6 +1,6 @@
 import type PostHTML from 'posthtml';
 import { decodeHTML } from 'entities';
-import { isComment } from '../helpers';
+import { getTagName, isComment } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike, PostHTMLTreeLike, RemoveOptionalTagsOptions } from '../types';
 import { escapeTextBoundary } from './helpers/escapeTextBoundary';
 
@@ -463,13 +463,13 @@ function removeOptionalTagsFrom(nodes: PostHTMLNodeLike[], parent: PostHTML.Node
         if (context.inPlaintext) return;
         if (typeof node === 'string') return;
 
-        const tagName = typeof node.tag === 'string' ? node.tag.toLowerCase() : node.tag;
+        const tagName = getTagName(node);
 
         if (tagName === 'plaintext') {
             context.inPlaintext = true;
             return;
         }
-        if (typeof tagName === 'string' && (foreignContentTags.has(tagName) || textContentTags.has(tagName))) return;
+        if (foreignContentTags.has(tagName) || textContentTags.has(tagName)) return;
 
         /*
          * A node without a tag renders as its content only. posthtml-include and
@@ -479,7 +479,7 @@ function removeOptionalTagsFrom(nodes: PostHTMLNodeLike[], parent: PostHTML.Node
          * where its missing tag name blocks every "no more content in the parent
          * element" rule: what its content really ends up nested in is unknown.
          */
-        if (typeof tagName !== 'string') {
+        if (typeof node.tag !== 'string') {
             if (node.content && node.content.length) {
                 removeOptionalTagsFrom(node.content, node, context);
             }
@@ -538,7 +538,7 @@ function escapeJoinedText(nodes: PostHTMLNodeLike[], omission: OmissionContext, 
             return;
         }
 
-        const tagName = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+        const tagName = getTagName(node);
         if (tagName) context.previousText = null;
         if (tagName === 'plaintext') context.inPlaintext = true;
         if (context.inPlaintext || foreignContentTags.has(tagName) || textContentTags.has(tagName)) return;

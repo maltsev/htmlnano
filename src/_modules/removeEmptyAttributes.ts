@@ -1,5 +1,5 @@
 import { decodeHTMLAttribute } from 'entities';
-import { hasOwn, isEventHandler } from '../helpers';
+import { getTagName, hasOwn, isEventHandler } from '../helpers';
 import type { HtmlnanoModule } from '../types';
 
 // Empty title/lang override inheritance; form/formaction/headers/pattern and
@@ -83,7 +83,7 @@ const mod: HtmlnanoModule = {
     onAttrs() {
         return (attrs, node) => {
             const newAttrs = { ...attrs };
-            const tagName = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+            const tagName = getTagName(node);
             Object.entries(attrs).forEach(([attrName, attrValue]) => {
                 const normalizedAttrName = attrName.toLowerCase();
                 // <bdi> defaults to auto only when dir is absent. A script's

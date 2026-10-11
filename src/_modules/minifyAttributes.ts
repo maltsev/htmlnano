@@ -1,3 +1,4 @@
+import { getTagName } from '../helpers';
 import { decodeHTMLAttribute } from 'entities';
 import type { HtmlnanoModule } from '../types';
 import { collapseAttributeWhitespace } from './collapseAttributeWhitespace';
@@ -229,7 +230,7 @@ const mod: HtmlnanoModule<MinifyAttributesOptions> = {
         const normalizedOptions = normalizeOptions(moduleOptions);
 
         return (attrs, node) => {
-            const tagName = typeof node.tag === 'string' ? node.tag.toLowerCase() : undefined;
+            const tagName = getTagName(node) || undefined;
 
             if (normalizedOptions.metaContent && isMetaRefresh(attrs, tagName)) {
                 const content = attrs.content;

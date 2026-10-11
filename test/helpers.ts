@@ -3,6 +3,7 @@ import type { Expect } from 'expect';
 import {
     extractCssFromStyleNode,
     extractTextContentFromNode,
+    getTagName,
     isAmpBoilerplate,
     isComment,
     isConditionalComment,
@@ -16,6 +17,28 @@ import {
 } from '../src/helpers.ts';
 
 describe('[helpers]', () => {
+    context('getTagName()', () => {
+        it('should normalize element names without changing the node', () => {
+            const node = { tag: 'ScRiPt' };
+            expect(getTagName(node)).toBe('script');
+            expect(node.tag).toBe('ScRiPt');
+            expect(getTagName({ tag: 'my-Widget' })).toBe('my-widget');
+        });
+
+        it('should return an empty string for tagless nodes', () => {
+            // @ts-expect-error -- PostHTML supports tag: false wrappers at runtime
+            expect(getTagName({ tag: false })).toBe('');
+            expect(getTagName({ content: ['text'] })).toBe('');
+            expect(getTagName({ tag: '' })).toBe('');
+        });
+
+        it('should return an empty string for text or missing nodes', () => {
+            expect(getTagName('text')).toBe('');
+            expect(getTagName(null)).toBe('');
+            expect(getTagName(undefined)).toBe('');
+        });
+    });
+
     context('isEventHandler()', () => {
         it('should recognize global handlers independently of attribute and tag casing', () => {
             expect(isEventHandler('OnClick', 'MY-WIDGET')).toBe(true);

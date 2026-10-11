@@ -1,4 +1,4 @@
-import { isComment, isConditionalComment } from '../helpers';
+import { getTagName, isComment, isConditionalComment } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 import { escapeTextBoundary } from './helpers/escapeTextBoundary';
 
@@ -39,7 +39,7 @@ const mod: HtmlnanoModule<RemoveCommentsOptions> = {
                     }
 
                     if (node && typeof node === 'object') {
-                        const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+                        const tag = getTagName(node);
                         if (tag === 'plaintext') {
                             // Plaintext consumes the rest of the document, even
                             // beyond its apparent closing tag in PostHTML's tree.
@@ -84,7 +84,7 @@ function findLeadingAstroComments(nodes: PostHTMLNodeLike[]): Set<number> {
                 beforeIsland = false;
             }
         } else {
-            beforeIsland = !!node && typeof node.tag === 'string' && node.tag.toLowerCase() === 'astro-island';
+            beforeIsland = getTagName(node) === 'astro-island';
         }
     }
 

@@ -1,6 +1,6 @@
 import type PostHTML from 'posthtml';
 import { decodeHTMLAttribute } from 'entities';
-import { extractTextContentFromNode, isAmpBoilerplate } from '../helpers';
+import { extractTextContentFromNode, getTagName, isAmpBoilerplate } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 import { isIsolatedScope } from './helpers/isolatedScopes';
 import { normalizeAttrsForKey } from './helpers/normalizeAttrsForKey';
@@ -160,7 +160,7 @@ function mergeStylesInScope(nodes: Array<PostHTMLNodeLike>, group: MergeGroup) {
             return;
         }
 
-        const tag = node.tag.toLowerCase();
+        const tag = getTagName(node);
         const nodeAttrs = normalizeStyleAttrs(node.attrs || {});
         // Moving CSS before a CSP changes its authorization. Scripts can
         // inspect or insert styles, and <base> changes relative URL resolution.

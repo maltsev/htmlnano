@@ -1,6 +1,6 @@
 import type PostHTML from 'posthtml';
 import posthtml from 'posthtml';
-import { hasOwn, normalizeMimeType } from '../helpers';
+import { getTagName, hasOwn, normalizeMimeType } from '../helpers';
 import type { HtmlnanoModule, HtmlnanoOptions, HtmlnanoTemplateRule, MinifyHtmlTemplateOptions, PostHTMLNodeLike, PostHTMLTreeLike } from '../types';
 
 type NormalizedRule = {
@@ -50,7 +50,7 @@ const mod: HtmlnanoModule<MinifyHtmlTemplateOptions> = {
             for (const node of nodes) {
                 if (inPlaintext) return;
                 if (!node || typeof node === 'string') continue;
-                const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+                const tag = getTagName(node);
                 // Plaintext consumes the rest of the document, even beyond
                 // the closing tag that PostHTML may put in its tree.
                 if (tag === 'plaintext') {
@@ -175,7 +175,7 @@ function normalizeRule(rule: HtmlnanoTemplateRule): NormalizedRule | null {
 }
 
 function matchesTemplateRule(node: PostHTML.Node, attrs: Record<string, string | boolean | void>, rules: NormalizedRule[]): boolean {
-    const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+    const tag = getTagName(node);
     if (!tag) {
         return false;
     }

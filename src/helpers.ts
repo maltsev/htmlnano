@@ -21,6 +21,12 @@ export function hasOwn(object: object, key: PropertyKey): boolean {
     return Object.prototype.hasOwnProperty.call(object, key);
 }
 
+export function getTagName(node: PostHTMLNodeLike | null | undefined): string {
+    return node && typeof node === 'object' && typeof node.tag === 'string'
+        ? node.tag.toLowerCase()
+        : '';
+}
+
 export function isAmpBoilerplate(node: PostHTML.Node) {
     if (!node.attrs) {
         return false;

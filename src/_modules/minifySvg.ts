@@ -1,4 +1,4 @@
-import { optionalImport } from '../helpers';
+import { getTagName, optionalImport } from '../helpers';
 import { decodeHTMLStrict, decodeXML } from 'entities';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 import type { Config as SvgoConfig, PluginConfig } from 'svgo';
@@ -96,7 +96,7 @@ function hasUnsafeNumericReferences(svg: string): boolean {
 function containsHtmlContent(node: PostHTMLNodeLike): boolean {
     if (!node || typeof node !== 'object') return false;
 
-    const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+    const tag = getTagName(node);
     if (tag === 'foreignobject' || tag && htmlBreakoutTags.has(tag)) return true;
     if (tag === 'font' && Object.keys(node.attrs ?? {}).some(name => (
         ['color', 'face', 'size'].includes(name.toLowerCase())

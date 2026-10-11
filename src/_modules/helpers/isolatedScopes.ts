@@ -1,3 +1,4 @@
+import { getTagName } from '../../helpers';
 import type { PostHTMLNodeLike } from '../../types';
 
 // <noscript> content applies only when scripting is disabled, and <template>
@@ -8,7 +9,5 @@ import type { PostHTMLNodeLike } from '../../types';
 const isolatedScopeTags = new Set(['noscript', 'template']);
 
 export function isIsolatedScope(node: PostHTMLNodeLike) {
-    return typeof node === 'object'
-        && typeof node.tag === 'string'
-        && isolatedScopeTags.has(node.tag.toLowerCase());
+    return isolatedScopeTags.has(getTagName(node));
 }

@@ -1,5 +1,5 @@
 import { decodeHTML, decodeHTMLAttribute, decodeHTMLStrict } from 'entities';
-import { isComment } from '../helpers';
+import { getTagName, isComment } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 import { canRenderApostrophe, isJsonLikeValue } from './helpers/attributeQuoting.js';
 import type { RenderQuotingOptions } from './helpers/attributeQuoting.js';
@@ -191,7 +191,7 @@ function collectProtectedNodes(content: PostHTMLNodeLike[]): WeakMap<object, 'co
             if (!node || typeof node !== 'object') continue;
 
             if (protectedContent || inPlaintext) protectedNodes.set(node, 'all');
-            const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+            const tag = getTagName(node);
             // Plaintext consumes everything to EOF, including its closing tag.
             // A spelling inside another raw-text element is just literal text.
             if (!protectedContent && tag === 'plaintext') inPlaintext = true;
@@ -418,7 +418,7 @@ const mod: HtmlnanoModule<MinifyCharacterReferencesOptions> = {
 
         return (content, node) => {
             if (runContexts.get(options)?.protectedNodes.has(node)
-                || node.tag && rawTextElements.has(node.tag.toLowerCase())) {
+                || rawTextElements.has(getTagName(node))) {
                 return content;
             }
 

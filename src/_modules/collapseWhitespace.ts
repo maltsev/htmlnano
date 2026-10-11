@@ -1,6 +1,6 @@
 import type PostHTML from 'posthtml';
 import { decodeHTMLAttribute } from 'entities';
-import { isComment } from '../helpers';
+import { getTagName, isComment } from '../helpers';
 import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLNodeLike, PostHTMLTreeLike } from '../types';
 
 const noWhitespaceCollapseElements = new Set([
@@ -78,7 +78,7 @@ function collapseWhitespace(tree: PostHTMLTreeLike | Array<PostHTML.Node | strin
             if (collapseType === 'all') {
                 node = collapseAllWhitespaces(node, tree, index, parent);
             } else {
-                const parentNodeTag = parent?.node.tag?.toLowerCase();
+                const parentNodeTag = getTagName(parent?.node) || undefined;
                 const isTopLevel = parentNodeTag == null || parentNodeTag === 'html' || parentNodeTag === 'head';
                 const shouldTrim = (
                     isTopLevel
@@ -93,7 +93,7 @@ function collapseWhitespace(tree: PostHTMLTreeLike | Array<PostHTML.Node | strin
                     getAdjacentNode(tree, index, -1), getAdjacentNode(tree, index, 1));
             }
         } else if (node.tag) {
-            const tag = node.tag.toLowerCase();
+            const tag = getTagName(node);
             const isAllowCollapseWhitespace = !noWhitespaceCollapseElements.has(tag)
                 && !hasWhitespacePreservingStyle(node);
             if (isAllowCollapseWhitespace && node.content?.length) {
@@ -270,7 +270,7 @@ function isRenderedSpaceBefore(tree: ArrayLike<PostHTMLNodeLike>, index: number,
  * separator.
  */
 function endsWithRenderedWhitespace(node: PostHTML.Node): boolean {
-    if (typeof node.tag === 'string' && noWhitespaceCollapseElements.has(node.tag.toLowerCase())) {
+    if (noWhitespaceCollapseElements.has(getTagName(node))) {
         return false;
     }
 
@@ -315,8 +315,7 @@ function isRenderedSpaceAfter(tree: ArrayLike<PostHTMLNodeLike>, index: number, 
 }
 
 function isNonRenderingNode(node: PostHTMLNodeLike) {
-    return typeof node === 'object' && typeof node.tag === 'string'
-        && nonRenderingElements.has(node.tag.toLowerCase());
+    return nonRenderingElements.has(getTagName(node));
 }
 
 function getAdjacentNode(tree: ArrayLike<PostHTMLNodeLike>, index: number, direction: -1 | 1) {
@@ -338,12 +337,13 @@ function getAdjacentNode(tree: ArrayLike<PostHTMLNodeLike>, index: number, direc
  */
 function isInlineNode(node: PostHTML.Node) {
     if (typeof node.tag !== 'string') return true;
-    return noTrimWhitespacesArroundElements.has(node.tag.toLowerCase()) || node.tag.includes('-');
+    const tag = getTagName(node);
+    return noTrimWhitespacesArroundElements.has(tag) || tag.includes('-');
 }
 
 function hasInlineContent(node: PostHTML.Node) {
-    return typeof node.tag === 'string'
-        && (noTrimWhitespacesInsideElements.has(node.tag.toLowerCase()) || node.tag.includes('-'));
+    const tag = getTagName(node);
+    return noTrimWhitespacesInsideElements.has(tag) || tag.includes('-');
 }
 
 /*

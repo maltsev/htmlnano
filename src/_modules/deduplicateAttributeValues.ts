@@ -1,3 +1,4 @@
+import { getTagName } from '../helpers';
 import { decodeHTMLAttribute } from 'entities';
 import type { HtmlnanoModule } from '../types';
 import { isListAttribute } from './collapseAttributeWhitespace';
@@ -22,7 +23,7 @@ const mod: HtmlnanoModule = {
     onAttrs() {
         return (attrs, node) => {
             const newAttrs = attrs;
-            const tagName = node.tag ? node.tag.toLowerCase() : undefined;
+            const tagName = getTagName(node) || undefined;
 
             Object.keys(attrs).forEach((attrName) => {
                 const attrNameLower = attrName.toLowerCase();

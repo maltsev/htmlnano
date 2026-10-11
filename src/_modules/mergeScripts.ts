@@ -1,7 +1,7 @@
 import type PostHTML from 'posthtml';
 import { decodeHTMLAttribute } from 'entities';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
-import { extractTextContentFromNode } from '../helpers';
+import { extractTextContentFromNode, getTagName } from '../helpers';
 import { normalizeAttrsForKey } from './helpers/normalizeAttrsForKey';
 import { getScriptType } from './helpers/getScriptType.js';
 
@@ -76,14 +76,14 @@ function mergeScriptsInScope(nodes: PostHTMLNodeLike[]) {
             return;
         }
 
-        if (typeof node !== 'object' || (node.tag || '').toLowerCase() !== 'script') {
+        if (typeof node !== 'object' || getTagName(node) !== 'script') {
             previousScript = null;
             previousKey = null;
 
             // Inert and foreign content does not follow HTML script execution
             // rules. Leave its scripts untouched, including nested descendants.
             if (typeof node === 'object'
-                && !untouchedTags.has((node.tag || '').toLowerCase())
+                && !untouchedTags.has(getTagName(node))
                 && Array.isArray(node.content)) {
                 mergeScriptsInScope(node.content);
             }

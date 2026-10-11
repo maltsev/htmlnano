@@ -1,5 +1,5 @@
 import { decodeHTMLAttribute } from 'entities';
-import { isEventHandler } from '../helpers';
+import { getTagName, isEventHandler } from '../helpers';
 import type { HtmlnanoModule } from '../types';
 
 export const attributesWithLists = new Map<string, Set<string>>([
@@ -284,7 +284,7 @@ const mod: HtmlnanoModule = {
         return (attrs, node) => {
             const newAttrs = attrs;
 
-            const tagName = node.tag ? node.tag.toLowerCase() : undefined;
+            const tagName = getTagName(node) || undefined;
 
             Object.entries(attrs).forEach(([attrName, attrValue]) => {
                 if (typeof attrValue !== 'string') return;

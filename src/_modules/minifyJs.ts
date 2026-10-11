@@ -1,6 +1,6 @@
 import type PostHTML from 'posthtml';
 import { decodeHTMLAttribute } from 'entities';
-import { extractTextContentFromNode, isEventHandler, optionalImport } from '../helpers';
+import { extractTextContentFromNode, getTagName, isEventHandler, optionalImport } from '../helpers';
 import type { HtmlnanoModule, PostHTMLTreeLike } from '../types';
 import { redundantScriptTypes } from './removeRedundantAttributes.js';
 import { getScriptType } from './helpers/getScriptType.js';
@@ -38,7 +38,7 @@ const mod: HtmlnanoModule<MinifyOptions> = {
             }
 
             // Earlier passes, including an inner template run, can leave tag: false wrappers.
-            if (typeof node.tag === 'string' && node.tag.toLowerCase() === 'script' && !('src' in nodeAttrs)) {
+            if (getTagName(node) === 'script' && !('src' in nodeAttrs)) {
                 const mimeType = getScriptType(nodeAttrs);
                 if (redundantScriptTypes.has(mimeType) || mimeType === 'module') {
                     const scriptTerserOptions = resolveScriptTerserOptions(terserOptions, mimeType);

@@ -1,6 +1,6 @@
 import type PostHTML from 'posthtml';
 import { decodeHTMLAttribute } from 'entities';
-import { extractCssFromStyleNode, isCssStyleType, isStyleNode, optionalImport, stripCssCdata, wrapCssCdata } from '../helpers';
+import { extractCssFromStyleNode, getTagName, isCssStyleType, isStyleNode, optionalImport, stripCssCdata, wrapCssCdata } from '../helpers';
 import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLTreeLike } from '../types';
 import type { ExtractorResultDetailed, Options as PurgeCSSOptions } from 'purgecss';
 
@@ -167,7 +167,7 @@ function resolvePurgecssOptions(tree: PostHTMLTreeLike, userOptions: Partial<Pur
     let hasInlineStyles = false;
     tree.walk((node) => {
         // Include protected styles too: they can refer to definitions in another block.
-        if (typeof node.tag === 'string' && node.tag.toLowerCase() === 'style' && isCssStyleType(node)) {
+        if (getTagName(node) === 'style' && isCssStyleType(node)) {
             styleCount += 1;
         }
         if (Object.entries(node.attrs ?? {}).some(([name, value]) => name.toLowerCase() === 'style' && typeof value === 'string' && value.trim())) {

@@ -1,3 +1,4 @@
+import { getTagName } from '../helpers';
 // class, rel, ping
 import { decodeHTMLAttribute } from 'entities';
 import type { HtmlnanoModule, PostHTMLTreeLike, SortAttributesOption } from '../types';
@@ -107,7 +108,7 @@ function walkListAttributes(
             return node;
         }
 
-        const tagName = node.tag ? node.tag.toLowerCase() : undefined;
+        const tagName = getTagName(node) || undefined;
 
         Object.entries(node.attrs).forEach(([attrName, attrValues]) => {
             const attrNameLower = attrName.toLowerCase();

@@ -1,5 +1,5 @@
 import { process as processHtml } from '../index.js';
-import { isConditionalComment } from '../helpers';
+import { getTagName, isConditionalComment } from '../helpers';
 import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLNodeLike, PostHTMLTreeLike } from '../types';
 
 // Spec: https://docs.microsoft.com/en-us/previous-versions/windows/internet-explorer/ie-developer/compatibility/ms537512(v=vs.85)
@@ -29,7 +29,7 @@ async function minifyConditionalComments(tree: PostHTMLTreeLike, htmlnanoOptions
                     nodes[i] = await minifyContentInsideConditionalComments(node, htmlnanoOptions);
                 }
             } else if (node) {
-                const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+                const tag = getTagName(node);
                 if (tag === 'plaintext') {
                     inPlaintext = true;
                     return;

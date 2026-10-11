@@ -1,5 +1,5 @@
 import type PostHTML from 'posthtml';
-import { isComment, isConditionalComment } from '../helpers';
+import { getTagName, isComment, isConditionalComment } from '../helpers';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 import { escapeTextBoundary } from './helpers/escapeTextBoundary';
 
@@ -156,11 +156,11 @@ function isEmptyContent(content: PostHTML.Node['content'], ignoreComments: boole
 }
 
 function shouldRemoveNode(node: PostHTML.Node, options: NormalizedOptions) {
-    if (!node.tag || typeof node.tag !== 'string') {
+    const tag = getTagName(node);
+    if (!tag) {
         return false;
     }
 
-    const tag = node.tag.toLowerCase();
     if (voidElements.has(tag) || meaningfulWhenEmptyElements.has(tag)) {
         return false;
     }
@@ -206,7 +206,7 @@ function pruneNodes(nodes: PostHTMLNodeLike[], options: NormalizedOptions, state
             continue;
         }
 
-        const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
+        const tag = getTagName(node);
         if (tag === 'plaintext' || foreignContentElements.has(tag)) {
             // Plaintext consumes everything to EOF, including apparent closing
             // tags and ancestor siblings in PostHTML's tree.

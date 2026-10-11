@@ -1,7 +1,7 @@
 import type RelateUrl from 'relateurl';
 import type PostHTML from 'posthtml';
 import { decodeHTMLAttribute } from 'entities';
-import { optionalImport } from '../helpers';
+import { getTagName, optionalImport } from '../helpers';
 import type { HtmlnanoModule, HtmlnanoOptions } from '../types';
 import { isSrcsetAttribute, parseSrcset } from './collapseAttributeWhitespace.js';
 
@@ -72,8 +72,9 @@ const processModuleOptions = (options: MinifyUrlsOptions) => {
     return false;
 };
 
-const isLinkRelCanonical = ({ tag, attrs }: PostHTML.Node) => {
-    if (typeof tag !== 'string' || tag.toLowerCase() !== 'link' || !attrs) return false;
+const isLinkRelCanonical = (node: PostHTML.Node) => {
+    const { attrs } = node;
+    if (getTagName(node) !== 'link' || !attrs) return false;
 
     for (const [attrName, attrValue] of Object.entries(attrs)) {
         if (attrName.toLowerCase() === 'rel' && typeof attrValue === 'string'
@@ -104,7 +105,7 @@ const mod: HtmlnanoModule<HtmlnanoOptions['minifyUrls']> = {
         const decoded = tree.options?.decodeEntities === true;
         let hasBaseHref = false;
         tree.walk((node) => {
-            if (typeof node.tag === 'string' && node.tag.toLowerCase() === 'base' && node.attrs
+            if (getTagName(node) === 'base' && node.attrs
                 && Object.keys(node.attrs).some(name => name.toLowerCase() === 'href')) {
                 hasBaseHref = true;
             }
@@ -114,9 +115,8 @@ const mod: HtmlnanoModule<HtmlnanoOptions['minifyUrls']> = {
         tree.walk((node) => {
             if (!node.attrs) return node;
 
-            if (!node.tag) return node;
-
-            const tag = node.tag.toLowerCase();
+            const tag = getTagName(node);
+            if (!tag) return node;
             // A document's <base> can override the configured URL. Preserve its
             // URLs rather than resolving against the wrong base (including <base> itself).
             if (hasBaseHref) return node;

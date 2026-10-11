@@ -1,4 +1,4 @@
-import { normalizeMimeType } from '../helpers';
+import { getTagName, normalizeMimeType } from '../helpers';
 import type { HtmlnanoModule } from '../types';
 
 const rNodeAttrsTypeJson = /(?:\/|\+)json$/i;
@@ -6,7 +6,7 @@ const rNodeAttrsTypeJson = /(?:\/|\+)json$/i;
 const mod: HtmlnanoModule = {
     onContent() {
         return (content, node) => {
-            if (typeof node.tag !== 'string' || node.tag.toLowerCase() !== 'script') {
+            if (getTagName(node) !== 'script') {
                 return content;
             }
 

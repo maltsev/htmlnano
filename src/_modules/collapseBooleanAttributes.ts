@@ -2,7 +2,7 @@
 // https://html.spec.whatwg.org/#boolean-attribute
 
 import { decodeHTMLAttribute } from 'entities';
-import { hasOwn } from '../helpers';
+import { getTagName, hasOwn } from '../helpers';
 import type { HtmlnanoModule } from '../types';
 
 // https://html.spec.whatwg.org/#attributes-1
@@ -134,10 +134,10 @@ export interface CollapseBooleanAttributesOptions {
 const mod: HtmlnanoModule<CollapseBooleanAttributesOptions> = {
     onAttrs(options, moduleOptions) {
         return (attrs, node) => {
-            if (!node.tag) return attrs;
+            const tagName = getTagName(node);
+            if (!tagName) return attrs;
 
             const newAttrs = attrs;
-            const tagName = node.tag.toLowerCase();
 
             if (tagsHasMissingValueDefaultEmptyStringAttributes.has(tagName)) {
                 const tagAttributesCanBeReplacedWithEmptyString = missingValueDefaultEmptyStringAttributes[tagName];
