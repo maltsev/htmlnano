@@ -3,6 +3,41 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.6.0] - 2026-10-11
+
+### Added
+
+* `removeOptionalTags: { removeStartTags: false }` to omit end tags while keeping explicit start tags.
+* `normalizeDoctype: 'html5'` to normalize short HTML5 doctypes without changing document mode.
+
+### Changed
+
+* Enable optional attribute quote removal, conservative end-tag omission, and HTML5 doctype normalization in `safe` and `ampSafe`. These presets preserve browser-parsed HTML behavior, not source serialization or XHTML/XML compatibility.
+* Improve CSS minification performance through job deduplication, lazy processor initialization, and batching of inline styles with the default cssnano preset [#400].
+* Skip character-reference decoding checks for attributes without ampersands [#462].
+
+### Fixed
+
+* Preserve significant whitespace and word separators around inline, custom, and non-rendering elements; keep whitespace-only elements [#463], [#465].
+* Preserve custom-element and AMP attribute values, meaningful empty attributes, enumerated states, and repeated `ping` URLs.
+* Preserve script execution order and stylesheet cascade/CSP boundaries when merging scripts and styles.
+* Preserve event-handler semantics and escaping, respect script types and external sources, and prevent script breakouts.
+* Preserve JSON numeric precision, negative zero, and duplicate keys; limit JSON minification to script elements.
+* Preserve shared SVG IDs and definitions, and skip unsafe optimization of embedded HTML [#464].
+* Preserve URL destinations, `srcset` candidates, meta refresh targets, and `javascript:` execution semantics.
+* Prevent character-reference decoding and comment/element/tag removal from introducing markup or changing literal text. Preserve template and conditional-comment parsing boundaries.
+* Preserve Astro hydration comments in safe mode [#273] and fix stateful comment regex matching.
+* Preserve required XML quotes and namespace attributes, duplicate attribute order, and context-sensitive optional tags across repeated minification.
+* Preserve used CSS selectors and definitions during unused-CSS removal; isolate custom cssnano configurations across supported versions.
+
+### Documentation and testing
+
+* Split module documentation into individual files; add HTML DOM equivalence checks, expand fuzz coverage, and test cssnano 7–9 compatibility in CI.
+
+### Upgrade notes
+
+Default output changes. To retain the previous quote, tag, and doctype settings, pass `{ removeAttributeQuotes: false, removeOptionalTags: false, normalizeDoctype: false }`. Correctness fixes may still require snapshot updates.
+
 ## [3.5.1] - 2026-09-12
 
 ### Fixed
@@ -506,6 +541,7 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 
 * Remove attributes that contains only white spaces.
 
+[3.6.0]: https://github.com/maltsev/htmlnano/compare/3.5.1...3.6.0
 [3.5.1]: https://github.com/maltsev/htmlnano/compare/3.5.0...3.5.1
 [3.5.0]: https://github.com/maltsev/htmlnano/compare/3.4.1...3.5.0
 [3.4.1]: https://github.com/maltsev/htmlnano/compare/3.4.0...3.4.1
@@ -553,6 +589,10 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 [0.1.2]: https://github.com/maltsev/htmlnano/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/maltsev/htmlnano/compare/0.1.0...0.1.1
 
+[#465]: https://github.com/maltsev/htmlnano/issues/465
+[#464]: https://github.com/maltsev/htmlnano/issues/464
+[#463]: https://github.com/maltsev/htmlnano/issues/463
+[#462]: https://github.com/maltsev/htmlnano/issues/462
 [#458]: https://github.com/maltsev/htmlnano/issues/458
 [#457]: https://github.com/maltsev/htmlnano/issues/457
 [#456]: https://github.com/maltsev/htmlnano/issues/456
@@ -569,6 +609,7 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 [#328]: https://github.com/maltsev/htmlnano/issues/328
 [#293]: https://github.com/maltsev/htmlnano/issues/293
 [#278]: https://github.com/maltsev/htmlnano/issues/278
+[#273]: https://github.com/maltsev/htmlnano/issues/273
 [#260]: https://github.com/maltsev/htmlnano/issues/260
 [#257]: https://github.com/maltsev/htmlnano/issues/257
 [#255]: https://github.com/maltsev/htmlnano/issues/255

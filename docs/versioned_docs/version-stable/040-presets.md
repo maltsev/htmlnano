@@ -3,9 +3,42 @@
 A preset is just an object with modules config.
 
 Currently the following presets are available:
+
 - [safe](https://github.com/maltsev/htmlnano/blob/master/src/presets/safe.ts) — default preset for safe minification.
 - [ampSafe](https://github.com/maltsev/htmlnano/blob/master/src/presets/ampSafe.ts) — same as `safe` but tailored for [AMP pages](https://www.ampproject.org/).
 - [max](https://github.com/maltsev/htmlnano/blob/master/src/presets/max.ts) — maximal minification (might break some pages).
+
+## `safe` compatibility contract
+
+`safe` preserves browser-parsed HTML behavior, not the original source. It may
+simplify syntax and remove empty or redundant whitespace when the result parses
+as an equivalent HTML document or fragment.
+
+It does not guarantee preservation of `outerHTML`, attribute presence or order,
+comments removed by `removeComments: 'safe'`, or XHTML/XML serialization.
+`ampSafe` follows the same contract while keeping the output valid AMP HTML.
+
+For optional tags, `safe` uses
+`removeOptionalTags: { removeStartTags: false }`: it retains every explicit
+start tag while omitting eligible end tags. `ampSafe` inherits this conservative
+setting. `max` uses `removeOptionalTags: true`, so it may omit eligible start
+tags as well as end tags.
+
+The completed preset changes differ as follows:
+
+| Behavior | `safe` | `ampSafe` | `max` |
+| --- | --- | --- | --- |
+| Attribute quotes | Removes optional quotes | Same as `safe` | Removes optional quotes |
+| Optional tags | End tags only | End tags only | Start and end tags |
+| Doctype normalization | Short HTML5 doctypes only | Short HTML5 doctypes only | Broad, including legacy doctypes |
+| IE conditional comments | Unchanged | Unchanged | Minifies their contents |
+| Attribute sorting | Disabled | Disabled | Alphabetical |
+
+`ampSafe` otherwise differs from `safe` by enabling AMP-specific boolean
+attribute collapsing and disabling JavaScript minification. Attribute sorting
+remains out of both safe presets because measurements on the cached benchmark
+corpus showed that it increased gzip and Brotli sizes despite leaving raw size
+unchanged.
 
 `max` enables lossy modules on purpose. The most visible one is
 [`removeEmptyElements`](./modules#removeemptyelements) with
@@ -32,8 +65,8 @@ To keep them:
 htmlnano.process(html, { minifyJs: { format: { comments: 'some' } } }, htmlnano.presets.max);
 ```
 
-
 You can use them the following way:
+
 ```js
 const htmlnano = require('htmlnano');
 const ampSafePreset = require('htmlnano').presets.ampSafe;
@@ -58,8 +91,8 @@ const result = await htmlnano.process(html, {}, ampSafe);
 
 If you skip `preset` argument, [`safe`](https://github.com/maltsev/htmlnano/blob/master/src/presets/safe.ts) is used by default.
 
-
 If you'd like to define your very own config without any presets pass an empty object as a preset:
+
 ```js
 const htmlnano = require('htmlnano');
 const options = {
@@ -76,8 +109,8 @@ htmlnano
     });
 ```
 
-
 You might create your own presets by starting from a built-in one:
+
 ```js
 const htmlnano = require('htmlnano');
 const emailPreset = {

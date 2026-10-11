@@ -3,10 +3,12 @@
 There are two main ways to configure htmlnano:
 
 ## Passing options to `htmlnano` directly
+
 This is the way described above in the examples.
 These options take the highest precedence.
 
 ## Using configuration file
+
 Alternatively, you might create a configuration file (e.g., `.htmlnanorc.json` or `htmlnano.config.js`) or save options to `package.json` under the `htmlnano` key.
 `htmlnano` uses `cosmiconfig`, so refer to [its documentation](https://github.com/davidtheclark/cosmiconfig/blob/main/README.md) for more detail.
 
