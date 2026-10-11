@@ -9,6 +9,38 @@ import ampSafePreset from '../../dist/presets/ampSafe.mjs';
 import maxPreset from '../../dist/presets/max.mjs';
 
 describe('minifyJs', () => {
+    for (const type of ['', ' type="module"']) {
+        it(`should preserve malformed inline scripts${type} and minify valid siblings`, () => {
+            const invalid = `<script${type}>  d.src = n n = 1;  </script>`;
+            return init(`${invalid}<script>console.log(1 + 2);</script>`,
+                `${invalid}<script>console.log(3);</script>`, { minifyJs: {} });
+        });
+
+        for (const preset of [safePreset, maxPreset]) {
+            it(`should continue preset minification after malformed scripts${type}`, async () => {
+                const invalid = `<script${type}>  d.src = n n = 1;  </script>`;
+                const { html } = await processHtml(`${invalid}<p>Content</p><script>console.log(1 + 2);</script>`,
+                    { skipConfigLoading: true }, preset);
+                expect(html).toContain('>  d.src = n n = 1;  </script>');
+                expect(html).toContain('<script>console.log(3);</script>');
+                expect(html).toContain('Content');
+            });
+        }
+    }
+
+    it('should propagate invalid Terser configuration', async () => {
+        await expect(processHtml('<script>console.log(1);</script>', {
+            minifyJs: { compress: { unknownOption: true } }, skipConfigLoading: true
+        }, {})).rejects.toThrow('is not a supported option');
+    });
+
+    it('should propagate SyntaxErrors thrown by Terser callbacks', async () => {
+        await expect(processHtml('<script>/* comment */ console.log(1);</script>', {
+            minifyJs: { format: { comments() { throw new SyntaxError('callback failed'); } } },
+            skipConfigLoading: true
+        }, {})).rejects.toThrow('callback failed');
+    });
+
     for (const preset of [safePreset, maxPreset]) {
         it('should minify bare SVG CDATA without changing script values', async () => {
             const code = 'var value = "<tag>&quot; & ]]>"; console.log(1 + 2);';

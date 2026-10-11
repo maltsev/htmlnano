@@ -261,6 +261,10 @@ function processScriptNode(scriptNode: PostHTML.Node, terserOptions: MinifyOptio
             }
 
             scriptNode.content = [content];
+        })
+        .catch((error: unknown) => {
+            if (isTerserParseError(error)) return;
+            throw error;
         });
 }
 
@@ -311,5 +315,10 @@ function isTerserParseError(error: unknown) {
         return false;
     }
 
-    return error.name === 'SyntaxError' || error.message.includes('JS_Parse_Error');
+    // Terser uses SyntaxError for JS_Parse_Error, with source coordinates.
+    // A callback can throw an ordinary SyntaxError, which must still propagate.
+    return error.name === 'SyntaxError'
+        && 'line' in error && typeof error.line === 'number'
+        && 'col' in error && typeof error.col === 'number'
+        && 'pos' in error && typeof error.pos === 'number';
 }
