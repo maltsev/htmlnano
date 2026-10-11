@@ -149,6 +149,15 @@ describe('removeUnusedCss (uncss)', function () {
             options
         );
     });
+
+    it('should preserve invalid CSS while removing unused rules from other styles', () => {
+        const invalidStyle = '<style>:root { --post-list medium-homepage-titleFont: normal 18px sans-serif; }</style>';
+        return init(
+            `${invalidStyle}<style>.b{color:red}.unused{color:blue}</style><p class="b">Content</p>`,
+            `${invalidStyle}<style>.b{color:red}</style><p class="b">Content</p>`,
+            options
+        );
+    });
 });
 
 describe('removeUnusedCss (purgeCSS)', function () {
@@ -169,6 +178,20 @@ describe('removeUnusedCss (purgeCSS)', function () {
             color: #123;
         }
     </style></div><p class="b">hello</p><style>.d{margin:auto}</style>`;
+
+    it('should preserve invalid CSS while removing unused rules from other styles', () => {
+        const invalidStyle = '<style>:root { --post-list medium-homepage-titleFont: normal 18px sans-serif; }</style>';
+        return init(
+            `${invalidStyle}<style>.b{color:red}.unused{color:blue}</style><p class="b">Content</p>`,
+            `${invalidStyle}<style>.b{color:red}</style><p class="b">Content</p>`,
+            options
+        );
+    });
+
+    it('should preserve the original CDATA wrapper around invalid CSS', () => {
+        const input = '<style> \n<![CDATA[a { color: red;]]> \n</style><a>Content</a>';
+        return init(input, input, options);
+    });
 
     it('should remove unused CSS inside <style>', () => {
         return init(

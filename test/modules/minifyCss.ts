@@ -2,6 +2,9 @@ import { expect } from 'expect';
 import posthtml from 'posthtml';
 import { init } from '../htmlnano.ts';
 import safePreset from '../../dist/presets/safe.mjs';
+import maxPreset from '../../dist/presets/max.mjs';
+import htmlnano from '../../dist/index.mjs';
+import { CssSyntaxError } from 'postcss';
 import minifyCssModule, { getInlineCssnanoOptions } from '../../src/_modules/minifyCss.ts';
 import type { PostHTMLTreeLike } from '../../src/types.ts';
 import type { Options as CssnanoOptions } from 'cssnano';
@@ -122,13 +125,76 @@ describe('minifyCss', function () {
         await init(html, sourceTree.render(sourceTree), options);
     });
 
-    it('should reject invalid inline CSS in a batch', () => {
-        return expect(init(
-            '<div style="color: red"></div><div style="color: blue; /* unclosed"></div>',
-            '',
+    it('should preserve invalid inline CSS while minifying valid styles in a batch', () => {
+        return init(
+            '<div style="color: #ff0000"></div><div style="color: blue; /* unclosed"></div><div style="margin: 10px 10px 10px 10px"></div><div style="color: blue; /* unclosed"></div>',
+            '<div style="color:red"></div><div style="color: blue; /* unclosed"></div><div style="margin:10px"></div><div style="color: blue; /* unclosed"></div>',
             options
-        )).rejects.toThrow('Unclosed comment');
+        );
     });
+
+    for (const css of [
+        ':root { --post-list medium-homepage-titleFont: normal 18px sans-serif; }',
+        'a { color: red;',
+        'a { color: "unterminated; }',
+        '/* unclosed'
+    ]) {
+        it(`should preserve unparseable stylesheet CSS: ${css}`, () => {
+            return init(
+                `<style>${css}</style><style>a { color: #ff0000; }</style>`,
+                `<style>${css}</style><style>a{color:red}</style>`,
+                options
+            );
+        });
+    }
+
+    it('should preserve the original CDATA wrapper around invalid CSS', () => {
+        const invalidStyle = '<svg><style> \n<![CDATA[a { color: red;]]> \n</style></svg>';
+        return init(invalidStyle, invalidStyle, options);
+    });
+
+    it('should preserve invalid inline CSS when only one style needs processing', () => {
+        const input = '<div style="color: blue; /* unclosed"></div>';
+        return init(input, input, options);
+    });
+
+    it('should preserve invalid inline CSS with a custom preset', () => {
+        return init(
+            '<div style="color: #ff0000"></div><div style="color: blue; /* unclosed"></div>',
+            '<div style="color:red"></div><div style="color: blue; /* unclosed"></div>',
+            { minifyCss: { preset: ['default', {}] } }
+        );
+    });
+
+    for (const error of [new Error('Plugin failed'), new CssSyntaxError('Plugin failed')]) {
+        it(`should propagate ${error.name} from CSS plugins`, () => {
+            function plugin(): Plugin {
+                return {
+                    postcssPlugin: 'throw-error',
+                    Once() {
+                        throw error;
+                    }
+                };
+            }
+
+            return expect(init('<style>a { color: red; }</style>', '', {
+                minifyCss: { preset: { plugins: [] }, plugins: [plugin] }
+            })).rejects.toBe(error);
+        });
+    }
+
+    for (const [name, preset] of [['safe', safePreset], ['max', maxPreset]] as const) {
+        it(`should preserve the malformed website declaration with the ${name} preset`, async () => {
+            // Reduced from genocidewatch.com's inline stylesheet.
+            const invalidCss = ':root { --post-list medium-homepage-titleFont: normal 18px sans-serif; }';
+            const input = `<style media=screen>${invalidCss}</style><style media=print>a { color: #ff0000; }</style><a>Content</a>`;
+            const result = await htmlnano.process(input, { skipConfigLoading: true }, preset);
+
+            expect(result.html).toContain(invalidCss);
+            expect(result.html).toContain('a{color:red}');
+            expect(result.html).toContain('Content');
+        });
+    }
 
     for (const preset of [undefined, { plugins: [] }]) {
         it(`should preserve separate results for custom plugins and deduplicate identical inputs ${preset ? 'with' : 'without'} a preset`, async () => {

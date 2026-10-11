@@ -1,5 +1,5 @@
 import { extractCssFromStyleNode, isCssStyleType, isStyleNode, optionalImport, stripCssCdata, wrapCssCdata } from '../helpers';
-import type {} from 'postcss';
+import type { Root } from 'postcss';
 import type { HtmlnanoModule } from '../types';
 import type { Options as CssnanoOptions } from 'cssnano';
 
@@ -170,6 +170,18 @@ async function processCssJobs(
 ): Promise<void> {
     if (jobs.size === 0) return;
 
+    // Parse each input before batching or running plugins. Browsers recover
+    // from malformed CSS; leave those nodes unchanged and optimize the rest.
+    const parsedJobs: Array<{ job: CssJob; root: Root }> = [];
+    for (const job of jobs.values()) {
+        try {
+            parsedJobs.push({ job, root: postcss.parse(job.css, postcssOptions) });
+        } catch (error) {
+            if (!(error instanceof postcss.CssSyntaxError)) throw error;
+        }
+    }
+    if (parsedJobs.length === 0) return;
+
     // cssnano 7 and 8 append custom plugins to the options' preset. Give each
     // processor its own config so stylesheet and inline plugins stay independent.
     const processorOptions = { ...cssnanoOptions };
@@ -179,10 +191,9 @@ async function processCssJobs(
     }
 
     const processor = postcss([cssnano(processorOptions)]);
-    const uniqueJobs = [...jobs.values()];
 
-    if (batch && uniqueJobs.length > 1) {
-        const roots = uniqueJobs.map(job => postcss.parse(job.css, postcssOptions));
+    if (batch && parsedJobs.length > 1) {
+        const roots = parsedJobs.map(({ root }) => root);
         // Only batch declaration lists. Nested rules and at-rules can introduce
         // state shared between roots in some supported cssnano versions.
         const declarationLists = roots.every(root => root.nodes.length === 1
@@ -193,7 +204,7 @@ async function processCssJobs(
             // A Document shares plugin preparation (including Browserslist/caniuse
             // checks), while Once/OnceExit still run on each independent Root.
             await processor.process(postcss.document({ nodes: roots }), postcssOptions);
-            uniqueJobs.forEach((job, index) => {
+            parsedJobs.forEach(({ job }, index) => {
                 const css = roots[index].toString();
                 job.updates.forEach(update => update(css));
             });
@@ -201,8 +212,8 @@ async function processCssJobs(
         }
     }
 
-    await Promise.all(uniqueJobs.map(async (job) => {
-        const result = await processor.process(job.css, postcssOptions);
+    await Promise.all(parsedJobs.map(async ({ job, root }) => {
+        const result = await processor.process(root, postcssOptions);
         job.updates.forEach(update => update(result.css));
     }));
 }

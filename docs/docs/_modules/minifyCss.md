@@ -14,6 +14,7 @@ Skipped nodes:
 Notes:
 
 - Identical CSS is minified once per document. Processors are initialized only for CSS that needs minification.
+- CSS that PostCSS cannot parse is preserved in its original style node or attribute. Other CSS is still minified. Configuration and plugin errors continue to throw.
 - With the built-in `default` preset and no custom options, distinct inline declaration lists are processed
   together as independent PostCSS roots, sharing plugin setup without merging styles. Custom presets,
   plugin lists, and per-plugin options retain separate processing.

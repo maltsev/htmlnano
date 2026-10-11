@@ -211,13 +211,15 @@ const mod: HtmlnanoModule<RemoveUnusedCssOptions> = {
                 if (tool === 'purgeCSS') {
                     if (purgecss) {
                         selectors ??= purgeFromHtml(tree);
-                        promises.push(processStyleNodePurgeCSS(tree, node, toolOptions, purgecss, selectors));
+                        promises.push(processStyleNodePurgeCSS(tree, node, toolOptions, purgecss, selectors)
+                            .catch(preserveInvalidCss));
                     }
                 } else if (tool === 'uncss') {
                     if (uncss) {
                         warnAboutUncss(options);
                         html ??= tree.render(tree);
-                        promises.push(processStyleNodeUnCSS(html, node, toolOptions, uncss));
+                        promises.push(processStyleNodeUnCSS(html, node, toolOptions, uncss)
+                            .catch(preserveInvalidCss));
                     }
                 }
             }
@@ -229,6 +231,12 @@ const mod: HtmlnanoModule<RemoveUnusedCssOptions> = {
 };
 
 export default mod;
+
+function preserveInvalidCss(error: unknown): void {
+    // Both tools report malformed stylesheets as CssSyntaxError.
+    // A failed parse must not replace the original style node's content.
+    if (!(error instanceof Error) || error.name !== 'CssSyntaxError') throw error;
+}
 
 function resolveUserOptions(userOptions: RemoveUnusedCssOptions | true | null | undefined) {
     if (userOptions && typeof userOptions === 'object') {
