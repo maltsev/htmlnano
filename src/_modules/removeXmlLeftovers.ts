@@ -47,7 +47,7 @@ const mod: HtmlnanoModule = {
             // Remove xmlns="http://www.w3.org/1999/xhtml" from <html>.
             // The HTML parser ignores it — <html> is always in the HTML namespace.
             // Scoped strictly to the <html> tag so xmlns on <svg>/<math> is left untouched.
-            if (node.tag?.toLowerCase() === 'html') {
+            if (typeof node.tag === 'string' && node.tag.toLowerCase() === 'html') {
                 const xmlnsEntry = findAttrEntry(attrsRecord, 'xmlns');
                 if (xmlnsEntry && decodeValue(xmlnsEntry.value, alreadyDecoded) === XHTML_NAMESPACE) {
                     delete attrsRecord[xmlnsEntry.name];

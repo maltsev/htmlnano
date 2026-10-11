@@ -37,7 +37,8 @@ const mod: HtmlnanoModule<MinifyOptions> = {
                 return node;
             }
 
-            if (node.tag?.toLowerCase() === 'script' && !('src' in nodeAttrs)) {
+            // Earlier passes, including an inner template run, can leave tag: false wrappers.
+            if (typeof node.tag === 'string' && node.tag.toLowerCase() === 'script' && !('src' in nodeAttrs)) {
                 const mimeType = getScriptType(nodeAttrs);
                 if (redundantScriptTypes.has(mimeType) || mimeType === 'module') {
                     const scriptTerserOptions = resolveScriptTerserOptions(terserOptions, mimeType);

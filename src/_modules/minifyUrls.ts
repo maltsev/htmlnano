@@ -73,7 +73,7 @@ const processModuleOptions = (options: MinifyUrlsOptions) => {
 };
 
 const isLinkRelCanonical = ({ tag, attrs }: PostHTML.Node) => {
-    if (tag?.toLowerCase() !== 'link' || !attrs) return false;
+    if (typeof tag !== 'string' || tag.toLowerCase() !== 'link' || !attrs) return false;
 
     for (const [attrName, attrValue] of Object.entries(attrs)) {
         if (attrName.toLowerCase() === 'rel' && typeof attrValue === 'string'
@@ -104,7 +104,7 @@ const mod: HtmlnanoModule<HtmlnanoOptions['minifyUrls']> = {
         const decoded = tree.options?.decodeEntities === true;
         let hasBaseHref = false;
         tree.walk((node) => {
-            if (node.tag?.toLowerCase() === 'base' && node.attrs
+            if (typeof node.tag === 'string' && node.tag.toLowerCase() === 'base' && node.attrs
                 && Object.keys(node.attrs).some(name => name.toLowerCase() === 'href')) {
                 hasBaseHref = true;
             }

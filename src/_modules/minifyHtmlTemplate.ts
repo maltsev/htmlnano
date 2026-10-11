@@ -50,7 +50,7 @@ const mod: HtmlnanoModule<MinifyHtmlTemplateOptions> = {
             for (const node of nodes) {
                 if (inPlaintext) return;
                 if (!node || typeof node === 'string') continue;
-                const tag = node.tag?.toLowerCase() ?? '';
+                const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
                 // Plaintext consumes the rest of the document, even beyond
                 // the closing tag that PostHTML may put in its tree.
                 if (tag === 'plaintext') {
@@ -175,7 +175,7 @@ function normalizeRule(rule: HtmlnanoTemplateRule): NormalizedRule | null {
 }
 
 function matchesTemplateRule(node: PostHTML.Node, attrs: Record<string, string | boolean | void>, rules: NormalizedRule[]): boolean {
-    const tag = node.tag?.toLowerCase();
+    const tag = typeof node.tag === 'string' ? node.tag.toLowerCase() : '';
     if (!tag) {
         return false;
     }

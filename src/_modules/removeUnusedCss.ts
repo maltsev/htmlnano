@@ -167,7 +167,7 @@ function resolvePurgecssOptions(tree: PostHTMLTreeLike, userOptions: Partial<Pur
     let hasInlineStyles = false;
     tree.walk((node) => {
         // Include protected styles too: they can refer to definitions in another block.
-        if (node.tag?.toLowerCase() === 'style' && isCssStyleType(node)) {
+        if (typeof node.tag === 'string' && node.tag.toLowerCase() === 'style' && isCssStyleType(node)) {
             styleCount += 1;
         }
         if (Object.entries(node.attrs ?? {}).some(([name, value]) => name.toLowerCase() === 'style' && typeof value === 'string' && value.trim())) {

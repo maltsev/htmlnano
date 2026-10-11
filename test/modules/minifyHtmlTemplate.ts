@@ -2,7 +2,7 @@ import { init, initWithPostHtmlOptions } from '../htmlnano.ts';
 import type { HtmlnanoOptions } from '../../src/types.js';
 import { expect } from 'expect';
 import { parseFragment } from 'parse5';
-import { process as processHtml } from '../../dist/index.mjs';
+import { presets, process as processHtml } from '../../dist/index.mjs';
 
 const scriptTypes = [
     'text/html',
@@ -115,6 +115,47 @@ describe('minifyHtmlTemplate', () => {
                 minifyHtmlTemplate: true
             }
         );
+    });
+
+    const svgTemplate = '<template><svg viewBox="0 0 10 10"><path d="M 0 0 h 10 v 10 z" /></svg></template>';
+    const optimizedSvgTemplate = '<template><svg viewBox="0 0 10 10"><path d="M0 0h10v10z"/></svg></template>';
+
+    for (const presetName of ['safe', 'max'] as const) {
+        it(`should preserve optimized SVG inside native templates with the ${presetName} preset`, async () => {
+            const result = await processHtml(svgTemplate, presets[presetName]);
+            expect(result.html).toBe(optimizedSvgTemplate);
+        });
+    }
+
+    const outerPasses: HtmlnanoOptions[] = [
+        { minifyJs: true },
+        { minifyUrls: 'https://example.com/' },
+        { removeXmlLeftovers: true },
+        { removeUnusedCss: { tool: 'purgeCSS', keyframes: true } }
+    ];
+
+    for (const outerPass of outerPasses) {
+        it(`should handle tagless SVG wrappers in the outer ${Object.keys(outerPass)[0]} pass`, async () => {
+            const result = await processHtml(svgTemplate, {
+                minifyHtmlTemplate: true,
+                minifySvg: true,
+                ...outerPass
+            }, {});
+            expect(result.html).toBe(optimizedSvgTemplate);
+        });
+    }
+
+    it('should handle tagless SVG wrappers created before the template pass', async () => {
+        const result = await processHtml(svgTemplate, {
+            minifySvg: true,
+            minifyHtmlTemplate: true
+        }, {});
+        expect(result.html).toBe(optimizedSvgTemplate);
+    });
+
+    it('should handle removed styles inside native templates in subsequent outer passes', async () => {
+        const result = await processHtml('<template><style>.unused { color: red }</style><b>x</b></template>', presets.max);
+        expect(result.html).toBe('<template><b>x</b></template>');
     });
 
     it('should preserve XML parsing and rendering options inside templates', () => {
