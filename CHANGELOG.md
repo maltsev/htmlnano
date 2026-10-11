@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.6.1] - 2026-10-11
+
+### Fixed
+
+* Prevent crashes on tagless nodes during native template minification.
+* Preserve unparseable CSS instead of aborting HTML minification, including CSS rejected by PurgeCSS or cssnano selector parsers.
+* Protect serialized SVG markup from content hooks and safely minify bare SVG CDATA scripts.
+* Retain `<head>` boundaries before head-compatible sibling elements.
+* Preserve inline scripts when Terser encounters parse errors.
+* Keep lexical declarations in separate script units to avoid scope conflicts.
+* Retain encoded ampersands before sequences resembling numeric character references.
+
 ## [3.6.0] - 2026-10-11
 
 ### Added
@@ -541,6 +553,7 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 
 * Remove attributes that contains only white spaces.
 
+[3.6.1]: https://github.com/maltsev/htmlnano/compare/3.6.0...3.6.1
 [3.6.0]: https://github.com/maltsev/htmlnano/compare/3.5.1...3.6.0
 [3.5.1]: https://github.com/maltsev/htmlnano/compare/3.5.0...3.5.1
 [3.5.0]: https://github.com/maltsev/htmlnano/compare/3.4.1...3.5.0

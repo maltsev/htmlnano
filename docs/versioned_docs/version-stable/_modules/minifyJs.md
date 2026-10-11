@@ -61,6 +61,8 @@ htmlnano.process(html, { minifyJs: { format: { comments: 'some' } } }, htmlnano.
 - Only JavaScript script types are processed: the default type, `text/javascript`, `application/javascript`, and legacy `text/ecmascript`. Other types (for example `application/json`) are left untouched.
 - Any `<script>` with an `integrity` attribute is skipped to preserve SRI safety. Generate SRI after minification if you rely on it.
 - Content of scripts with a `src` attribute is left untouched; their event handlers can still be minified.
+- Scripts with JavaScript parse errors are preserved while other scripts continue
+  to be minified. Terser configuration and callback errors still propagate.
 - If Terser output would introduce a closing script tag or a double-escaped script sequence, the original
   content is preserved. This also applies to custom preambles and `inline_script: false`.
 - Inline event handler attributes (like `onclick` or `onClick`) are minified as JavaScript.
@@ -68,7 +70,7 @@ htmlnano.process(html, { minifyJs: { format: { comments: 'some' } } }, htmlnano.
   minification and escaped for HTML afterward. Invalid handlers are preserved. For handlers, `module`,
   `toplevel` (including nested compressor/mangler options), and `enclose` are disabled to preserve their
   implicit parameters and execution context; nested functions can still be compressed and mangled.
-- CDATA wrappers in boundary comments inside `<script>` in SVG are preserved; the inner JS is minified
+- Bare SVG CDATA sections and CDATA wrappers in boundary comments are preserved; the inner JS is minified
   and re-wrapped. CDATA markers inside JavaScript strings and template literals are left intact.
 - For AMP documents, inline handlers like `on="tap:..."` are not modified when using the AMP-safe preset.
 
