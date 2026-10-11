@@ -6,6 +6,7 @@ import ampSafePreset from './presets/ampSafe.js';
 import maxPreset from './presets/max.js';
 import type { HtmlnanoModule, HtmlnanoModuleAttrsHandler, HtmlnanoModuleContentHandler, HtmlnanoModuleNodeHandler, HtmlnanoOptions, HtmlnanoOptionsConfigFile, HtmlnanoPredefinedPresets, HtmlnanoPreset, PostHTMLTreeLike } from './types';
 import type PostHTML from 'posthtml';
+import { serializedContentNodes } from './_modules/helpers/serializedContent.js';
 
 export type * from './types';
 
@@ -272,7 +273,7 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
                         node.attrs = newAttrsObj as PostHTML.NodeAttributes;
                     }
 
-                    if (node.content) {
+                    if (node.content && !serializedContentNodes.has(node)) {
                         node.content = typeof node.content === 'string' ? [node.content] : node.content;
 
                         if (Array.isArray(node.content) && node.content.length > 0) {

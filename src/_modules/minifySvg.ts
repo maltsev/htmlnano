@@ -2,6 +2,7 @@ import { getTagName, optionalImport } from '../helpers';
 import { decodeHTMLStrict, decodeXML } from 'entities';
 import type { HtmlnanoModule, PostHTMLNodeLike } from '../types';
 import type { Config as SvgoConfig, PluginConfig } from 'svgo';
+import { serializedContentNodes } from './helpers/serializedContent.js';
 
 // Inline SVG IDs and definitions can be referenced by other SVGs, HTML, CSS, or JS.
 // Optimizing one SVG at a time cannot determine whether they are unused or hidden.
@@ -48,6 +49,7 @@ const mod: HtmlnanoModule<SvgoConfig> = {
                 node.attrs = {};
                 // result.data is a string, we need to cast it to an array
                 node.content = [result.data];
+                serializedContentNodes.add(node);
                 return node;
             } catch (error) {
                 const isSvgoParserError = Boolean(
@@ -71,6 +73,7 @@ const mod: HtmlnanoModule<SvgoConfig> = {
                     node.tag = false;
                     node.attrs = {};
                     node.content = [fallbackSvgStr];
+                    serializedContentNodes.add(node);
                 }
                 // We return the node as-is
                 return node;

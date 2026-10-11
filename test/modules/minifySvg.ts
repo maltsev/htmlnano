@@ -9,6 +9,25 @@ import type { HtmlnanoOptions } from '../../src/types.ts';
 import type { Config as SvgoConfig, PluginInfo } from 'svgo';
 
 describe('minifySvg', () => {
+    for (const preset of [safePreset, maxPreset]) {
+        for (const minifySvg of [preset.minifySvg, { plugins: [{ name: 'nonexistent-plugin' }] }]) {
+            it('should preserve serialized SVG attribute values through content hooks', async () => {
+                const input = '<!doctype html><title>SVG</title><svg xmlns="http://www.w3.org/2000/svg"><g data-json="{&quot;linked&quot;:&quot;false&quot;}" data-mixed="&quot;single\' &amp; double&quot;"><path d="M0 0h1"/></g></svg>';
+                const errors: string[] = [];
+                const { html } = await htmlnano.process(input, {
+                    minifySvg,
+                    skipInternalWarnings: true,
+                    skipConfigLoading: true
+                }, preset);
+                parse(html, { onParseError: error => errors.push(error.code) });
+
+                expect(errors).toEqual([]);
+                expect(parseElements(html).flatMap(node => node.attrs).filter(attr => attr.name.startsWith('data-')))
+                    .toEqual(parseElements(input).flatMap(node => node.attrs).filter(attr => attr.name.startsWith('data-')));
+            });
+        }
+    }
+
     const options = {
         minifySvg: safePreset.minifySvg as SvgoConfig
     };
