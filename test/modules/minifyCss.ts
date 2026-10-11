@@ -5,6 +5,7 @@ import safePreset from '../../dist/presets/safe.mjs';
 import maxPreset from '../../dist/presets/max.mjs';
 import htmlnano from '../../dist/index.mjs';
 import { CssSyntaxError } from 'postcss';
+import { PurgeCSS } from 'purgecss';
 import minifyCssModule, { getInlineCssnanoOptions } from '../../src/_modules/minifyCss.ts';
 import type { PostHTMLTreeLike } from '../../src/types.ts';
 import type { Options as CssnanoOptions } from 'cssnano';
@@ -148,6 +149,48 @@ describe('minifyCss', function () {
         });
     }
 
+    for (const selector of ['.x / .y', '[style=width:100%]', 'html[lang=&quot;en&quot;]', '<!-- .x', '//.content', '.[grid-area:ffffcdgffifiefdf-fifiefdf]']) {
+        it(`should continue minifying other styles when cssnano cannot parse ${selector}`, async () => {
+            const input = `<style>${selector}{color:red}</style><style>a { color: #ff0000; }</style>`;
+            const result = await htmlnano.process(input, { ...options, skipConfigLoading: true }, {});
+
+            expect(result.html).toContain('<style>');
+            expect(result.html).toContain('<style>a{color:red}</style>');
+            expect(result.tree[0]).toMatchObject({ tag: 'style' });
+        });
+    }
+
+    it('should preserve original styles, CDATA, and cached duplicates after selector parse failures', async () => {
+        // Exercise the shared selector parser even with cssnano versions that
+        // already tolerate malformed selectors in their default plugins.
+        function parseSelectors(): Plugin {
+            return {
+                postcssPlugin: 'parse-selectors',
+                async Once(root) {
+                    await new PurgeCSS().purge({
+                        content: [{ raw: '<a></a>', extension: 'html' }],
+                        css: [{ raw: root.toString() }]
+                    });
+                    root.walkDecls((decl) => {
+                        decl.value = 'green';
+                    });
+                }
+            };
+        }
+
+        const invalid = '<style> .x / .y { color: #ff0000; } </style>';
+        const cdata = '<svg><style> \n<![CDATA[ .x / .y { color: #ff0000; } ]]> \n</style></svg>';
+        const input = `${invalid}${cdata}${invalid}<style>a { color: #ff0000; }</style>`;
+        const expected = `${invalid}${cdata}${invalid}<style>a { color: green; }</style>`;
+        const cssnanoOptions = { preset: { plugins: [] }, plugins: [parseSelectors] };
+        const { tree } = await posthtml([]).process(input);
+        const sourceTree = tree as PostHTMLTreeLike;
+        await minifyCssModule.default!(sourceTree, {}, cssnanoOptions);
+        expect(sourceTree.render(sourceTree)).toBe(expected);
+
+        await init(input, expected, { minifyCss: cssnanoOptions });
+    });
+
     it('should preserve the original CDATA wrapper around invalid CSS', () => {
         const invalidStyle = '<svg><style> \n<![CDATA[a { color: red;]]> \n</style></svg>';
         return init(invalidStyle, invalidStyle, options);
@@ -166,7 +209,7 @@ describe('minifyCss', function () {
         );
     });
 
-    for (const error of [new Error('Plugin failed'), new CssSyntaxError('Plugin failed')]) {
+    for (const error of [new Error('Plugin failed'), new CssSyntaxError('Plugin failed'), new Error('Unexpected "/" found.')]) {
         it(`should propagate ${error.name} from CSS plugins`, () => {
             function plugin(): Plugin {
                 return {

@@ -3,6 +3,7 @@ import { decodeHTMLAttribute } from 'entities';
 import { extractCssFromStyleNode, getTagName, isCssStyleType, isStyleNode, optionalImport, stripCssCdata, wrapCssCdata } from '../helpers';
 import type { HtmlnanoModule, HtmlnanoOptions, PostHTMLTreeLike } from '../types';
 import type { ExtractorResultDetailed, Options as PurgeCSSOptions } from 'purgecss';
+import { isCssSelectorParseError } from './helpers/isCssSelectorParseError';
 
 // These options must be set and shouldn't be overriden to ensure uncss doesn't look at linked stylesheets.
 const uncssOptions = {
@@ -234,11 +235,9 @@ export default mod;
 
 function preserveInvalidCss(error: unknown): void {
     // Both tools report malformed stylesheets as CssSyntaxError.
-    // PurgeCSS's selector parser throws plain Errors. Match its error creation
-    // frames, rather than visitor frames also present in tool/callback failures.
     // A failed parse must not replace the original style node's content.
     if (error instanceof Error && (error.name === 'CssSyntaxError'
-        || /\bat (?:Root\._error|Parser\.error) \([^\n]*[/\\]postcss-selector-parser[/\\]/.test(error.stack ?? ''))) {
+        || isCssSelectorParseError(error))) {
         return;
     }
     throw error;

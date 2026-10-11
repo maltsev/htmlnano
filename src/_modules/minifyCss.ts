@@ -1,7 +1,8 @@
 import { extractCssFromStyleNode, isCssStyleType, isStyleNode, optionalImport, stripCssCdata, wrapCssCdata } from '../helpers';
-import type { Root } from 'postcss';
+import type { Result, Root } from 'postcss';
 import type { HtmlnanoModule } from '../types';
 import type { Options as CssnanoOptions } from 'cssnano';
+import { isCssSelectorParseError } from './helpers/isCssSelectorParseError';
 
 // cssnano 7 and 8 ship CJS types (`export =`), while cssnano 9 is ESM and exposes
 // the plugin factory as a `default` export. All three are in the peer dependency range.
@@ -213,7 +214,15 @@ async function processCssJobs(
     }
 
     await Promise.all(parsedJobs.map(async ({ job, root }) => {
-        const result = await processor.process(root, postcssOptions);
+        let result: Result;
+        try {
+            result = await processor.process(root, postcssOptions);
+        } catch (error) {
+            // PostCSS accepts some selectors that cssnano's plugins cannot
+            // parse. Keep their original content, including cached duplicates.
+            if (isCssSelectorParseError(error)) return;
+            throw error;
+        }
         job.updates.forEach(update => update(result.css));
     }));
 }
