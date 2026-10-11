@@ -60,7 +60,10 @@ function needsScriptBoundary(scriptContent: string) {
     // markers can combine across scripts and swallow the closing tag/markup.
     return /(['"])use strict\1/.test(scriptContent)
         || scriptContent.trimStart().startsWith('#!')
-        || /<!--|<\/?script/i.test(scriptContent);
+        || /<!--|<\/?script/i.test(scriptContent)
+        // Lexical bindings can conflict or change hoisting when Script units
+        // are joined. Keep these scripts separate without requiring a JS parser.
+        || /\b(?:let|const|class)\b/.test(scriptContent);
 }
 
 // Only sibling scripts separated by whitespace can share a merge group.

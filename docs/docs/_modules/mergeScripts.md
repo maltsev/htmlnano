@@ -13,6 +13,10 @@ The merged content is appended into the last script in the group and the earlier
 - Scripts are separated by `nonce` value, by `nomodule`, and by `async`/`defer` differences.
 - Concatenated scripts are separated by `\n;\n` to preserve line comments and prevent expressions from joining across script boundaries.
 - Scripts containing a quoted `use strict`, a leading hashbang, or HTML tokenizer markers (`<!--` or `<script`/`</script`) are conservatively left untouched and break a merge group. This preserves strict mode and avoids changes to [HTML script parsing](https://html.spec.whatwg.org/multipage/scripting.html#restrictions-for-contents-of-script-elements) without parsing JavaScript.
+- Scripts containing the keywords `let`, `const`, or `class` also break a merge
+  group, preserving lexical declaration boundaries and avoiding redeclaration
+  errors in the merged source. This conservative check also matches keywords in
+  comments and strings.
 
 #### Side effects
 

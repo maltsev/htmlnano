@@ -19,6 +19,39 @@ function executeScripts(html: string) {
 }
 
 describe('mergeScripts', () => {
+    for (const declaration of ['let value = 1;', 'const value = 1;', 'class Value {}']) {
+        it(`should keep conflicting ${declaration} scripts separate and merge other scripts`, async () => {
+            const input = `<script>${declaration} values.push(1);</script><script>${declaration} values.push(2);</script>`
+                + '<script>values.push(3);</script><script>values.push(4);</script>';
+            const { html } = await htmlnano.process(input, { skipConfigLoading: true }, maxPreset);
+            const scripts = parseFragment(html).childNodes.filter(node => node.nodeName === 'script');
+            expect(scripts).toHaveLength(3);
+
+            function executeWithErrors(source: string) {
+                const values: number[] = [];
+                const context = createContext({ values });
+                const errors: string[] = [];
+                for (const node of parseFragment(source).childNodes) {
+                    if (node.nodeName !== 'script' || !('childNodes' in node)) continue;
+                    try {
+                        runInContext(node.childNodes.map(child => 'value' in child ? child.value : '').join(''), context);
+                    } catch (error) {
+                        errors.push((error as Error).name);
+                    }
+                }
+                return { values, errors };
+            }
+
+            expect(executeWithErrors(html)).toEqual(executeWithErrors(input));
+            expect(executeWithErrors(html)).toEqual({ values: [1, 3, 4], errors: ['SyntaxError'] });
+        });
+
+        it(`should retain ${declaration} boundaries with mergeScripts alone`, () => {
+            const input = `<script>${declaration}</script><script>${declaration}</script>`;
+            return init(input, input, { mergeScripts: true });
+        });
+    }
+
     const options = {
         mergeScripts: maxPreset.mergeScripts
     };
