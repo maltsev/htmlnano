@@ -1,8 +1,32 @@
 import { init, initWithPostHtmlOptions } from '../htmlnano.ts';
 import safePreset from '../../dist/presets/safe.mjs';
 import maxPreset from '../../dist/presets/max.mjs';
+import htmlnano from '../../dist/index.mjs';
+import { expect } from 'expect';
+import { parseFragment } from 'parse5';
 
 describe('minifyCharacterReferences', () => {
+    for (const preset of [safePreset, maxPreset]) {
+        for (const suffix of ['#topic=1', '#xno-digits', '#']) {
+            for (const reference of ['&amp;', '&#38;', '&#x26;']) {
+                it(`should preserve URL values without numeric-reference errors before ${suffix}`, async () => {
+                    const input = `<a href="https://example.com/?hl=en${reference}${suffix}">Content</a>`;
+                    const { html } = await htmlnano.process(input, { skipConfigLoading: true }, preset);
+                    const errors: string[] = [];
+                    parseFragment(html, { onParseError: error => errors.push(error.code) });
+                    expect(errors).toEqual([]);
+                    expect(parseFragment(html)).toEqual(parseFragment(input));
+                    expect(html).toContain(reference + suffix);
+                });
+            }
+        }
+    }
+
+    it('should retain encoded ampersands before invalid numeric references in text and data attributes', () => {
+        const input = '<p data-url="&amp;#topic=1">&amp;#topic=1 &amp;#x &amp;#;</p>';
+        return init(input, input, { minifyCharacterReferences: true });
+    });
+
     const options = {
         minifyCharacterReferences: safePreset.minifyCharacterReferences
     };

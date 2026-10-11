@@ -27,6 +27,8 @@ and hexadecimal (`&#x2014;`) numeric references are decoded as well.
   reference. `&amp;copy;`, `&amp;copy` and `&amp;#169;` are therefore kept,
   while `?a=1&amp;b=2` becomes `?a=1&b=2`. At the very end of a text node the
   following context is not known yet, so `&amp;` is kept there as well.
+  An encoded ampersand before `#` is also kept, including `&amp;#topic`, to
+  avoid introducing invalid numeric-reference parse errors.
 - `&lt;` is never decoded in text nodes, since posthtml-render does not
   re-escape text and a literal `<` would open a tag. `&gt;` is decoded, and
   both are decoded in attribute values — values containing `<` or `>` are

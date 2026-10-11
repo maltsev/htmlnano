@@ -304,6 +304,10 @@ function isReferenceBodyCharacter(character: string): boolean {
  * https://html.spec.whatwg.org/multipage/syntax.html#syntax-ambiguous-ampersand
  */
 function isUnambiguousAmpersand(text: string, index: number, inAttribute: boolean): boolean {
+    // Even without digits, "&#" starts numeric-reference parsing and emits a
+    // parse error. Retain the encoded ampersand to avoid introducing one.
+    if (text[index] === '#') return false;
+
     let end = index;
     while (end < text.length && isReferenceBodyCharacter(text[end])) {
         if (end - index >= ampersandLookaheadLimit) {
