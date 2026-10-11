@@ -1,5 +1,7 @@
 import { expect } from 'expect';
 import { init, initWithPostHtmlOptions } from '../htmlnano.ts';
+import htmlnano from '../../dist/index.mjs';
+import maxPreset from '../../dist/presets/max.mjs';
 
 // The warning is printed only once per process, so these tests have to run before
 // any other test that uses `tool: 'uncss'`.
@@ -161,6 +163,40 @@ describe('removeUnusedCss (uncss)', function () {
 });
 
 describe('removeUnusedCss (purgeCSS)', function () {
+    for (const selector of ['.x / .y', '[style=width:100%]', 'html[lang=&quot;en&quot;]', '<!-- .x', '//.content', '.[grid-area:ffffcdgffifiefdf-fifiefdf]']) {
+        it(`should preserve malformed selectors in ${selector} while purging other styles`, () => {
+            const invalid = `<style>${selector}{color:red}.unused{color:blue}</style>`;
+            return init(`${invalid}<style>.x{color:red}.unused{color:blue}</style><p class="x">Content</p>`,
+                `${invalid}<style>.x{color:red}</style><p class="x">Content</p>`,
+                { removeUnusedCss: { tool: 'purgeCSS' } });
+        });
+
+        it(`should complete max minification with the malformed selector ${selector}`, async () => {
+            const input = `<style>${selector}{color:red}</style><p class="x">Content</p>`;
+            const { html } = await htmlnano.process(input, { skipConfigLoading: true }, maxPreset);
+            expect(html).toContain('<style>');
+            expect(html).toContain('Content');
+        });
+    }
+
+    it('should propagate errors from PurgeCSS selector callbacks', async () => {
+        const matcher = /unused/;
+        matcher.test = function fail() {
+            throw new Error('Unexpected selector callback failure');
+        };
+        await expect(htmlnano.process('<style>.unused{color:red}</style><p>Content</p>', {
+            removeUnusedCss: { tool: 'purgeCSS', safelist: { greedy: [matcher] } },
+            skipConfigLoading: true
+        }, {})).rejects.toThrow('Unexpected selector callback failure');
+    });
+
+    it('should propagate invalid PurgeCSS configuration', async () => {
+        await expect(htmlnano.process('<style>.unused{color:red}</style><p>Content</p>', {
+            removeUnusedCss: { tool: 'purgeCSS', safelist: { greedy: [null] } },
+            skipConfigLoading: true
+        }, {})).rejects.toThrow();
+    });
+
     const options = {
         removeUnusedCss: {
             tool: 'purgeCSS' as const

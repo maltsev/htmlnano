@@ -234,8 +234,14 @@ export default mod;
 
 function preserveInvalidCss(error: unknown): void {
     // Both tools report malformed stylesheets as CssSyntaxError.
+    // PurgeCSS's selector parser throws plain Errors. Match its error creation
+    // frames, rather than visitor frames also present in tool/callback failures.
     // A failed parse must not replace the original style node's content.
-    if (!(error instanceof Error) || error.name !== 'CssSyntaxError') throw error;
+    if (error instanceof Error && (error.name === 'CssSyntaxError'
+        || /\bat (?:Root\._error|Parser\.error) \([^\n]*[/\\]postcss-selector-parser[/\\]/.test(error.stack ?? ''))) {
+        return;
+    }
+    throw error;
 }
 
 function resolveUserOptions(userOptions: RemoveUnusedCssOptions | true | null | undefined) {
