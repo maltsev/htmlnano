@@ -6,10 +6,34 @@ import posthtml from 'posthtml';
 import htmlnano from '../../dist/index.mjs';
 import safePreset from '../../dist/presets/safe.mjs';
 import ampSafePreset from '../../dist/presets/ampSafe.mjs';
+import maxPreset from '../../dist/presets/max.mjs';
 import { init, initIdempotent, initWithPostHtmlOptions } from '../htmlnano.ts';
 import type { HtmlnanoOptions, PostHTMLTreeLike } from '../../src/types.js';
 
 describe('removeOptionalTags', () => {
+    for (const preset of [safePreset, maxPreset]) {
+        for (const scriptingEnabled of [true, false]) {
+            it(`preserves the head boundary before noscript with scripting ${scriptingEnabled}`, async () => {
+                const input = '<!doctype html><html><head><title>Test</title></head><noscript><iframe></iframe></noscript><body>Content</body></html>';
+                const { html } = await htmlnano.process(input, { skipConfigLoading: true }, preset);
+                const errors: string[] = [];
+                parse(html, { scriptingEnabled, onParseError: error => errors.push(error.code) });
+                expect(errors).toEqual([]);
+                expect(parse(html, { scriptingEnabled })).toEqual(parse(input, { scriptingEnabled }));
+                expect(html).toContain('</head>');
+            });
+        }
+    }
+
+    for (const tag of ['script', 'style', 'title', 'template', 'meta', 'link']) {
+        it(`keeps a following ${tag} outside the head`, async () => {
+            const input = `<head><title>Test</title></head><${tag}></${tag}><body>Content</body>`;
+            const { html } = await htmlnano.process(input, { removeOptionalTags: true, skipConfigLoading: true }, {});
+            expect(parse(html)).toEqual(parse(input));
+            expect(html).toContain('</head>');
+        });
+    }
+
     const options = {
         removeOptionalTags: true
     };

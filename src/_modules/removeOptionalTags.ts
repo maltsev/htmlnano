@@ -302,7 +302,10 @@ function canOmitEndTag(
 
         /** A "head" element's end tag may be omitted if it is not IMMEDIATELY followed by ASCII whitespace or a comment. */
         case 'head':
-            return !isNextWhitespaceOrComment && !isNextTaglessNode;
+            // Head-compatible siblings would be consumed inside the still-open
+            // head, including noscript's different scripting-dependent modes.
+            return !isNextWhitespaceOrComment && !isNextTaglessNode
+                && !(typeof nextTagName === 'string' && bodyStartTagCantBeOmittedWithFirstChildTags.has(nextTagName));
 
         /**
          * The same specification rule applies to "caption" and "colgroup",

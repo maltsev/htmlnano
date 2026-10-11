@@ -76,6 +76,8 @@ specification’s wording assumes markup that already follows the content model:
   `p`.
 - End tags are never omitted inside `<svg>` and `<math>`, where the parser
   requires every element to be closed explicitly.
+- `</head>` is retained before elements that the parser would otherwise consume
+  inside the head, including `<noscript>` with either scripting setting.
 - Ruby annotation end tags are omitted only under an explicit `<ruby>`, and
   `</optgroup>` only under an explicit `<select>`. Elsewhere, including fragments
   whose context is unknown, a following sibling can become nested instead.
