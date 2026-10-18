@@ -33,6 +33,7 @@ function run(command, args, options = {}) {
     const result = spawnSync(command, args, {
         cwd: rootDir,
         encoding: 'utf8',
+        input: options.input,
         stdio: options.stdio || 'pipe'
     });
 
@@ -461,6 +462,40 @@ function updateChangelog(newVersion, previousVersion, summary, repositoryUrl) {
     fs.writeFileSync(paths.changelog, nextChangelog);
 }
 
+function getReleaseNotes(version) {
+    const changelog = fs.readFileSync(paths.changelog, 'utf8');
+    const { body, compareLinks, issueLinks } = parseReferenceDefinitions(changelog);
+    const entry = body.split(/^## /m).find(section => section.startsWith(`[${version}] - `));
+
+    if (!entry) {
+        throw new Error(`CHANGELOG.md is missing an entry for ${version}.`);
+    }
+
+    const notes = entry.slice(entry.indexOf('\n') + 1).trim();
+    if (!notes) {
+        throw new Error(`CHANGELOG.md has an empty entry for ${version}.`);
+    }
+
+    const references = [...compareLinks, ...issueLinks]
+        .filter(([key]) => notes.includes(`[${key}]`))
+        .map(([key, url]) => `[${key}]: ${url}`);
+
+    return `${[notes, references.join('\n')].filter(Boolean).join('\n\n')}\n`;
+}
+
+function publishGithubRelease(version, notes) {
+    const result = run('gh', ['release', 'create', version, '--verify-tag', '--latest', '--title', version, '--notes-file', '-'], {
+        input: notes
+    });
+
+    console.log(result.stdout.trim());
+
+    run('gh', ['release', 'view', version, '--web'], {
+        stdio: 'inherit',
+        allowFailure: true
+    });
+}
+
 function snapshotReleasedDocs() {
     if (!fs.existsSync(paths.docsDir)) {
         throw new Error(`Docs directory does not exist: ${paths.docsDir}`);
@@ -509,7 +544,7 @@ async function confirmProceed(newVersion) {
     });
 
     try {
-        const answer = await rl.question(`Proceed with commit, tag, push, and npm publish for ${newVersion}? [y/N] `);
+        const answer = await rl.question(`Proceed with commit, tag, push, GitHub release, and npm publish for ${newVersion}? [y/N] `);
 
         return /^(y|yes)$/i.test(answer.trim());
     } finally {
@@ -522,6 +557,7 @@ async function main() {
 
     assertReleaseType(releaseType);
     ensureCleanWorktree();
+    run('gh', ['auth', 'status']);
     ensureNpmAuthentication();
 
     const packageVersion = readJson(paths.packageJson).version;
@@ -557,9 +593,15 @@ async function main() {
     console.log(`Bumping package version to ${newVersion}...`);
     bumpPackageVersion(releaseType, newVersion);
 
+    console.log('Fixing Markdown lint errors...');
+    run('npm', ['run', 'lint:markdown:fix'], {
+        stdio: 'inherit'
+    });
+    const releaseNotes = getReleaseNotes(newVersion);
+
     const shouldProceed = await confirmProceed(newVersion);
     if (!shouldProceed) {
-        console.log('Release files were prepared locally. Skipping commit, tag, push, and npm publish.');
+        console.log('Release files were prepared locally. Skipping commit, tag, push, GitHub release, and npm publish.');
         return;
     }
 
@@ -573,6 +615,9 @@ async function main() {
     run('git', ['push', '--follow-tags'], {
         stdio: 'inherit'
     });
+
+    console.log('Publishing the GitHub release...');
+    publishGithubRelease(newVersion, releaseNotes);
 
     console.log('Publishing to npm...');
     run('npm', ['publish'], {
