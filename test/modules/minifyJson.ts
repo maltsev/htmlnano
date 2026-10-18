@@ -3,6 +3,7 @@ import { parseFragment } from 'parse5';
 import { init } from '../htmlnano.ts';
 import { process as processHtml } from '../../dist/index.mjs';
 import safePreset from '../../dist/presets/safe.mjs';
+import type { HtmlnanoOptions } from '../../dist/index.mjs';
 
 describe('minifyJson', () => {
     const options = {
@@ -179,5 +180,118 @@ describe('minifyJson', () => {
         const json = script.childNodes.map(node => 'value' in node ? node.value : '').join('');
         expect(JSON.parse(json)).toEqual(JSON.parse(content));
         expect(json).not.toContain('<');
+    });
+});
+
+describe('minifyJson attributes', () => {
+    const options: HtmlnanoOptions = { minifyJson: { attributes: ['data-json'] } };
+
+    function readAttributes(html: string): Record<string, string> {
+        const element = parseFragment(html).childNodes[0];
+        if (!element || !('attrs' in element)) throw new Error('Expected an element');
+        return Object.fromEntries(element.attrs.map(attr => [attr.name, attr.value]));
+    }
+
+    it('should preserve string spaces, number spelling, duplicate keys and unselected data', async () => {
+        const html = `<div data-json='{ "message": "a  b", "large": 9007199254740993, "fraction": 1.234567890123456789, "zero": -0, "exp": 1E+400, "exp": 1e-400 }' data-other='{ "x": 1 }' data-message="a  b">X</div>`;
+        const result = await processHtml(html, options, {});
+        expect(readAttributes(result.html)).toEqual({
+            'data-json': '{"message":"a  b","large":9007199254740993,"fraction":1.234567890123456789,"zero":-0,"exp":1E+400,"exp":1e-400}',
+            'data-other': '{ "x": 1 }',
+            'data-message': 'a  b'
+        });
+        expect((await processHtml(result.html, options, {})).html).toBe(result.html);
+    });
+
+    it('should require explicit selection, including with the safe preset', async () => {
+        const html = `<div data-json='{ "x": 1 }'></div>`;
+        for (const minifyJson of [true, false, {}, { attributes: [] }]) {
+            const result = await processHtml(html, { minifyJson }, {});
+            expect(readAttributes(result.html)['data-json']).toBe('{ "x": 1 }');
+        }
+        const result = await processHtml(html);
+        expect(readAttributes(result.html)['data-json']).toBe('{ "x": 1 }');
+    });
+
+    it('should match names and optional tag restrictions without case distinctions', async () => {
+        const html = `<DIV DATA-JSON='[ 1, 2 ]' data-state='[ 3 ]'></DIV><span data-json='[ 4 ]'></span>`;
+        await init(html, '<DIV data-json="[1,2]" data-state="[3]"></DIV><span data-json="[ 4 ]"></span>', {
+            minifyJson: { attributes: [{ name: 'DATA-JSON', tag: 'DiV' }, { name: 'data-state' }] }
+        });
+    });
+
+    it('should leave invalid JSON, empty values and boolean attributes unchanged', async () => {
+        for (const value of ['{bad: 1}', '[1,]', '{&quot;x&quot;: }', '', ' \n ', 'true false']) {
+            const html = `<div data-json='${value}'></div>`;
+            const result = await processHtml(html, options, {});
+            expect(readAttributes(result.html)['data-json']).toBe(readAttributes(html)['data-json']);
+        }
+        await init('<div data-json></div>', '<div data-json=""></div>', options);
+    });
+
+    it('should still minify JSON scripts when attribute rules are supplied', () => {
+        return init(`<script type="application/json"> { "x": 1 } </script><div data-json='[ 2 ]'></div>`,
+            '<script type="application/json">{"x":1}</script><div data-json="[2]"></div>', options);
+    });
+
+    it('should skip attribute minification in XML mode', async () => {
+        const html = `<div data-json='[ 1, 2 ]'></div>`;
+        const result = await processHtml(html, options, {}, { xmlMode: true });
+        expect(readAttributes(result.html)['data-json']).toBe('[ 1, 2 ]');
+    });
+
+    const payloads = [
+        String.raw` { "text": "a  b \t\n\r \"quoted\" \\ path", "entity": "&amp;copy; &amp;#39; &copy; &notit;", "syntax": "&apos; &lt;/div&gt;&lt;img src=x&gt;", "escape": "\u0026quot; \u0027 \u0061\/\uD800" } `,
+        String.raw` [ "\&quot;", "&#39;", "&amp;copy;" ] `,
+        String.raw` "\&quot; &#39; &amp;copy;" `,
+        ' true ', ' null ', ' -0 ', ' 1E+400 ', ' {} '
+    ];
+    for (const decodeEntities of [false, true]) {
+        for (const quoteStyle of [undefined, 0, 1, 2] as const) {
+            for (const replaceQuote of [false, true]) {
+                it(`should preserve entities and quotes with decodeEntities=${decodeEntities}, quoteStyle=${quoteStyle}, replaceQuote=${replaceQuote}`, async () => {
+                    for (const payload of payloads) {
+                        const html = `<div data-json='${payload}'></div><p>after</p>`;
+                        const original: unknown = JSON.parse(readAttributes(html)['data-json']);
+                        const renderOptions = { decodeEntities, quoteStyle, replaceQuote };
+                        const result = await processHtml(html, options, {}, { ...renderOptions });
+                        expect(JSON.parse(readAttributes(result.html)['data-json'])).toEqual(original);
+                        expect(parseFragment(result.html).childNodes.map(node => node.nodeName)).toEqual(['div', 'p']);
+                        expect((await processHtml(result.html, options, {}, { ...renderOptions })).html).toBe(result.html);
+                    }
+                });
+            }
+        }
+    }
+
+    it('should compose with character reference minification and quote removal', async () => {
+        const html = `<div data-json='{ &quot;text&quot;: &quot;&amp;copy; &#39; a  b&quot; }'></div>`;
+        for (const decodeEntities of [false, true]) {
+            const enabled = { ...options, minifyCharacterReferences: { decodeAll: true }, removeAttributeQuotes: true };
+            const result = await processHtml(html, enabled, {}, { decodeEntities });
+            expect(JSON.parse(readAttributes(result.html)['data-json'])).toEqual({ text: '&copy; \' a  b' });
+            expect((await processHtml(result.html, enabled, {}, { decodeEntities })).html).toBe(result.html);
+        }
+    });
+
+    it('should preserve double-encoded quotes with the default parser', async () => {
+        const html = `<div data-json='{ "text": "&amp;quot; &amp;#34;" }'></div>`;
+        const result = await processHtml(html, options, {});
+        expect(JSON.parse(readAttributes(result.html)['data-json'])).toEqual({ text: '&quot; &#34;' });
+        expect((await processHtml(result.html, options, {})).html).toBe(result.html);
+    });
+
+    it('should preserve selected JSON in native templates with entity decoding', async () => {
+        const html = `<template><div data-json='{ "text": "&amp;copy; &#39;" }'></div></template>`;
+        for (const decodeEntities of [false, true]) {
+            const enabled = { ...options, minifyHtmlTemplate: true };
+            const result = await processHtml(html, enabled, {}, { decodeEntities });
+            const template = parseFragment(result.html).childNodes[0];
+            if (!('content' in template) || !('childNodes' in template.content)) throw new Error('Expected a template');
+            const child = template.content.childNodes[0];
+            if (!('attrs' in child)) throw new Error('Expected an element');
+            expect(JSON.parse(child.attrs[0].value)).toEqual({ text: '&copy; \'' });
+            expect((await processHtml(result.html, enabled, {}, { decodeEntities })).html).toBe(result.html);
+        }
     });
 });

@@ -30,6 +30,14 @@ export interface RemoveOptionalTagsOptions {
 }
 export type HtmlnanoMinifyCssOptions = object;
 export type HtmlnanoMinifyJsOptions = object;
+export type HtmlnanoJsonAttributeRule = string | {
+    name: string;
+    tag?: string;
+};
+export interface HtmlnanoMinifyJsonOptions {
+    /** Explicitly selected JSON attributes; omitted or empty means scripts only. */
+    attributes?: HtmlnanoJsonAttributeRule[];
+}
 export type HtmlnanoMinifySvgOptions = object;
 export type HtmlnanoPurgeCssPattern = string | RegExp;
 export type HtmlnanoPurgeCssExtractorResultDetailed = {
@@ -102,7 +110,7 @@ export interface HtmlnanoOptions {
     };
     minifyConditionalComments?: boolean;
     minifyJs?: HtmlnanoMinifyJsOptions | boolean;
-    minifyJson?: boolean;
+    minifyJson?: boolean | HtmlnanoMinifyJsonOptions;
     minifyAttributes?: boolean | {
         metaContent?: boolean;
         /** `'agressive'` is a deprecated alias for `'aggressive'`. */
