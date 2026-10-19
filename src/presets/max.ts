@@ -25,6 +25,10 @@ export default {
         metaContent: true,
         redundantWhitespaces: 'aggressive'
     },
+    // JSON data attributes may still have consumers that depend on literal values.
+    minifyJson: {
+        autoDetect: true
+    },
     mergeScripts: true,
     mergeStyles: true,
     removeUnusedCss: {

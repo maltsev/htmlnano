@@ -33,6 +33,7 @@ The completed preset changes differ as follows:
 | Doctype normalization | Short HTML5 doctypes only | Short HTML5 doctypes only | Broad, including legacy doctypes |
 | IE conditional comments | Unchanged | Unchanged | Minifies their contents |
 | Attribute sorting | Disabled | Disabled | Alphabetical |
+| JSON attributes | Explicit opt-in | Same as `safe` | Detects objects/arrays in all `data-*` attributes |
 
 `ampSafe` otherwise differs from `safe` by enabling AMP-specific boolean
 attribute collapsing and disabling JavaScript minification. Attribute sorting

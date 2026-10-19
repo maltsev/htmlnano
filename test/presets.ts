@@ -52,6 +52,43 @@ describe('safe preset exclusions', () => {
     });
 });
 
+describe('JSON attribute preset settings', () => {
+    const input = `<div data-json='{ "message": "a  b" }' data-jsonld='{ "keep": 1 }'>X</div>`;
+
+    for (const { name, preset } of presets.filter(({ name }) => name !== 'max')) {
+        it(`keeps JSON attributes unchanged in ${name}`, async () => {
+            expect(await minify(input, preset)).toContain(`data-json='{ "message": "a  b" }'`);
+        });
+    }
+
+    it('detects JSON in any data attribute in max', async () => {
+        const output = await minify(input, maxPreset);
+        expect(output).toContain(`data-json='{"message":"a  b"}'`);
+        expect(output).toContain(`data-jsonld='{"keep":1}'`);
+        expect(await minify(output, maxPreset)).toBe(output);
+
+        for (const name of ['data-json-state', 'data-current-styles', 'data-current-context']) {
+            const source = `<div ${name}='[ 1, 2 ]'>X</div>`;
+            expect(await minify(source, maxPreset)).toContain(`${name}=[1,2]`);
+        }
+    });
+
+    it('detects only objects and arrays in the max preset', async () => {
+        const source = `<div data-json=' true ' data-user-json=' -0 '></div>`;
+        // Isolate JSON processing from max's unrelated attribute whitespace trimming.
+        const output = await minify(source, {}, { minifyJson: maxPreset.minifyJson });
+        expect(output).toContain('data-json=" true "');
+        expect(output).toContain('data-user-json=" -0 "');
+    });
+
+    it('allows callers to disable attribute selection while retaining script minification', async () => {
+        const source = input + '<script type="application/json"> { "x": 1 } </script>';
+        const output = await minify(source, maxPreset, { minifyJson: true });
+        expect(output).toContain(`data-json='{ "message": "a  b" }'`);
+        expect(output).toContain('<script type=application/json>{"x":1}</script>');
+    });
+});
+
 describe('Astro hydration comments', () => {
     for (const { name, preset } of presets.filter(({ name }) => name !== 'max')) {
         it(`keeps hydration markers with the ${name} preset`, async () => {

@@ -185,12 +185,105 @@ describe('minifyJson', () => {
 
 describe('minifyJson attributes', () => {
     const options: HtmlnanoOptions = { minifyJson: { attributes: ['data-json'] } };
+    const autoOptions: HtmlnanoOptions = { minifyJson: { autoDetect: true } };
 
     function readAttributes(html: string): Record<string, string> {
         const element = parseFragment(html).childNodes[0];
         if (!element || !('attrs' in element)) throw new Error('Expected an element');
         return Object.fromEntries(element.attrs.map(attr => [attr.name, attr.value]));
     }
+
+    it('should detect JSON data attributes without requiring json in their names', async () => {
+        const html = `<div DATA-CURRENT-STYLES=' { "message": "a  b", "large": 9007199254740993, "zero": -0, "exp": 1E+400, "x": 1, "x": 2 } ' data-current-context=' [ 1, { "x": 2 } ] '></div>`;
+        const result = await processHtml(html, autoOptions, {});
+        expect(readAttributes(result.html)).toEqual({
+            'data-current-styles': '{"message":"a  b","large":9007199254740993,"zero":-0,"exp":1E+400,"x":1,"x":2}',
+            'data-current-context': '[1,{"x":2}]'
+        });
+        expect((await processHtml(result.html, autoOptions, {})).html).toBe(result.html);
+    });
+
+    it('should leave non-data attributes unchanged during detection', async () => {
+        const html = `<input title='{ "x": 1 }' value='[ 1, 2 ]' aria-label='{ "x": 2 }'>`;
+        const result = await processHtml(html, autoOptions, {});
+        expect(readAttributes(result.html)).toEqual(readAttributes(html));
+    });
+
+    it('should skip ordinary data, invalid JSON, scalars and compact JSON during detection', async () => {
+        for (const value of ['a  b', ' true ', ' -0 ', ' "{}" ', '[1,]', '{bad: 1}', '{ } trailing', '[ 1 }', '', ' \n ', '{"text":"a  b"}']) {
+            const html = `<div data-state='${value}'></div>`;
+            const result = await processHtml(html, autoOptions, {});
+            expect(readAttributes(result.html)['data-state']).toBe(value);
+        }
+    });
+
+    it('should detect JSON escapes that can shrink even without removable whitespace', async () => {
+        const html = String.raw`<div data-state='{"text":"\u0061"}'></div>`;
+        const result = await processHtml(html, autoOptions, {});
+        expect(readAttributes(result.html)['data-state']).toBe('{"text":"a"}');
+    });
+
+    it('should keep detected values when HTML escaping would erase the savings', async () => {
+        const html = `<div data-state='{ "text": "&&&&" }'></div>`;
+        expect((await processHtml(html, autoOptions, {})).html).toBe(html);
+
+        const quoted = `<div data-state='{ "text": "value" }'></div>`;
+        const result = await processHtml(quoted, autoOptions, {}, { replaceQuote: false, quoteStyle: 2 });
+        expect(readAttributes(result.html)['data-state']).toBe('{ "text": "value" }');
+    });
+
+    it('should decode detected JSON and preserve its strings across repeated runs', async () => {
+        const html = `<div data-state='&#32;&#91;          &quot;a  b&quot;,          &quot;&amp;copy; &#39;&quot;          &#93;'></div>`;
+        for (const decodeEntities of [false, true]) {
+            const result = await processHtml(html, autoOptions, {}, { decodeEntities });
+            expect(JSON.parse(readAttributes(result.html)['data-state'])).toEqual(['a  b', '&copy; \'']);
+            expect(readAttributes(result.html)['data-state']).not.toContain('          ');
+            expect((await processHtml(result.html, autoOptions, {}, { decodeEntities })).html).toBe(result.html);
+        }
+    });
+
+    it('should allow explicit attribute rules alongside enabled or disabled detection', async () => {
+        const html = `<div title=' true ' data-count=' -0 ' data-state='[ 1 ]'></div>`;
+        for (const autoDetect of [false, true]) {
+            const enabled: HtmlnanoOptions = {
+                minifyJson: { autoDetect, attributes: ['title', 'data-count'] }
+            };
+            const result = await processHtml(html, enabled, {});
+            expect(readAttributes(result.html)).toEqual({
+                title: 'true', 'data-count': '-0', 'data-state': autoDetect ? '[1]' : '[ 1 ]'
+            });
+        }
+        const explicit = await processHtml(`<div title='{ "x": 1 }'></div>`, {
+            minifyJson: { autoDetect: true, attributes: ['title'] }
+        }, {});
+        expect(readAttributes(explicit.html).title).toBe('{"x":1}');
+    });
+
+    it('should treat attribute names literally, including pattern characters', async () => {
+        for (const [matching, unmatched] of [
+            ['data-*', 'data-json'],
+            ['data-json.*', 'data-json.value'],
+            ['data-json[1]', 'data-json1'],
+            ['data-json?', 'data-json']
+        ]) {
+            const html = `<div ${matching}='{ "x": 1 }' ${unmatched}='{ "x": 2 }'></div>`;
+            const result = await processHtml(html, { minifyJson: { attributes: [matching] } }, {});
+            expect(readAttributes(result.html)).toEqual({
+                [matching.toLowerCase()]: '{"x":1}',
+                [unmatched.toLowerCase()]: '{ "x": 2 }'
+            });
+        }
+    });
+
+    it('should decode explicitly selected arrays and safely escape string contents', async () => {
+        const selectedOptions = { minifyJson: { attributes: ['data-user-json'] } };
+        const html = `<div data-user-json='&#32;&#91; &quot;a  b&quot;, &quot;&amp;copy; &#39;&quot; &#93;'></div>`;
+        for (const decodeEntities of [false, true]) {
+            const result = await processHtml(html, selectedOptions, {}, { decodeEntities });
+            expect(JSON.parse(readAttributes(result.html)['data-user-json'])).toEqual(['a  b', '&copy; \'']);
+            expect((await processHtml(result.html, selectedOptions, {}, { decodeEntities })).html).toBe(result.html);
+        }
+    });
 
     it('should preserve string spaces, number spelling, duplicate keys and unselected data', async () => {
         const html = `<div data-json='{ "message": "a  b", "large": 9007199254740993, "fraction": 1.234567890123456789, "zero": -0, "exp": 1E+400, "exp": 1e-400 }' data-other='{ "x": 1 }' data-message="a  b">X</div>`;
@@ -205,7 +298,7 @@ describe('minifyJson attributes', () => {
 
     it('should require explicit selection, including with the safe preset', async () => {
         const html = `<div data-json='{ "x": 1 }'></div>`;
-        for (const minifyJson of [true, false, {}, { attributes: [] }]) {
+        for (const minifyJson of [true, false, {}, { attributes: [] }, { autoDetect: false }]) {
             const result = await processHtml(html, { minifyJson }, {});
             expect(readAttributes(result.html)['data-json']).toBe('{ "x": 1 }');
         }
@@ -213,10 +306,10 @@ describe('minifyJson attributes', () => {
         expect(readAttributes(result.html)['data-json']).toBe('{ "x": 1 }');
     });
 
-    it('should match names and optional tag restrictions without case distinctions', async () => {
+    it('should match exact names on every element without case distinctions', async () => {
         const html = `<DIV DATA-JSON='[ 1, 2 ]' data-state='[ 3 ]'></DIV><span data-json='[ 4 ]'></span>`;
-        await init(html, '<DIV data-json="[1,2]" data-state="[3]"></DIV><span data-json="[ 4 ]"></span>', {
-            minifyJson: { attributes: [{ name: 'DATA-JSON', tag: 'DiV' }, { name: 'data-state' }] }
+        await init(html, '<DIV data-json="[1,2]" data-state="[ 3 ]"></DIV><span data-json="[4]"></span>', {
+            minifyJson: { attributes: ['DATA-JSON'] }
         });
     });
 
@@ -236,8 +329,10 @@ describe('minifyJson attributes', () => {
 
     it('should skip attribute minification in XML mode', async () => {
         const html = `<div data-json='[ 1, 2 ]'></div>`;
-        const result = await processHtml(html, options, {}, { xmlMode: true });
-        expect(readAttributes(result.html)['data-json']).toBe('[ 1, 2 ]');
+        for (const enabled of [options, autoOptions]) {
+            const result = await processHtml(html, enabled, {}, { xmlMode: true });
+            expect(readAttributes(result.html)['data-json']).toBe('[ 1, 2 ]');
+        }
     });
 
     const payloads = [

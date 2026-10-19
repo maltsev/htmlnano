@@ -30,13 +30,11 @@ export interface RemoveOptionalTagsOptions {
 }
 export type HtmlnanoMinifyCssOptions = object;
 export type HtmlnanoMinifyJsOptions = object;
-export type HtmlnanoJsonAttributeRule = string | {
-    name: string;
-    tag?: string;
-};
 export interface HtmlnanoMinifyJsonOptions {
-    /** Explicitly selected JSON attributes; omitted or empty means scripts only. */
-    attributes?: HtmlnanoJsonAttributeRule[];
+    /** Exact, case-insensitive attribute names; supports any valid JSON value. */
+    attributes?: string[];
+    /** Detect JSON objects/arrays in data-* attributes and rewrite them when smaller. */
+    autoDetect?: boolean;
 }
 export type HtmlnanoMinifySvgOptions = object;
 export type HtmlnanoPurgeCssPattern = string | RegExp;

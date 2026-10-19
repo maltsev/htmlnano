@@ -1,4 +1,5 @@
 import { decodeHTMLAttribute } from 'entities';
+import { Buffer } from 'node:buffer';
 import { getTagName, normalizeMimeType } from '../helpers.js';
 import type { HtmlnanoMinifyJsonOptions, HtmlnanoModule } from '../types.js';
 
@@ -20,23 +21,26 @@ function minifyJson(content: string): string | null {
 
 const mod: HtmlnanoModule<boolean | HtmlnanoMinifyJsonOptions> = {
     default(tree, _options, moduleOptions) {
-        const rules = typeof moduleOptions === 'object' ? moduleOptions.attributes : undefined;
-        if (!rules?.length || tree.options?.xmlMode) return tree;
+        const attributes = typeof moduleOptions === 'object' ? moduleOptions.attributes : undefined;
+        const autoDetect = typeof moduleOptions === 'object' && moduleOptions.autoDetect === true;
+        if ((!attributes?.length && !autoDetect) || tree.options?.xmlMode) return tree;
 
-        const normalizedRules = rules.map(rule => typeof rule === 'string'
-            ? { name: rule.toLowerCase() }
-            : { name: rule.name.toLowerCase(), tag: rule.tag?.toLowerCase() });
+        const attributeNames = new Set((attributes ?? []).map(name => name.toLowerCase()));
 
         tree.walk((node) => {
             if (!node.attrs) return node;
 
             for (const [name, value] of Object.entries(node.attrs)) {
-                if (typeof value !== 'string' || !normalizedRules.some(rule =>
-                    rule.name === name.toLowerCase() && (!rule.tag || rule.tag === getTagName(node)))) {
-                    continue;
-                }
+                if (typeof value !== 'string') continue;
+
+                const lowerName = name.toLowerCase();
+                const explicitlySelected = attributeNames.has(lowerName);
+                const detected = autoDetect && lowerName.startsWith('data-');
+                if (!explicitlySelected && !detected) continue;
 
                 const decoded = tree.options?.decodeEntities === true ? value : decodeHTMLAttribute(value);
+                // Reject ordinary attribute data before attempting JSON parsing.
+                if (!explicitlySelected && !/^[\t\n\r ]*(?:\{[\s\S]*\}|\[[\s\S]*\])[\t\n\r ]*$/.test(decoded)) continue;
                 const minified = minifyJson(decoded);
                 if (minified === null) continue;
 
@@ -47,6 +51,16 @@ const mod: HtmlnanoModule<boolean | HtmlnanoMinifyJsonOptions> = {
                 if (tree.options?.replaceQuote === false
                     && tree.options.quoteStyle !== 0 && tree.options.quoteStyle !== 1) {
                     encoded = encoded.replace(/"/g, '&quot;');
+                }
+                if (!explicitlySelected) {
+                    // Account for HTML escaping and quote selection before
+                    // automatically rewriting a value. Explicit rules retain
+                    // their existing behavior even when serialization grows.
+                    const probe = { ...node, tag: 'div', attrs: { [name]: value }, content: [] };
+                    const before = tree.render(probe, tree.options);
+                    probe.attrs[name] = encoded;
+                    const after = tree.render(probe, tree.options);
+                    if (Buffer.byteLength(after) >= Buffer.byteLength(before)) continue;
                 }
                 node.attrs[name] = encoded;
             }

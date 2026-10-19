@@ -1,27 +1,32 @@
-import type { HtmlnanoJsonAttributeRule, HtmlnanoMinifyJsonOptions, HtmlnanoOptions } from '../../dist/index.mjs';
+import type { HtmlnanoMinifyJsonOptions, HtmlnanoOptions } from '../../dist/index.mjs';
 
-export const rules: HtmlnanoJsonAttributeRule[] = [
+export const attributes: string[] = [
     'data-current-styles',
-    { name: 'data-current-context', tag: 'section' }
+    'data-current-context'
 ];
-export const jsonOptions: HtmlnanoMinifyJsonOptions = { attributes: rules };
+export const jsonOptions: HtmlnanoMinifyJsonOptions = { attributes };
 export const options: HtmlnanoOptions[] = [
     { minifyJson: true },
     { minifyJson: false },
     { minifyJson: {} },
+    { minifyJson: { autoDetect: true } },
+    { minifyJson: { autoDetect: false, attributes } },
     { minifyJson: jsonOptions }
 ];
 
-export const invalidName: HtmlnanoJsonAttributeRule = {
-    // @ts-expect-error Attribute names must be strings.
-    name: 1
+export const invalidRegexp: HtmlnanoMinifyJsonOptions = {
+    // @ts-expect-error Attribute names must be strings, not regular expressions.
+    attributes: [/^data-/]
 };
-export const invalidTag: HtmlnanoJsonAttributeRule = {
-    name: 'data-json',
-    // @ts-expect-error Tag restrictions must be strings.
-    tag: ['div']
+export const invalidRuleObject: HtmlnanoMinifyJsonOptions = {
+    // @ts-expect-error Attribute names must be strings, not rule objects.
+    attributes: [{ name: 'data-json', tag: 'div' }]
 };
 export const invalidAttributes: HtmlnanoMinifyJsonOptions = {
     // @ts-expect-error Attribute selection requires a list.
     attributes: 'data-json'
+};
+export const invalidAutoDetect: HtmlnanoMinifyJsonOptions = {
+    // @ts-expect-error Automatic detection requires a boolean.
+    autoDetect: 'data-*'
 };
