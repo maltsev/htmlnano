@@ -170,8 +170,7 @@ const modules = {
 } satisfies Record<string, () => Promise<HtmlnanoModule<any>>>;
 
 const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {}, presetRun?: HtmlnanoPreset) {
-    // eslint-disable-next-line prefer-const -- re-assign options
-    let [options, preset] = loadConfig(optionsRun, presetRun);
+    const [configuredOptions, preset] = loadConfig(optionsRun, presetRun);
 
     const minifier: PostHTML.Plugin<never> = async (_tree) => {
         const tree = (_tree as unknown) as PostHTMLTreeLike;
@@ -181,7 +180,8 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
         const contentsHandlers: HtmlnanoModuleContentHandler[] = [];
         const finalPasses: Array<(tree: PostHTMLTreeLike) => Promise<PostHTMLTreeLike>> = [];
 
-        options = { ...preset, ...options };
+        // Each invocation needs its own identity for state shared by module hooks.
+        const options = { ...preset, ...configuredOptions };
         let promise = Promise.resolve(tree);
 
         const nonModuleOptions = new Set(['skipInternalWarnings']);

@@ -4,8 +4,33 @@ import maxPreset from '../../dist/presets/max.mjs';
 import htmlnano from '../../dist/index.mjs';
 import { expect } from 'expect';
 import { parseFragment } from 'parse5';
+import posthtml from 'posthtml';
 
 describe('minifyCharacterReferences', () => {
+    for (const preset of [{}, safePreset]) {
+        it(`should preserve raw-text descendants during concurrent plugin reuse with ${preset === safePreset ? 'the safe preset' : 'only character reference minification'}`, async () => {
+            const processor = posthtml([htmlnano({
+                skipConfigLoading: true,
+                minifyCharacterReferences: true
+            }, preset)]);
+            const source = '<iframe><b title="&lt;/iframe&gt;&lt;script&gt;alert(1)&lt;/script&gt;"></b></iframe>';
+
+            for (let batch = 0; batch < 10; batch++) {
+                const results = await Promise.all([
+                    processor.process(source),
+                    processor.process('<p>&copy;</p>'),
+                    processor.process(source)
+                ]);
+
+                for (const result of [results[0], results[2]]) {
+                    expect(result.html).toContain('&lt;/iframe&gt;&lt;script&gt;');
+                    expect(parseFragment(result.html).childNodes.map(node => node.nodeName)).toEqual(['iframe']);
+                }
+                expect(results[1].html).toBe('<p>©</p>');
+            }
+        });
+    }
+
     for (const preset of [safePreset, maxPreset]) {
         for (const suffix of ['#topic=1', '#xno-digits', '#']) {
             for (const reference of ['&amp;', '&#38;', '&#x26;']) {
