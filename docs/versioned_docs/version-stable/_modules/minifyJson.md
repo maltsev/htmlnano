@@ -1,23 +1,49 @@
 ### minifyJson
 
-Minifies JSON inside `<script>` tags whose `type` ends in `/json` or `+json` (case-insensitive), including when MIME parameters are present.
+Minifies JSON in `<script>` tags with a `type` ending in `/json` or `+json`, ignoring case and MIME parameters. Optionally minifies selected JSON attributes.
+
+#### Options
+
+`true` (the `safe` default) minifies scripts only; `false` disables the module. To include attributes:
+
+```js
+htmlnano.process(html, {
+    minifyJson: {
+        attributes: [
+            'data-current-styles',
+            'data-current-context'
+        ]
+    }
+});
+```
+
+`attributes` accepts exact attribute-name strings, ignoring case, and supports any valid JSON value, including scalars. Names apply to all elements; patterns are not supported.
+
+`autoDetect: true` checks all `data-*` attributes for valid JSON objects and arrays, regardless of their names, and rewrites them only when the rendered HTML becomes smaller. Explicit `attributes` rules retain their behavior alongside detection. `max` enables it:
+
+```js
+minifyJson: {
+    autoDetect: true
+}
+```
+
+Attribute minification assumes consumers parse JSON and do not depend on its formatting. `safe` and `ampSafe` keep it disabled. Attributes are skipped in XML mode. With no rules or detection, only scripts are processed; override `max` with `minifyJson: true` for this behavior.
+
+Selected values are entity-decoded and safely escaped for HTML. Keep PostHTML's default `decodeEntities: false` for input containing `&amp;quot;`: enabling decoding can corrupt it before this module runs.
 
 #### Notes
 
-- Only `<script>` tags with an explicit JSON MIME type are processed. Tags without a `type` attribute are left untouched.
-- MIME parameters are allowed (`application/json; charset=utf-8`) and casing is ignored.
-- Tags with `integrity` are skipped to preserve SRI safety.
-- Invalid JSON is left unchanged.
-- Number literals, duplicate keys and member order are preserved; whitespace outside strings and unnecessary string escapes are removed.
-- Less-than signs in JSON strings are escaped as `\u003C` to prevent the payload from closing the script or changing HTML parsing.
-- JSON-like suffixes such as `application/jsonp` are not considered JSON and are skipped.
+- Invalid JSON and unselected attributes are unchanged.
+- String contents, number spelling, duplicate keys and member order are preserved. Whitespace outside strings and unnecessary string escapes are removed.
+- Scripts without a JSON MIME type (including `application/jsonp`) or with `integrity` are skipped.
+- In scripts, `<` is escaped as `\u003C` to preserve HTML parsing.
 
-#### Example
+#### Script example
 
 Source:
 
 ```html
-<script type="application/json">
+<script type="application/ld+json; charset=UTF-8">
 {
     "user": "me"
 }
@@ -27,21 +53,19 @@ Source:
 Minified:
 
 ```html
-<script type="application/json">{"user":"me"}</script>
+<script type="application/ld+json; charset=UTF-8">{"user":"me"}</script>
 ```
 
-Source:
+#### Attribute example
+
+With the attribute options above:
 
 ```html
-<script type="application/ld+json; charset=UTF-8">
-{
-    "id": 1
-}
-</script>
+<section data-current-context='{ "message": "a  b", "count": 2 }'></section>
 ```
 
-Minified:
+Minified (preserving both spaces in `"a  b"`):
 
 ```html
-<script type="application/ld+json; charset=UTF-8">{"id":1}</script>
+<section data-current-context='{"message":"a  b","count":2}'></section>
 ```

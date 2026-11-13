@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.7.0] - 2026-11-13
+
+### Added
+
+* Added JSON attribute minification with automatic detection and support in the `max` preset.
+
+### Fixed
+
+* Preserved raw-text protection when reusing plugins concurrently ([see the report](https://github.com/maltsev/htmlnano/security/advisories/GHSA-5h5v-qw87-94vx)).
+
 ## [3.6.1] - 2026-10-11
 
 ### Fixed
@@ -553,6 +563,7 @@ Otherwise, you have to adapt the config according to the new [PurgeCSS@3](https:
 
 * Remove attributes that contains only white spaces.
 
+[3.7.0]: https://github.com/maltsev/htmlnano/compare/3.6.1...3.7.0
 [3.6.1]: https://github.com/maltsev/htmlnano/compare/3.6.0...3.6.1
 [3.6.0]: https://github.com/maltsev/htmlnano/compare/3.5.1...3.6.0
 [3.5.1]: https://github.com/maltsev/htmlnano/compare/3.5.0...3.5.1
