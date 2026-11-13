@@ -32,9 +32,8 @@ type ExactPurgeCssKeys
         | 'stdout'
         | 'variables'
         | 'blocklist'
-        | 'skippedContentGlobs'
-        | 'dynamicAttributes';
-type CompatiblePurgeCssKeys = 'defaultExtractor' | 'safelist' | 'sourceMap';
+        | 'skippedContentGlobs';
+type CompatiblePurgeCssKeys = 'defaultExtractor' | 'safelist' | 'sourceMap' | 'dynamicAttributes';
 
 export type CssnanoOptionsAcceptedByAlias = AssertTrue<IsAssignable<CssNanoOptions, HtmlnanoMinifyCssOptions>>;
 export type TerserOptionsAcceptedByAlias = AssertTrue<IsAssignable<MinifyOptions, HtmlnanoMinifyJsOptions>>;
@@ -60,7 +59,10 @@ export type PurgeCssExactFieldCompatibility = AssertAllTrue<{
 
 export type PurgeCssCompatibleFieldCompatibility = AssertAllTrue<{
     defaultExtractor: AssertTrue<IsMutuallyAssignable<LocalPurgeCssOptions['defaultExtractor'], UpstreamPurgeCssOptions['defaultExtractor']>>;
-    safelist: AssertTrue<IsMutuallyAssignable<LocalPurgeCssOptions['safelist'], UpstreamPurgeCssOptions['safelist']>>;
+    // PurgeCSS 9 adds string patterns in deep/greedy safelists and RegExp dynamic attributes.
+    // Keep accepting the narrower PurgeCSS 8 options as well.
+    safelist: AssertTrue<IsAssignable<UpstreamPurgeCssOptions['safelist'], LocalPurgeCssOptions['safelist']>>;
+    dynamicAttributes: AssertTrue<IsAssignable<UpstreamPurgeCssOptions['dynamicAttributes'], LocalPurgeCssOptions['dynamicAttributes']>>;
     sourceMap: AssertTrue<IsAssignable<LocalPurgeCssOptions['sourceMap'], UpstreamPurgeCssOptions['sourceMap']>>;
 }>;
 

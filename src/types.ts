@@ -61,8 +61,8 @@ export type HtmlnanoPurgeCssSourceMapOptions = {
 };
 export type HtmlnanoPurgeCssSafelist = HtmlnanoPurgeCssPattern[] | {
     standard?: HtmlnanoPurgeCssPattern[];
-    deep?: RegExp[];
-    greedy?: RegExp[];
+    deep?: HtmlnanoPurgeCssPattern[];
+    greedy?: HtmlnanoPurgeCssPattern[];
     variables?: HtmlnanoPurgeCssPattern[];
     keyframes?: HtmlnanoPurgeCssPattern[];
 };
@@ -81,7 +81,7 @@ export interface HtmlnanoPurgeCssOptions {
     safelist?: HtmlnanoPurgeCssSafelist;
     blocklist?: HtmlnanoPurgeCssPattern[];
     skippedContentGlobs?: string[];
-    dynamicAttributes?: string[];
+    dynamicAttributes?: HtmlnanoPurgeCssPattern[];
 }
 
 export type SortAttributesOption = 'alphabetical' | 'frequency';

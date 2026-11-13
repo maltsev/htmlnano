@@ -4,18 +4,24 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: Run tests (Node.js ${{ matrix.node-version }}, cssnano ${{ matrix.cssnano-version }})
+    name: Run tests (Node.js ${{ matrix.node-version }}, cssnano ${{ matrix.cssnano-version }}, PurgeCSS ${{ matrix.purgecss-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
         # See supported Node.js release schedule at https://github.com/nodejs/Release#release-schedule
         node-version: ['22', '24', current]
         cssnano-version: ['9']
+        purgecss-version: ['9']
         include:
           - node-version: '24'
             cssnano-version: '7'
+            purgecss-version: '9'
           - node-version: '24'
             cssnano-version: '8'
+            purgecss-version: '9'
+          - node-version: '24'
+            cssnano-version: '9'
+            purgecss-version: '8'
 
     steps:
       - uses: actions/checkout@v7
@@ -30,7 +36,7 @@ jobs:
       # Lint against the development dependency types; cssnano 7 has untyped options.
       - run: npm run lint
 
-      - run: npm install --no-save --package-lock=false cssnano@${{ matrix.cssnano-version }}
+      - run: npm install --no-save --package-lock=false cssnano@${{ matrix.cssnano-version }} purgecss@${{ matrix.purgecss-version }}
 
       - run: |
           npm run build

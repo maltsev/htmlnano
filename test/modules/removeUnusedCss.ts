@@ -192,7 +192,8 @@ describe('removeUnusedCss (purgeCSS)', function () {
 
     it('should propagate invalid PurgeCSS configuration', async () => {
         await expect(htmlnano.process('<style>.unused{color:red}</style><p>Content</p>', {
-            removeUnusedCss: { tool: 'purgeCSS', safelist: { greedy: [null] } },
+            // PurgeCSS 9 ignores invalid pattern entries; an invalid list still throws.
+            removeUnusedCss: { tool: 'purgeCSS', safelist: { greedy: null } },
             skipConfigLoading: true
         }, {})).rejects.toThrow();
     });
