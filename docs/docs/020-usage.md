@@ -55,6 +55,7 @@ Add `htmlnano` as a final plugin:
 
 ```js
 const posthtml = require('posthtml');
+const htmlnano = require('htmlnano');
 const options = {
     removeComments: false,
     collapseWhitespace: 'conservative'
@@ -62,10 +63,11 @@ const options = {
 const posthtmlPlugins = [
     /* other PostHTML plugins */
 
-    require('htmlnano')(options)
+    htmlnano(options)
 ];
 
 const posthtmlOptions = {
+    parser: htmlnano.parser,
     // See PostHTML docs
 };
 
@@ -78,6 +80,11 @@ posthtml(posthtmlPlugins)
         console.error(err);
     });
 ```
+
+Use `htmlnano.parser` when configuring PostHTML. PostHTML's default parser can
+interpret literal `<textarea>` content as elements and change its value before
+plugins run. `htmlnano.process()` and the CLI already use this parser. A custom
+`parser` passed to `htmlnano.process()` takes precedence over the default.
 
 ## CLI
 
@@ -200,7 +207,7 @@ gulp.task('default', function () {
         .pipe(posthtml([
             // Add `htmlnano` as a final plugin
             htmlnano(options)
-        ]))
+        ], { parser: htmlnano.parser }))
         .pipe(gulp.dest('./build'));
 });
 ```

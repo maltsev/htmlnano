@@ -95,6 +95,7 @@
     "cosmiconfig": "^10.0.0",
     "entities": "^9.0.0",
     "posthtml": "^0.16.5",
+    "posthtml-parser": "^0.12.1",
     "tinyglobby": "^0.2.17"
   },
   "devDependencies": {
@@ -121,7 +122,6 @@
     "mocha": "^12.0.0",
     "parse5": "^8.0.1",
     "postcss": "^8.3.11",
-    "posthtml-parser": "^0.13.0",
     "posthtml-render": "^3.0.0",
     "publint": "^0.3.21",
     "purgecss": "^9.1.0",

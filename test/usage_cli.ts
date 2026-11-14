@@ -29,6 +29,15 @@ describe('[cli]', () => {
         expect(stdout.trim()).toBe(minifiedHtmlMax);
     });
 
+    it('preserves literal textarea content', () => {
+        const html = '<textarea><input disabled="disabled"></textarea>';
+        const stdout = execFileSync(process.execPath, [bin], {
+            input: html,
+            encoding: 'utf8'
+        });
+        expect(stdout.trim()).toBe(html);
+    });
+
     it('--preset invalid', () => {
         const res = spawnSync(process.execPath, [bin, '-p', 'invalid'], {
             input: inputHtml,

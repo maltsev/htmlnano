@@ -18,6 +18,12 @@ describe('[commonjs usage]', () => {
         });
     });
 
+    it('preserves literal textarea content through both APIs', async () => {
+        const html = '<textarea><input disabled="disabled"></textarea>';
+        expect((await htmlnano.process(html)).html).toBe(html);
+        expect((await posthtml([htmlnano()]).process(html, { parser: htmlnano.parser })).html).toBe(html);
+    });
+
     it('default export', () => {
         // assigning module.exports drops the bundler's exports.default, which breaks interop
         // consumers and the modules that reach back into htmlnano itself

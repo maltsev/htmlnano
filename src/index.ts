@@ -1,4 +1,5 @@
 import posthtml from 'posthtml';
+import { parser } from 'posthtml-parser';
 import { cosmiconfigSync } from 'cosmiconfig';
 import { hasOwn } from './helpers.js';
 import safePreset from './presets/safe.js';
@@ -9,6 +10,7 @@ import type PostHTML from 'posthtml';
 import { serializedContentNodes } from './_modules/helpers/serializedContent.js';
 
 export type * from './types';
+export { parser };
 
 /**
  * Maps each module name to its own option type, derived from HtmlnanoOptions.
@@ -301,6 +303,7 @@ const htmlnano = Object.assign(function htmlnano(optionsRun: HtmlnanoOptions = {
     return minifier;
 }, {
     presets,
+    parser,
     getRequiredOptionalDependencies,
     process,
     htmlMinimizerWebpackPluginMinify,
@@ -327,8 +330,9 @@ export function process(
     preset?: HtmlnanoPreset,
     postHtmlOptions?: PostHTML.Options
 ) {
+    // PostHTML's bundled parser treats textarea content as HTML rather than RCDATA.
     return posthtml([htmlnano(options, preset)])
-        .process(html, postHtmlOptions);
+        .process(html, { ...postHtmlOptions, parser: postHtmlOptions?.parser ?? parser });
 }
 
 // https://github.com/webpack-contrib/html-minimizer-webpack-plugin/blob/faca00f2219514bc671c5942685721f0b5dbaa70/src/utils.js#L74
